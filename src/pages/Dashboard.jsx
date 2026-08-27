@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { LayoutDashboard, File as FileEdit, Inbox, CalendarDays, Image as ImageIcon, Settings as SettingsIcon, ExternalLink, ChevronRight, ChevronLeft, Bell, Plus, X, Upload, Clock, Search, Check, MoveHorizontal as MoreHorizontal, Briefcase, Trash2, GripVertical, Mail, CalendarPlus, Wallet, Users, Plane, Globe, ArrowUp, UserPlus, FileText, Contact as Contact2, UserCog, ListChecks, LayoutTemplate, User, Calendar, Phone, MapPin, Building2, Landmark, TextCursorInput, AlignLeft, List, ChevronDown, SquareCheck as CheckSquare, Circle, Star, Hash, PenLine, Send, CreditCard, Monitor, Smartphone, ArrowLeft, Pencil, Package, Lock, LogOut, Eye, EyeOff, Loader as Loader2 } from "lucide-react";
-import { supabase } from "../lib/supabase.js";
+import { supabase, uploadCatalogImage } from "../lib/supabase.js";
 import { dbRowToService, serviceToDbRow, getPriceLabel } from "../lib/catalog.js";
 import { fetchAllPagesForEditor, saveContentBlock, fetchSiteSettings, saveSiteSettings } from "../lib/content.js";
 
@@ -304,17 +304,53 @@ function LabeledSelect({ label, value, onChange, options }) {
 function ToggleRow({ label, checked, onChange }) {
   return (<label className="flex items-center gap-2.5 text-sm cursor-pointer" style={{ color: T.ink, ...fontBody }}><input type="checkbox" checked={!!checked} onChange={e => onChange(e.target.checked)} style={{ accentColor: T.accent }} />{label}</label>);
 }
+function ImagePickerButton({ onPicked, label = "Replace Image", compact = false }) {
+  const inputRef = useRef(null);
+  const [uploading, setUploading] = useState(false);
+  const [err, setErr] = useState("");
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true); setErr("");
+    try {
+      const url = await uploadCatalogImage(file);
+      onPicked(url);
+    } catch (error) {
+      setErr("Upload failed. Please try a smaller image (under 5MB).");
+    } finally {
+      setUploading(false);
+      if (e.target) e.target.value = "";
+    }
+  };
+  return (<div className="flex flex-col gap-1"><input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={handleFile} style={{ display: "none" }} /><button onClick={() => inputRef.current?.click()} disabled={uploading} className={compact ? "px-3 py-2 rounded-lg text-xs flex items-center gap-1.5" : "px-3 py-2 rounded-lg text-xs flex items-center gap-1.5"} style={{ backgroundColor: T.accentSoft, color: T.accent, ...fontBody, opacity: uploading ? 0.6 : 1 }}>{uploading ? "Uploading..." : <><Upload size={13} /> {label}</>}</button>{err && <span className="text-xs" style={{ color: T.danger, ...fontBody }}>{err}</span>}</div>);
+}
 function GalleryEditor({ label, images, onChange }) {
-  const addImage = () => onChange([...(images || []), `https://picsum.photos/seed/gallery${Date.now()}/300/200`]);
+  const inputRef = useRef(null);
+  const [uploading, setUploading] = useState(false);
+  const [err, setErr] = useState("");
+  const handleFile = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    setUploading(true); setErr("");
+    try {
+      const urls = await Promise.all(files.map(f => uploadCatalogImage(f)));
+      onChange([...(images || []), ...urls]);
+    } catch (error) {
+      setErr("Upload failed. Please try smaller images (under 5MB each).");
+    } finally {
+      setUploading(false);
+      if (e.target) e.target.value = "";
+    }
+  };
   const removeImage = (idx) => onChange(images.filter((_, i) => i !== idx));
-  return (<div><label className="text-xs block mb-1.5" style={{ color: T.muted, ...fontBody }}>{label}</label><div className="flex flex-wrap gap-2">{(images || []).map((img, i) => (<div key={i} className="relative"><img src={img} alt="" className="w-16 h-12 object-cover rounded-md" style={{ border: `1px solid ${T.border}` }} /><button onClick={() => removeImage(i)} className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center" style={{ backgroundColor: T.danger }}><X size={10} color="#fff" /></button></div>))}<button onClick={addImage} className="w-16 h-12 rounded-md flex items-center justify-center" style={{ border: `1.5px dashed ${T.border}`, backgroundColor: T.bg }}><Plus size={14} style={{ color: T.muted }} /></button></div></div>);
+  return (<div><label className="text-xs block mb-1.5" style={{ color: T.muted, ...fontBody }}>{label}</label><div className="flex flex-wrap gap-2">{(images || []).map((img, i) => (<div key={i} className="relative"><img src={img} alt="" className="w-16 h-12 object-cover rounded-md" style={{ border: `1px solid ${T.border}` }} /><button onClick={() => removeImage(i)} className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center" style={{ backgroundColor: T.danger }}><X size={10} color="#fff" /></button></div>))}<input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple onChange={handleFile} style={{ display: "none" }} /><button onClick={() => inputRef.current?.click()} disabled={uploading} className="w-16 h-12 rounded-md flex items-center justify-center" style={{ border: `1.5px dashed ${T.border}`, backgroundColor: T.bg }}>{uploading ? <Loader2 size={14} className="animate-spin" style={{ color: T.muted }} /> : <Plus size={14} style={{ color: T.muted }} />}</button></div>{err && <span className="text-xs mt-1 block" style={{ color: T.danger, ...fontBody }}>{err}</span>}</div>);
 }
 
 function FieldInput({ field, onChange }) {
   const base = "w-full rounded-lg px-3 py-2 text-sm outline-none";
   const style = { border: `1px solid ${T.border}`, color: T.ink, ...fontBody, backgroundColor: T.bg };
   if (field.type === "textarea") return <textarea rows={3} className={base} style={style} value={field.value} onChange={e => onChange(e.target.value)} />;
-  if (field.type === "image") return (<div className="flex items-center gap-3"><img src={field.value} alt="" className="w-20 h-14 object-cover rounded-lg" style={{ border: `1px solid ${T.border}` }} /><button className="px-3 py-2 rounded-lg text-xs flex items-center gap-1.5" style={{ backgroundColor: T.accentSoft, color: T.accent, ...fontBody }}><Upload size={13} /> Replace Image</button></div>);
+  if (field.type === "image") return (<div className="flex items-center gap-3"><img src={field.value} alt="" className="w-20 h-14 object-cover rounded-lg" style={{ border: `1px solid ${T.border}` }} /><ImagePickerButton onPicked={onChange} /></div>);
   return <input className={base} style={style} value={field.value} onChange={e => onChange(e.target.value)} />;
 }
 
@@ -449,7 +485,7 @@ function ServiceForm({ draft, update, currency }) {
       <LabeledSelect label="Pricing Type" value={draft.pricingType} onChange={v => update({ pricingType: v })} options={PRICING_TYPE_OPTIONS} />
       {draft.pricingType === "range" ? (<div className="grid grid-cols-2 gap-3"><LabeledInput label={`Min Price (${currency})`} value={draft.priceMin} onChange={v => update({ priceMin: v })} /><LabeledInput label={`Max Price (${currency})`} value={draft.priceMax} onChange={v => update({ priceMax: v })} /></div>) : (draft.pricingType !== "quote" && draft.pricingType !== "free") ? (<LabeledInput label={`Price (${currency})`} value={draft.price} onChange={v => update({ price: v })} />) : null}
       <LabeledInput label="Duration" placeholder="e.g. 45 minutes, 3-5 business days" value={draft.duration} onChange={v => update({ duration: v })} />
-      <div><label className="text-xs block mb-1.5" style={{ color: T.muted, ...fontBody }}>Featured Image</label><div className="flex items-center gap-3"><img src={draft.image} alt="" className="w-20 h-14 object-cover rounded-lg" style={{ border: `1px solid ${T.border}` }} /><button className="px-3 py-2 rounded-lg text-xs flex items-center gap-1.5" style={{ backgroundColor: T.accentSoft, color: T.accent, ...fontBody }}><Upload size={13} /> Replace Image</button></div></div>
+      <div><label className="text-xs block mb-1.5" style={{ color: T.muted, ...fontBody }}>Featured Image</label><div className="flex items-center gap-3"><img src={draft.image} alt="" className="w-20 h-14 object-cover rounded-lg" style={{ border: `1px solid ${T.border}` }} /><ImagePickerButton onPicked={v => update({ image: v })} /></div></div>
       <GalleryEditor label="Gallery Images" images={draft.gallery} onChange={v => update({ gallery: v })} />
       <LabeledInput label="CTA Button Label" value={draft.ctaLabel} onChange={v => update({ ctaLabel: v })} />
       <LabeledInput label="CTA Action / Link" placeholder="/booking or https://..." value={draft.ctaLink} onChange={v => update({ ctaLink: v })} />
@@ -469,7 +505,7 @@ function ProductForm({ draft, update, currency }) {
       <LabeledTextarea label="Full Description" rows={4} value={draft.fullDescription} onChange={v => update({ fullDescription: v })} />
       <div className="grid grid-cols-2 gap-3"><LabeledInput label={`Regular Price (${currency})`} value={draft.regularPrice} onChange={v => update({ regularPrice: v })} /><LabeledInput label={`Sale Price (${currency})`} placeholder="Optional" value={draft.salePrice} onChange={v => update({ salePrice: v })} /></div>
       <LabeledSelect label="Pricing Unit" value={draft.pricingUnit} onChange={v => update({ pricingUnit: v })} options={PRICING_UNIT_OPTIONS} />
-      <div><label className="text-xs block mb-1.5" style={{ color: T.muted, ...fontBody }}>Featured Image</label><div className="flex items-center gap-3"><img src={draft.image} alt="" className="w-20 h-14 object-cover rounded-lg" style={{ border: `1px solid ${T.border}` }} /><button className="px-3 py-2 rounded-lg text-xs flex items-center gap-1.5" style={{ backgroundColor: T.accentSoft, color: T.accent, ...fontBody }}><Upload size={13} /> Replace Image</button></div></div>
+      <div><label className="text-xs block mb-1.5" style={{ color: T.muted, ...fontBody }}>Featured Image</label><div className="flex items-center gap-3"><img src={draft.image} alt="" className="w-20 h-14 object-cover rounded-lg" style={{ border: `1px solid ${T.border}` }} /><ImagePickerButton onPicked={v => update({ image: v })} /></div></div>
       <GalleryEditor label="Gallery Images" images={draft.gallery} onChange={v => update({ gallery: v })} />
       <LabeledTextarea label="Inclusions" rows={2} value={draft.inclusions} onChange={v => update({ inclusions: v })} />
       <LabeledTextarea label="Exclusions" rows={2} value={draft.exclusions} onChange={v => update({ exclusions: v })} />
