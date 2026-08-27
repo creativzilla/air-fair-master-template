@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Pacifico&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Pacifico&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -13,7 +13,7 @@ body,
 body {
   min-width: 320px;
   background: #ffffff;
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'Poppins', sans-serif;
 }
 
 button,
@@ -30,7 +30,7 @@ a {
 
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
-body{margin:0;font-family:'DM Sans',sans-serif;color:#5B6C80;background:#fff}
+body{margin:0;font-family:'Poppins',sans-serif;color:#5B6C80;background:#fff}
 .travel-site{overflow:hidden}
 .section-shell{max-width:1080px;margin:0 auto;padding-left:24px;padding-right:24px}
 
@@ -65,8 +65,8 @@ body{margin:0;font-family:'DM Sans',sans-serif;color:#5B6C80;background:#fff}
 .hero-inner{position:relative;z-index:2;max-width:1080px;margin:auto;padding:24px;width:100%}
 .hero-copy{animation:heroIn .7s ease both}
 .hero-kicker{display:inline-block;background:#4B9B13;color:#fff;border-radius:14px;font-size:13px;font-weight:700;padding:7px 14px;margin-bottom:16px}
-.hero h1{font-size:48px;line-height:1.02;letter-spacing:.01em;margin:0 0 16px;font-weight:700;color:#fff}
-.hero h1 em{display:block;font-family:Pacifico,cursive;font-size:52px;line-height:1.1;color:#FFCB19;font-weight:400;letter-spacing:0}
+.hero h1{font-size:48px;line-height:1.05;letter-spacing:.01em;margin:0 0 16px;font-weight:800;color:#fff}
+.hero h1 em{display:block;font-family:'Pacifico',cursive;font-size:52px;line-height:1.1;color:#FFCB19;font-weight:400;letter-spacing:0}
 .hero p{max-width:480px;font-size:17px;line-height:1.7;color:#edf3f7;margin:0 0 22px}
 .hero-buttons{display:flex;gap:10px}
 .yellow-button{background:#FFCB19;color:#263b19}
@@ -90,9 +90,9 @@ body{margin:0;font-family:'DM Sans',sans-serif;color:#5B6C80;background:#fff}
 .destinations{padding-top:48px;padding-bottom:50px}
 .section-heading-row{display:flex;align-items:flex-end;justify-content:space-between}
 .section-title{margin-bottom:24px}
-.section-title h2{font-size:28px;line-height:1.15;color:#102B57;margin:0 0 8px;font-weight:700}
-.section-title p{font-size:15px;color:#718093;margin:0}
-.view-all{font-size:15px;color:#4B9B13;text-decoration:none;font-weight:700;margin-bottom:26px}
+.section-title h2{font-size:30px;line-height:1.15;color:#102B57;margin:0 0 8px;font-weight:700}
+.section-title p{font-size:16px;color:#718093;margin:0}
+.view-all{font-size:16px;color:#4B9B13;text-decoration:none;font-weight:600;margin-bottom:26px}
 .destination-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
 .destination-card{border:1px solid #E3E8ED;border-radius:10px;overflow:hidden;background:white;box-shadow:0 2px 5px #102d6807}
 .card-image{height:140px;position:relative}
@@ -110,9 +110,9 @@ body{margin:0;font-family:'DM Sans',sans-serif;color:#5B6C80;background:#fff}
 .deal-intro{background:#4B9B13;border-radius:10px;padding:28px 22px;color:#fff;display:flex;flex-direction:column;align-items:flex-start;justify-content:center}
 .eyebrow{display:inline-block;font-size:13px;letter-spacing:.05em;color:#4B9B13;font-weight:700;background:#eaf5d6;border-radius:12px;padding:5px 11px;margin-bottom:12px}
 .eyebrow.yellow{color:#FFCB19;background:transparent;padding:0}
-.deal-intro h2{font-size:28px;line-height:1.12;margin:0 0 12px;color:#fff}
+.deal-intro h2{font-size:30px;line-height:1.12;margin:0 0 12px;color:#fff;font-weight:700}
 .deal-intro h2 span{color:#FFCB19}
-.deal-intro p{font-size:15px;line-height:1.5;margin:0 0 20px;color:#e7f6d0}
+.deal-intro p{font-size:16px;line-height:1.5;margin:0 0 20px;color:#e7f6d0}
 .deal-intro .yellow-button{font-size:14px;padding:11px 18px}
 .deal-card{background:white;border-radius:10px;overflow:hidden;border:1px solid #dfe7d3;box-shadow:0 2px 5px #102d6808}
 .deal-image{height:140px;position:relative}
@@ -126,7 +126,7 @@ body{margin:0;font-family:'DM Sans',sans-serif;color:#5B6C80;background:#fff}
 .deal-bottom a{font-size:14px;color:#4B9B13;text-decoration:none}
 
 .services{display:grid;grid-template-columns:1fr 1fr;gap:65px;padding-top:64px;padding-bottom:62px;align-items:center}
-.services-copy h2{font-size:30px;line-height:1.2;color:#102B57;margin:0 0 14px;font-weight:700}
+.services-copy h2{font-size:32px;line-height:1.2;color:#102B57;margin:0 0 14px;font-weight:800}
 .services-copy>p{font-size:16px;line-height:1.65;color:#66778a;max-width:460px}
 .services-copy>p strong{color:#102B57}
 .service-buttons{display:flex;align-items:center;gap:10px;margin-top:20px}
@@ -173,9 +173,9 @@ body{margin:0;font-family:'DM Sans',sans-serif;color:#5B6C80;background:#fff}
 .retirement-inner{display:flex;align-items:center;justify-content:space-between;padding-top:36px;padding-bottom:36px}
 .retirement-inner>div:first-child{max-width:620px}
 .retirement-inner span{font-size:13px;color:#FFCB19;font-weight:700;letter-spacing:.06em}
-.retirement h2{font-size:26px;margin:9px 0 7px;color:#fff}
-.retirement h2 em{font-family:Pacifico,cursive;color:#FFCB19;font-size:28px;font-weight:400}
-.retirement p{font-size:15px;line-height:1.6;margin:0;color:#e2f1dc}
+.retirement h2{font-size:28px;margin:9px 0 7px;color:#fff;font-weight:700}
+.retirement h2 em{font-family:'Pacifico',cursive;color:#FFCB19;font-size:30px;font-weight:400}
+.retirement p{font-size:16px;line-height:1.6;margin:0;color:#e2f1dc}
 .retirement-actions{display:flex;gap:12px}
 .retirement-actions .outline-button{font-size:14px;padding:11px 18px;border-color:#fff;color:#fff}
 .retirement-actions .yellow-button{font-size:14px;padding:11px 18px}
@@ -192,7 +192,7 @@ body{margin:0;font-family:'DM Sans',sans-serif;color:#5B6C80;background:#fff}
 .testimonials-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;align-items:stretch}
 .testimonial-card{border:1px solid #E3E8ED;border-radius:10px;padding:18px 16px;min-height:180px}
 .quote{font-size:32px;line-height:.6;color:#4B9B13;font-weight:700}
-.testimonial-card>p{font-size:15px;line-height:1.65;color:#6c7b8c;min-height:80px}
+.testimonial-card>p{font-size:16px;line-height:1.65;color:#6c7b8c;min-height:80px}
 .client{border-top:1px solid #E3E8ED;padding-top:12px;display:flex;align-items:center;gap:8px}
 .client-avatar{width:30px;height:30px;border-radius:50%;background:#102D68;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px}
 .client strong{display:block;color:#102B57;font-size:15px}
@@ -201,15 +201,15 @@ body{margin:0;font-family:'DM Sans',sans-serif;color:#5B6C80;background:#fff}
 .newsletter-card{border-radius:10px;background:#4B9B13;color:#fff;padding:20px;display:flex;flex-direction:column;justify-content:center}
 .newsletter-card>svg{color:#FFCB19;margin-bottom:10px}
 .newsletter-card h3{font-size:18px;margin:0 0 8px}
-.newsletter-card p{font-size:14px;line-height:1.5;color:#e5f3d5;margin:0 0 12px}
+.newsletter-card p{font-size:15px;line-height:1.5;color:#e5f3d5;margin:0 0 12px}
 .newsletter-card input{border:0;border-radius:6px;background:#ffffff22;color:#fff;padding:11px;font-size:14px;outline:0;margin-bottom:8px}
 .newsletter-card input::placeholder{color:#d9f0c8}
 .newsletter-card button{border:0;border-radius:6px;background:#66ad1c;color:#fff;padding:11px;font-size:14px;font-weight:700}
 
 .contact-section{background:#102D68;color:#fff;padding:56px 0}
 .contact-layout{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center}
-.contact-layout h2{font-size:32px;line-height:1.2;color:#fff;margin:12px 0}
-.contact-layout>div>p{font-size:16px;line-height:1.7;color:#c4d3e7;max-width:440px}
+.contact-layout h2{font-size:34px;line-height:1.2;color:#fff;margin:12px 0;font-weight:800}
+.contact-layout>div>p{font-size:17px;line-height:1.7;color:#c4d3e7;max-width:440px}
 .contact-detail{font-size:16px;color:#d8e3f2;display:flex;align-items:center;gap:10px;margin-top:12px}
 .contact-detail svg{color:#FFCB19}
 .contact-form{background:#fff;border-radius:10px;padding:22px;display:grid;gap:12px}
@@ -218,7 +218,7 @@ body{margin:0;font-family:'DM Sans',sans-serif;color:#5B6C80;background:#fff}
 .sent-card{background:#fff;color:#102B57;border-radius:10px;padding:44px;text-align:center}
 .sent-card svg{color:#4B9B13}
 .sent-card h3{font-size:22px}
-.sent-card p{color:#5B6C80;font-size:16px}
+.sent-card p{color:#5B6C80;font-size:17px}
 
 footer{background:#102D68;color:#9fb2cc;border-top:1px solid #284477}
 .footer-grid{display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:50px;padding-top:42px;padding-bottom:36px}
@@ -293,7 +293,7 @@ footer{background:#102D68;color:#9fb2cc;border-top:1px solid #284477}
   .hero{height:720px}
   .hero-inner{padding:30px 40px}
   .hero-kicker{font-size:14px;padding:8px 16px}
-  .hero h1{font-size:56px}
+  .hero h1{font-size:56px;font-weight:800}
   .hero h1 em{font-size:60px}
   .hero p{font-size:18px;max-width:520px}
   .trust-row small{font-size:14px}
@@ -302,7 +302,7 @@ footer{background:#102D68;color:#9fb2cc;border-top:1px solid #284477}
   .hero-arrow svg{width:24px;height:24px}
 
   .destinations{padding-top:64px;padding-bottom:64px}
-  .section-title h2{font-size:32px}
+  .section-title h2{font-size:34px;font-weight:700}
   .section-title p{font-size:16px}
   .view-all{font-size:16px}
   .destination-grid{gap:16px}
@@ -318,7 +318,7 @@ footer{background:#102D68;color:#9fb2cc;border-top:1px solid #284477}
   .deals-section{padding:60px 0}
   .deal-layout{gap:16px}
   .deal-intro{padding:34px 28px}
-  .deal-intro h2{font-size:32px}
+  .deal-intro h2{font-size:34px;font-weight:700}
   .deal-intro p{font-size:16px}
   .deal-intro .yellow-button{font-size:15px;padding:13px 20px}
   .deal-image{height:170px}
@@ -330,7 +330,7 @@ footer{background:#102D68;color:#9fb2cc;border-top:1px solid #284477}
   .deal-badge{font-size:13px;padding:5px 9px}
 
   .services{gap:100px;padding-top:84px;padding-bottom:82px}
-  .services-copy h2{font-size:36px}
+  .services-copy h2{font-size:38px;font-weight:800}
   .services-copy>p{font-size:18px;max-width:520px}
   .service-buttons{gap:14px;margin-top:26px}
   .service-grid{gap:16px}
@@ -342,8 +342,8 @@ footer{background:#102D68;color:#9fb2cc;border-top:1px solid #284477}
 
   .retirement-inner{padding-top:44px;padding-bottom:44px}
   .retirement-inner span{font-size:14px}
-  .retirement h2{font-size:30px}
-  .retirement h2 em{font-size:32px}
+  .retirement h2{font-size:32px;font-weight:700}
+  .retirement h2 em{font-size:34px}
   .retirement p{font-size:16px}
   .retirement-actions .outline-button,.retirement-actions .yellow-button{font-size:15px;padding:13px 20px}
 
@@ -367,7 +367,7 @@ footer{background:#102D68;color:#9fb2cc;border-top:1px solid #284477}
 
   .contact-section{padding:76px 0}
   .contact-layout{gap:90px}
-  .contact-layout h2{font-size:38px}
+  .contact-layout h2{font-size:40px;font-weight:800}
   .contact-layout>div>p{font-size:18px;max-width:520px}
   .contact-detail{font-size:18px}
   .contact-form{padding:28px;gap:14px}
