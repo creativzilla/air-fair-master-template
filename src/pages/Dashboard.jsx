@@ -201,10 +201,10 @@ function Overview({ goTo, submissions, bookings, contacts, stages, currency }) {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl mb-1 flex items-center gap-2" style={{ ...fontDisplay, color: T.ink }}>Good morning, Air Fair Travel & Immigration <span>👋</span></h1>
-        <p className="text-sm" style={{ color: T.muted, ...fontBody }}>Here's what's happening with your website.</p>
+        <h1 className="text-2xl mb-1 flex items-center gap-2" style={{ ...fontDisplay, color: T.ink }}>Good morning! <span>👋</span></h1>
+        <p className="text-sm" style={{ color: T.muted, ...fontBody }}>Here's what's happening today.</p>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "1rem" }}>
+      <div className="dash-overview-stats">
         {stats.map((s, i) => {
           const Icon = s.icon;
           const tints = [{ bg: T.accentSoft, fg: T.accent }, { bg: T.infoSoft, fg: T.info }, { bg: T.tealSoft, fg: T.teal }, { bg: T.warnSoft, fg: T.warn }];
@@ -222,7 +222,7 @@ function Overview({ goTo, submissions, bookings, contacts, stages, currency }) {
       <div className="rounded-2xl p-5" style={{ backgroundColor: T.accentSoft, border: `1px solid ${T.border}` }}>
         <h2 className="text-sm font-semibold mb-1" style={{ color: T.ink, ...fontBody }}>Quick Actions</h2>
         <p className="text-xs mb-4" style={{ color: T.muted, ...fontBody }}>Access the tools you need most.</p>
-        <div className="flex flex-wrap gap-3">
+        <div className="dash-quick-actions">
           {[{ label: "Add Booking", target: "bookings", icon: CalendarPlus }, { label: "New Inquiry", target: "forms", icon: Mail }, { label: "Add to Pipeline", target: "pipeline", icon: UserPlus }, { label: "Upload Document", target: "media", icon: FileText }].map(a => (
             <button key={a.label} onClick={() => goTo(a.target)} className="px-4 py-2 rounded-lg text-sm flex items-center gap-2 hover:opacity-80 transition-opacity" style={{ backgroundColor: T.surface, color: T.ink, border: `1px solid ${T.border}`, ...fontBody }}>
               <a.icon size={15} style={{ color: T.accent }} /> {a.label}
@@ -1152,6 +1152,8 @@ export default function Dashboard() {
         .dash-mobile-overlay{display:none}
         .dash-catalog-mobile-editor{display:none}
         .dash-catalog-desktop-editor{display:block}
+        .dash-overview-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem}
+        .dash-quick-actions{display:flex;flex-wrap:wrap;gap:.75rem}
         @media(max-width:768px){
           .dash-desktop-sidebar{display:none!important}
           .dash-mobile-bar{display:flex!important}
@@ -1165,6 +1167,9 @@ export default function Dashboard() {
           .dash-mobile-hide{display:none!important}
           .dash-catalog-desktop-editor{display:none!important}
           .dash-catalog-mobile-editor{display:block!important}
+          .dash-overview-stats{grid-template-columns:repeat(2,1fr)!important;gap:10px!important}
+          .dash-quick-actions{display:grid!important;grid-template-columns:repeat(2,1fr)!important;gap:10px!important}
+          .dash-quick-actions button{justify-content:center!important;width:100%}
           .dash-modal-full{width:100%!important;max-width:none!important;border-radius:0!important;min-height:100vh!important}
         }
       `}</style>
