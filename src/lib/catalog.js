@@ -7,6 +7,7 @@ export function dbRowToService(row) {
     id: row.id,
     type: row.type,
     name: row.name,
+    slug: row.slug || row.name?.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""),
     category: row.category,
     shortDescription: row.short_description,
     fullDescription: row.full_description,
@@ -39,6 +40,7 @@ export function serviceToDbRow(svc) {
   const row = {
     type: svc.type,
     name: svc.name,
+    slug: svc.slug || svc.name?.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""),
     category: svc.category,
     short_description: svc.shortDescription,
     full_description: svc.fullDescription,

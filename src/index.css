@@ -252,6 +252,7 @@ footer{background:#102D68;color:#9fb2cc;border-top:1px solid #284477}
   .contact-layout{grid-template-columns:1fr;gap:28px}
   .hero h1{font-size:42px}
   .hero h1 em{font-size:44px}
+  .package-detail-grid{grid-template-columns:1fr!important;gap:24px!important}
 }
 
 @media(max-width:480px){

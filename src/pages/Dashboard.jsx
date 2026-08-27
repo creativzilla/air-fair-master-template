@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { LayoutDashboard, File as FileEdit, Inbox, CalendarDays, Image as ImageIcon, Settings as SettingsIcon, ExternalLink, ChevronRight, ChevronLeft, Bell, Plus, X, Upload, Clock, Search, Check, MoveHorizontal as MoreHorizontal, Briefcase, Trash2, GripVertical, Mail, CalendarPlus, Wallet, Users, Plane, Globe, ArrowUp, UserPlus, FileText, Contact as Contact2, UserCog, ListChecks, LayoutTemplate, User, Calendar, Phone, MapPin, Building2, Landmark, TextCursorInput, AlignLeft, List, ChevronDown, SquareCheck as CheckSquare, Circle, Star, Hash, PenLine, Send, CreditCard, Monitor, Smartphone, ArrowLeft, Pencil, Package, Lock, LogOut, Eye, EyeOff, Loader2 } from "lucide-react";
+import { LayoutDashboard, File as FileEdit, Inbox, CalendarDays, Image as ImageIcon, Settings as SettingsIcon, ExternalLink, ChevronRight, ChevronLeft, Bell, Plus, X, Upload, Clock, Search, Check, MoveHorizontal as MoreHorizontal, Briefcase, Trash2, GripVertical, Mail, CalendarPlus, Wallet, Users, Plane, Globe, ArrowUp, UserPlus, FileText, Contact as Contact2, UserCog, ListChecks, LayoutTemplate, User, Calendar, Phone, MapPin, Building2, Landmark, TextCursorInput, AlignLeft, List, ChevronDown, SquareCheck as CheckSquare, Circle, Star, Hash, PenLine, Send, CreditCard, Monitor, Smartphone, ArrowLeft, Pencil, Package, Lock, LogOut, Eye, EyeOff, Loader as Loader2 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { dbRowToService, serviceToDbRow, getPriceLabel } from "../lib/catalog.js";
 import { fetchAllPagesForEditor, saveContentBlock, fetchSiteSettings, saveSiteSettings } from "../lib/content.js";
@@ -463,6 +463,7 @@ function ProductForm({ draft, update, currency }) {
   return (
     <div className="flex flex-col gap-3.5">
       <LabeledInput label="Product / Package Name" value={draft.name} onChange={v => update({ name: v })} />
+      <LabeledInput label="Page Slug" placeholder="e.g. boracay-all-in-package" value={draft.slug} onChange={v => update({ slug: v })} />
       <LabeledInput label="Category" value={draft.category} onChange={v => update({ category: v })} />
       <LabeledTextarea label="Short Description" rows={2} value={draft.shortDescription} onChange={v => update({ shortDescription: v })} />
       <LabeledTextarea label="Full Description" rows={4} value={draft.fullDescription} onChange={v => update({ fullDescription: v })} />
@@ -487,7 +488,7 @@ function AddOfferingModal({ onClose, onChoose }) {
 }
 
 const emptyServiceDraft = { type: "service", name: "", category: "", shortDescription: "", fullDescription: "", pricingType: "starting", price: "", priceMin: "", priceMax: "", duration: "", image: "https://picsum.photos/seed/newservice/300/200", gallery: [], ctaLabel: "Learn More", ctaLink: "", featured: false, status: "Draft" };
-const emptyProductDraft = { type: "product", name: "", category: "", shortDescription: "", fullDescription: "", regularPrice: "", salePrice: "", pricingUnit: "per person", image: "https://picsum.photos/seed/newproduct/300/200", gallery: [], inclusions: "", exclusions: "", availability: "", startDate: "", endDate: "", ctaLabel: "Book Now", ctaLink: "", featured: false, status: "Draft" };
+const emptyProductDraft = { type: "product", name: "", slug: "", category: "", shortDescription: "", fullDescription: "", regularPrice: "", salePrice: "", pricingUnit: "per person", image: "https://picsum.photos/seed/newproduct/300/200", gallery: [], inclusions: "", exclusions: "", availability: "", startDate: "", endDate: "", ctaLabel: "Book Now", ctaLink: "", featured: false, status: "Draft" };
 
 function Catalog({ services, onSaveService, onDeleteService, categories, currency }) {
   const [tab, setTab] = useState("all");

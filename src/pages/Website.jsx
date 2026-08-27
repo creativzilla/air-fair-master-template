@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ArrowRight, ChevronLeft, ChevronRight, Facebook, Instagram, Linkedin, Mail, MapPin, Phone, Plane, Search, ShieldCheck, Star, Ticket, UserRound, WalletCards, X, Menu } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight, Facebook, Instagram, Linkedin, Mail, MapPin, Phone, Plane, Search, ShieldCheck, Star, Ticket, UserRound, WalletCards, X, Menu, Check, CalendarDays } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
+import { useParams } from "react-router-dom";
 import { dbRowToService, getPriceLabel } from "../lib/catalog.js";
 import { fetchPublishedPages, fetchPublishedTestimonials, fetchSiteSettings } from "../lib/content.js";
 
@@ -38,17 +39,17 @@ const fallbackSlides = [
 ];
 
 const destinationCards = [
-  { name: "Boracay", country: "Aklan, Philippines", price: "8,500", image: "https://picsum.photos/seed/boracay-airfair/480/320", discount: "-20%" },
-  { name: "El Nido", country: "Palawan, Philippines", price: "12,000", image: "https://picsum.photos/seed/elnido-airfair/480/320", discount: "-20%" },
-  { name: "Bohol", country: "Bohol, Philippines", price: "7,800", image: "https://picsum.photos/seed/bohol-airfair/480/320", discount: "-25%" },
-  { name: "Puerto Princesa", country: "Palawan, Philippines", price: "9,500", image: "https://picsum.photos/seed/puertoprincesa-airfair/480/320", discount: "-20%" },
-  { name: "Central Vietnam", country: "Da Nang / Hoi An", price: "689", image: "https://picsum.photos/seed/vietnam-airfair/480/320", discount: "-23%" },
+  { name: "Boracay", country: "Aklan, Philippines", price: "8,500", image: "https://picsum.photos/seed/boracay-airfair/480/320", discount: "-20%", slug: "boracay" },
+  { name: "El Nido", country: "Palawan, Philippines", price: "12,000", image: "https://picsum.photos/seed/elnido-airfair/480/320", discount: "-20%", slug: "el-nido" },
+  { name: "Bohol", country: "Bohol, Philippines", price: "7,800", image: "https://picsum.photos/seed/bohol-airfair/480/320", discount: "-25%", slug: "bohol" },
+  { name: "Puerto Princesa", country: "Palawan, Philippines", price: "9,500", image: "https://picsum.photos/seed/puertoprincesa-airfair/480/320", discount: "-20%", slug: "puerto-princesa" },
+  { name: "Central Vietnam", country: "Da Nang / Hoi An", price: "689", image: "https://picsum.photos/seed/vietnam-airfair/480/320", discount: "-23%", slug: "central-vietnam" },
 ];
 
 const dealCards = [
-  { name: "Boracay All-In Package", details: "3D2N | Flights + Hotel + Transfers", price: "9,500", image: "https://picsum.photos/seed/boracay-sail/640/420", badge: "Best Seller", badgeColor: colors.green },
-  { name: "El Nido Island Escape", details: "4D3N | Flights + Hotel + Tours + Guide", price: "14,500", image: "https://picsum.photos/seed/elnido-lagoon/640/420", badge: "Hot Deal", badgeColor: "#D7443E" },
-  { name: "Vietnam Discovery", details: "5D4N | Flights + Hotel + Tours", price: "689", image: "https://picsum.photos/seed/vietnam-bridge/640/420", badge: "New Offer", badgeColor: "#2385A3" },
+  { name: "Boracay All-In Package", details: "3D2N | Flights + Hotel + Transfers", price: "9,500", image: "https://picsum.photos/seed/boracay-sail/640/420", badge: "Best Seller", badgeColor: colors.green, slug: "boracay-all-in-package" },
+  { name: "El Nido Island Escape", details: "4D3N | Flights + Hotel + Tours + Guide", price: "14,500", image: "https://picsum.photos/seed/elnido-lagoon/640/420", badge: "Hot Deal", badgeColor: "#D7443E", slug: "el-nido-island-escape" },
+  { name: "Vietnam Discovery", details: "5D4N | Flights + Hotel + Tours", price: "689", image: "https://picsum.photos/seed/vietnam-bridge/640/420", badge: "New Offer", badgeColor: "#2385A3", slug: "vietnam-discovery" },
 ];
 
 const visaServices = [
@@ -124,19 +125,21 @@ function Hero({ content }) {
 }
 
 function DestinationCard({ item }) {
-  return <article className="destination-card"><div className="card-image"><img src={item.image} alt={item.name} /><span className="discount">{item.discount}</span></div><div className="destination-body"><div><h3>{item.name}</h3><p>{item.country}</p></div><div className="rating"><Star size={11} fill={colors.yellow} color={colors.yellow} /> <span>4.9</span></div><strong>₱{item.price}</strong><small>per person</small></div></article>;
+  return <a className="destination-card" href={`/package/${item.slug}`}><div className="card-image"><img src={item.image} alt={item.name} /><span className="discount">{item.discount}</span></div><div className="destination-body"><div><h3>{item.name}</h3><p>{item.country}</p></div><div className="rating"><Star size={11} fill={colors.yellow} color={colors.yellow} /> <span>4.9</span></div><strong>{item.priceLabel || `₱${item.price}`}</strong><small>per person</small></div></a>;
 }
 
-function Destinations() {
-  return <section id="destinations" className="destinations section-shell"><div className="section-heading-row"><SectionTitle title="Popular Destinations ✈" description="Discover the best of the Philippines and top international destinations" /><a className="view-all" href="#deals">View All →</a></div><div className="destination-grid">{destinationCards.map(item => <DestinationCard key={item.name} item={item} />)}</div></section>;
+function Destinations({ products }) {
+  const items = products.length ? products.slice(0, 5).map((item, index) => ({ ...item, country: item.category || "Travel Package", priceLabel: getPriceLabel(item), discount: index % 2 ? "-20%" : "Featured" })) : destinationCards;
+  return <section id="destinations" className="destinations section-shell"><div className="section-heading-row"><SectionTitle title="Popular Destinations ✈" description="Discover the best of the Philippines and top international destinations" /><a className="view-all" href="#deals">View All →</a></div><div className="destination-grid">{items.map(item => <DestinationCard key={item.id || item.name} item={item} />)}</div></section>;
 }
 
 function DealCard({ deal }) {
-  return <article className="deal-card"><div className="deal-image"><img src={deal.image} alt={deal.name} /><span className="deal-badge" style={{ backgroundColor: deal.badgeColor }}>{deal.badge}</span></div><div className="deal-content"><h3>{deal.name}</h3><p>{deal.details}</p><div className="deal-bottom"><strong>₱{deal.price}</strong><a href="#contact">View Details →</a></div></div></article>;
+  return <a className="deal-card" href={`/package/${deal.slug}`}><div className="deal-image"><img src={deal.image} alt={deal.name} /><span className="deal-badge" style={{ backgroundColor: deal.badgeColor }}>{deal.badge}</span></div><div className="deal-content"><h3>{deal.name}</h3><p>{deal.details}</p><div className="deal-bottom"><strong>{deal.priceLabel || `₱${deal.price}`}</strong><span>View Details →</span></div></div></a>;
 }
 
-function Deals() {
-  return <section id="deals" className="deals-section"><div className="section-shell"><div className="deal-layout"><div className="deal-intro"><span className="eyebrow yellow">LIMITED TIME</span><h2>Top Deals<br /><span>This Week</span></h2><p>Exclusive packages at unbeatable prices — don't miss out!</p><a className="yellow-button" href="#contact">Grab Deals →</a></div>{dealCards.map(deal => <DealCard key={deal.name} deal={deal} />)}</div></div></section>;
+function Deals({ products }) {
+  const items = products.length ? products.slice(0, 3).map((item, index) => ({ ...item, details: item.shortDescription || item.availability || "Travel package details available", priceLabel: getPriceLabel(item), badge: index === 0 ? "Featured" : "Package", badgeColor: index === 1 ? "#D7443E" : colors.green })) : dealCards;
+  return <section id="deals" className="deals-section"><div className="section-shell"><div className="deal-layout"><div className="deal-intro"><span className="eyebrow yellow">LIMITED TIME</span><h2>Top Deals<br /><span>This Week</span></h2><p>Exclusive packages at unbeatable prices — don't miss out!</p><a className="yellow-button" href="#contact">Grab Deals →</a></div>{items.map(deal => <DealCard key={deal.id || deal.name} deal={deal} />)}</div></div></section>;
 }
 
 function Services({ content, settings }) {
@@ -181,16 +184,117 @@ function ChatWidget({ code }) {
   return <a className="chat-bubble" href="#contact" aria-label="Contact Air Fair"><Mail size={21} /></a>;
 }
 
+export function PackageDetailPage() {
+  const { slug } = useParams();
+  const [item, setItem] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [settings, setSettings] = useState(fallbackSettings);
+  const [galleryIndex, setGalleryIndex] = useState(0);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [settingsData] = await Promise.all([fetchSiteSettings()]);
+        if (settingsData) setSettings({ ...fallbackSettings, ...settingsData });
+        const { data } = await supabase.from("services").select("*").eq("status", "Published").eq("slug", slug).maybeSingle();
+        if (data) setItem(dbRowToService(data));
+      } catch (err) {
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [slug]);
+
+  useEffect(() => {
+    if (item) document.title = `${item.name} | ${settings.business_name || fallbackSettings.business_name}`;
+  }, [item, settings.business_name]);
+
+  if (loading) {
+    return <div className="travel-site"><TopBars settings={settings} /><div className="section-shell" style={{ padding: "120px 0", textAlign: "center", color: colors.text }}><p>Loading package details...</p></div><Footer settings={settings} /></div>;
+  }
+
+  if (!item) {
+    return <div className="travel-site"><TopBars settings={settings} /><div className="section-shell" style={{ padding: "120px 0", textAlign: "center" }}><h2 style={{ color: colors.ink, fontSize: 28, marginBottom: 12 }}>Package not found</h2><p style={{ color: colors.text, marginBottom: 24 }}>We couldn't find this package. It may have been removed or unpublished.</p><a href="/" className="yellow-button">← Back to Home</a></div><Footer settings={settings} /></div>;
+  }
+
+  const currency = settings.currency_symbol || "₱";
+  const galleryImages = item.gallery && item.gallery.length > 0 ? item.gallery : [item.image];
+  const inclusions = item.inclusions ? item.inclusions.split("\n").filter(Boolean) : [];
+  const exclusions = item.exclusions ? item.exclusions.split("\n").filter(Boolean) : [];
+  const priceLabel = getPriceLabel(item, currency);
+
+  return <div className="travel-site">
+    <TopBars settings={settings} />
+    <section className="section-shell" style={{ paddingTop: 40, paddingBottom: 60 }}>
+      <a href="/" style={{ display: "inline-flex", alignItems: "center", gap: 6, color: colors.text, fontSize: 14, marginBottom: 20, textDecoration: "none" }}><ChevronLeft size={16} /> Back to Home</a>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 48, alignItems: "start" }} className="package-detail-grid">
+        <div>
+          <div style={{ borderRadius: 16, overflow: "hidden", marginBottom: 12, aspectRatio: "4/3" }}>
+            <img src={galleryImages[galleryIndex]} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          </div>
+          {galleryImages.length > 1 && (
+            <div style={{ display: "flex", gap: 8, overflowX: "auto" }}>
+              {galleryImages.map((img, i) => (
+                <button key={i} onClick={() => setGalleryIndex(i)} style={{ borderRadius: 8, overflow: "hidden", border: `2px solid ${i === galleryIndex ? colors.green : colors.line}`, cursor: "pointer", flexShrink: 0 }}>
+                  <img src={img} alt="" style={{ width: 72, height: 54, objectFit: "cover" }} />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <div>
+          {item.category && <span style={{ display: "inline-block", padding: "4px 12px", borderRadius: 20, fontSize: 12, fontWeight: 600, backgroundColor: colors.greenSoft, color: colors.greenDark, marginBottom: 12 }}>{item.category}</span>}
+          <h1 style={{ fontSize: 30, color: colors.ink, marginBottom: 8, lineHeight: 1.2 }}>{item.name}</h1>
+          {item.shortDescription && <p style={{ fontSize: 16, color: colors.text, lineHeight: 1.6, marginBottom: 20 }}>{item.shortDescription}</p>}
+          {priceLabel && <div style={{ marginBottom: 20 }}><span style={{ fontSize: 28, fontWeight: 700, color: colors.green }}>{priceLabel}</span></div>}
+          {item.availability && <div style={{ display: "flex", alignItems: "center", gap: 8, color: colors.text, fontSize: 14, marginBottom: 16 }}><CalendarDays size={16} /> {item.availability}</div>}
+          {item.startDate && item.endDate && <div style={{ display: "flex", alignItems: "center", gap: 8, color: colors.text, fontSize: 14, marginBottom: 16 }}><CalendarDays size={16} /> {item.startDate} — {item.endDate}</div>}
+          <div style={{ display: "flex", gap: 12, marginBottom: 28 }}>
+            <a href="#contact" className="yellow-button" style={{ textDecoration: "none" }}>{item.ctaLabel || "Book Now"} <ArrowRight size={14} /></a>
+            <a href={`tel:${settings.contact_phone || fallbackSettings.contact_phone}`} className="phone-button" style={{ textDecoration: "none" }}><Phone size={14} /> Call Us</a>
+          </div>
+          {inclusions.length > 0 && (
+            <div style={{ marginBottom: 24 }}>
+              <h3 style={{ fontSize: 16, color: colors.ink, marginBottom: 12 }}>Inclusions</h3>
+              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+                {inclusions.map((inc, i) => <li key={i} style={{ display: "flex", alignItems: "start", gap: 8, fontSize: 14, color: colors.text }}><Check size={16} style={{ color: colors.green, flexShrink: 0, marginTop: 2 }} /> {inc}</li>)}
+              </ul>
+            </div>
+          )}
+          {exclusions.length > 0 && (
+            <div>
+              <h3 style={{ fontSize: 16, color: colors.ink, marginBottom: 12 }}>Exclusions</h3>
+              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+                {exclusions.map((exc, i) => <li key={i} style={{ display: "flex", alignItems: "start", gap: 8, fontSize: 14, color: colors.text }}><X size={16} style={{ color: "#D7443E", flexShrink: 0, marginTop: 2 }} /> {exc}</li>)}
+              </ul>
+            </div>
+          )}
+        </div>
+      </div>
+      {item.fullDescription && (
+        <div style={{ marginTop: 48, maxWidth: 760 }}>
+          <h2 style={{ fontSize: 22, color: colors.ink, marginBottom: 16 }}>About this package</h2>
+          <p style={{ fontSize: 15, color: colors.text, lineHeight: 1.8, whiteSpace: "pre-wrap" }}>{item.fullDescription}</p>
+        </div>
+      )}
+    </section>
+    <Footer settings={settings} />
+    <ChatWidget code={settings.chat_widget_code} />
+  </div>;
+}
+
 export default function Website() {
   const [pages, setPages] = useState([]);
   const [testimonials, setTestimonials] = useState([]);
   const [settings, setSettings] = useState(fallbackSettings);
+  const [products, setProducts] = useState([]);
   useEffect(() => { (async () => { const [pageData, testimonialData, settingsData] = await Promise.all([fetchPublishedPages(), fetchPublishedTestimonials(), fetchSiteSettings()]); setPages(pageData); setTestimonials(testimonialData); if (settingsData) setSettings({ ...fallbackSettings, ...settingsData }); })(); }, []);
+  useEffect(() => { (async () => { const { data } = await supabase.from("services").select("*").eq("status", "Published").eq("type", "product").order("sort_order", { ascending: true }); if (data) setProducts(data.map(dbRowToService)); })(); }, []);
   useEffect(() => { document.title = settings.seo_title || fallbackSettings.seo_title; }, [settings.seo_title]);
   const homePage = pages.find(page => page.slug === "home");
   const section = type => homePage?.sections.find(item => item.template_type === type);
   const heroContent = section("hero");
   const servicesContent = section("services_preview");
   const testimonialsContent = section("testimonials");
-  return <div className="travel-site"><TopBars settings={settings} /><Hero content={heroContent} /><Destinations /><Deals /><Services content={servicesContent} settings={settings} /><Retirement /><Benefits /><Testimonials content={testimonialsContent} testimonials={testimonials} /><Contact settings={settings} /><Footer settings={settings} /><ChatWidget code={settings.chat_widget_code} /></div>;
+  return <div className="travel-site"><TopBars settings={settings} /><Hero content={heroContent} /><Destinations products={products} /><Deals products={products} /><Services content={servicesContent} settings={settings} /><Retirement /><Benefits /><Testimonials content={testimonialsContent} testimonials={testimonials} /><Contact settings={settings} /><Footer settings={settings} /><ChatWidget code={settings.chat_widget_code} /></div>;
 }
