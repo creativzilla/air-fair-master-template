@@ -52,12 +52,12 @@ const dealCards = [
 ];
 
 const visaServices = [
-  { icon: Ticket, code: "Tourist Visa", text: "Temporary visitor visa for leisure, business, or family visits." },
-  { icon: BriefcaseIcon, code: "9G Work Visa", text: "Pre-arranged employment visa with legal work authorization." },
-  { icon: UserRound, code: "13A Marriage Visa", text: "Immigrant visa by marriage for Filipino spouses." },
-  { icon: Plane, code: "SRRV / Retirement", text: "Special Resident Retiree's Visa for permanent residency." },
-  { icon: ShieldCheck, code: "ACR-I Card", text: "Alien Certificate of Registration — issuance, renewal, and cancellation." },
-  { icon: WalletCards, code: "Bureau Clearance", text: "Immigration clearance, blacklist lifting, and records verification." },
+  { icon: Ticket, code: "Tourist Visa Assistance", text: "Document checklist, application filing, and appointment booking for tourist visas." },
+  { icon: BriefcaseIcon, code: "Flight & Hotel Booking", text: "End-to-end booking for flights and accommodations, matched to your itinerary and budget." },
+  { icon: UserRound, code: "Visa Consultation", text: "One-on-one review of your documents and eligibility before you apply." },
+  { icon: Plane, code: "Travel Insurance", text: "Coverage options for medical, trip cancellation, and lost baggage." },
+  { icon: ShieldCheck, code: "Immigration Processing", text: "End-to-end assistance for immigrant visas, permanent residency, and work permits abroad." },
+  { icon: WalletCards, code: "Japan Cherry Blossom 6D5N", text: "6 days, 5 nights through Tokyo, Osaka, and Kyoto at peak sakura season." },
 ];
 
 function BriefcaseIcon(props) {
@@ -144,7 +144,7 @@ function Services({ content, settings }) {
   const [items, setItems] = useState([]);
   useEffect(() => { (async () => { const { data } = await supabase.from("services").select("*").eq("status", "Published").order("sort_order", { ascending: true }); if (data) setItems(data.map(dbRowToService)); })(); }, []);
   const cards = items.slice(0, 6);
-  const heading = content?.blocks?.heading || "Visa & Immigration Services";
+  const heading = content?.blocks?.heading || "Every step of your journey, covered.";
   return <section id="services" className="services section-shell"><div className="services-copy"><span className="eyebrow">EXPERT VISA CONSULTANTS</span><h2>{heading}</h2><p>Planning to study, work, retire, or settle in the Philippines — or heading abroad? Our certified immigration consultants guide you through every step of the process.</p><p><strong>At Air Fair, we are driven to pursue your VISA success.</strong> We handle everything from document preparation to submission and follow-up.</p><div className="service-buttons"><a className="green-button" href="#contact">Apply Now →</a><a className="phone-button" href={`tel:${settings.contact_phone || fallbackSettings.contact_phone}`}><Phone size={14} /> {settings.contact_phone || fallbackSettings.contact_phone}</a></div></div><div className="service-grid">{(cards.length ? cards : visaServices).map((item, index) => { const Icon = item.icon || visaServices[index % visaServices.length].icon; return <div className="service-tile" key={item.id || item.code || item.name}><Icon size={17} /><h3>{item.name || item.code}</h3><p>{item.shortDescription || item.text}</p></div>; })}</div></section>;
 }
 
