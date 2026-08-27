@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { LayoutDashboard, File as FileEdit, Inbox, CalendarDays, Image as ImageIcon, Settings as SettingsIcon, ExternalLink, ChevronRight, ChevronLeft, Bell, Plus, X, Upload, Clock, Search, Check, MoveHorizontal as MoreHorizontal, Briefcase, Trash2, GripVertical, Mail, CalendarPlus, Wallet, Users, Plane, Globe, ArrowUp, UserPlus, FileText, Contact as Contact2, UserCog, ListChecks, LayoutTemplate, User, Calendar, Phone, MapPin, Building2, Landmark, TextCursorInput, AlignLeft, List, ChevronDown, SquareCheck as CheckSquare, Circle, Star, Hash, PenLine, Send, CreditCard, Monitor, Smartphone, ArrowLeft, Pencil, Package } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { dbRowToService, serviceToDbRow, getPriceLabel } from "../lib/catalog.js";
+import { fetchAllPagesForEditor, saveContentBlock, fetchSiteSettings, saveSiteSettings } from "../lib/content.js";
 
 const T = {
   bg: "#F7F9F5", surface: "#FFFFFF", ink: "#151A22", muted: "#7C8894",
@@ -29,45 +30,7 @@ const NAV = [
   { id: "settings", label: "Settings", icon: SettingsIcon },
 ];
 
-const PAGES = [
-  { id: "home", name: "Home", sections: [
-    { id: "hero", type: "Hero", fields: [
-      { key: "heading", label: "Main Heading", type: "text", value: "Your Visa, Handled Right" },
-      { key: "subheading", label: "Subheading", type: "textarea", value: "Visa assistance, flight bookings, and travel planning for Filipinos heading abroad." },
-      { key: "image", label: "Background Image", type: "image", value: "https://picsum.photos/seed/hero/640/360" },
-      { key: "cta_text", label: "Button Text", type: "text", value: "Get a Free Consultation" },
-      { key: "cta_url", label: "Button Link", type: "url", value: "/booking" },
-    ]},
-    { id: "services-preview", type: "Services Preview", fields: [
-      { key: "heading", label: "Section Heading", type: "text", value: "How We Help You Travel" },
-      { key: "description", label: "Description", type: "textarea", value: "From visa filing to flight booking, we handle the paperwork so you don't have to." },
-    ]},
-    { id: "testimonials", type: "Testimonials", fields: [
-      { key: "heading", label: "Section Heading", type: "text", value: "Trusted by local business owners" },
-    ]},
-    { id: "cta", type: "CTA Section", fields: [
-      { key: "heading", label: "Heading", type: "text", value: "Ready to clean up your books?" },
-      { key: "cta_text", label: "Button Text", type: "text", value: "Get Started" },
-      { key: "cta_url", label: "Button Link", type: "url", value: "/contact" },
-    ]},
-  ]},
-  { id: "about", name: "About", sections: [
-    { id: "about-hero", type: "Hero", fields: [
-      { key: "heading", label: "Main Heading", type: "text", value: "Meet the Team" },
-      { key: "image", label: "Photo", type: "image", value: "https://picsum.photos/seed/about/640/360" },
-    ]},
-  ]},
-  { id: "services", name: "Services", sections: [
-    { id: "services-list", type: "Service Cards", fields: [
-      { key: "heading", label: "Heading", type: "text", value: "Our Services" },
-    ]},
-  ]},
-  { id: "contact", name: "Contact", sections: [
-    { id: "contact-form", type: "Contact Form", fields: [
-      { key: "heading", label: "Heading", type: "text", value: "Get in Touch" },
-    ]},
-  ]},
-];
+
 
 const FORM_TEMPLATES = [
   { id: 1, name: "Visa Inquiry Form", updatedOn: "Aug 20, 2026", updatedBy: "Bea Fernandez", fields: [
@@ -355,17 +318,85 @@ function FieldInput({ field, onChange }) {
   return <input className={base} style={style} value={field.value} onChange={e => onChange(e.target.value)} />;
 }
 
+const SECTION_FIELD_DEFS = {
+  hero: [
+    { key: "heading", label: "Main Heading", type: "text" },
+    { key: "subheading", label: "Subheading", type: "textarea" },
+    { key: "cta_text", label: "Button Text", type: "text" },
+    { key: "cta_url", label: "Button Link", type: "text" },
+  ],
+  services_preview: [
+    { key: "heading", label: "Section Heading", type: "text" },
+    { key: "subheading", label: "Subheading", type: "textarea" },
+  ],
+  testimonials: [
+    { key: "heading", label: "Section Heading", type: "text" },
+  ],
+  cta: [
+    { key: "heading", label: "Heading", type: "text" },
+    { key: "subheading", label: "Subheading", type: "textarea" },
+    { key: "cta_text", label: "Button Text", type: "text" },
+    { key: "cta_url", label: "Button Link", type: "text" },
+  ],
+};
+
+const TEMPLATE_LABELS = {
+  hero: "Hero", services_preview: "Services Preview",
+  testimonials: "Testimonials", cta: "CTA Section",
+};
+
 function EditWebsite() {
-  const [pageId, setPageId] = useState(PAGES[0].id);
+  const [dbPages, setDbPages] = useState([]);
+  const [pageIdx, setPageIdx] = useState(0);
   const [sectionId, setSectionId] = useState(null);
-  const [pages, setPages] = useState(PAGES);
   const [savedFlash, setSavedFlash] = useState(false);
-  const page = pages.find(p => p.id === pageId);
+  const [saving, setSaving] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [localBlocks, setLocalBlocks] = useState({});
+
+  useEffect(() => {
+    (async () => {
+      const pages = await fetchAllPagesForEditor();
+      setDbPages(pages);
+      setLoaded(true);
+    })();
+  }, []);
+
+  const page = dbPages[pageIdx];
   const section = page?.sections.find(s => s.id === sectionId);
+  const fieldDefs = section ? (SECTION_FIELD_DEFS[section.template_type] || []) : [];
+
   const updateField = (key, value) => {
-    setPages(prev => prev.map(p => p.id !== pageId ? p : { ...p, sections: p.sections.map(s => s.id !== sectionId ? s : { ...s, fields: s.fields.map(f => f.key === key ? { ...f, value } : f) }) }));
+    setLocalBlocks(prev => ({ ...prev, [`${sectionId}:${key}`]: value }));
   };
-  const handleSave = () => { setSavedFlash(true); setTimeout(() => setSavedFlash(false), 1800); };
+
+  const getFieldValue = (key) => {
+    const localKey = `${sectionId}:${key}`;
+    if (localKey in localBlocks) return localBlocks[localKey];
+    return section?.blocks?.[key] ?? "";
+  };
+
+  const handleSave = async () => {
+    if (!section) return;
+    setSaving(true); setSavedFlash(false);
+    try {
+      for (const f of fieldDefs) {
+        const localKey = `${sectionId}:${f.key}`;
+        if (localKey in localBlocks) {
+          await saveContentBlock(section.id, f.key, localBlocks[localKey]);
+        }
+      }
+      setSavedFlash(true); setTimeout(() => setSavedFlash(false), 1800);
+      setLocalBlocks({});
+      const pages = await fetchAllPagesForEditor();
+      setDbPages(pages);
+    } catch (err) {
+    } finally { setSaving(false); }
+  };
+
+  if (!loaded) return <div className="text-sm" style={{ color: T.muted, ...fontBody }}>Loading website content...</div>;
+  if (!page) return <div className="text-sm" style={{ color: T.muted, ...fontBody }}>No pages found. Content will appear here once sections are set up.</div>;
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
@@ -373,19 +404,33 @@ function EditWebsite() {
         <a href="/" target="_blank" rel="noopener noreferrer" className="text-sm flex items-center gap-1.5 px-3 py-2 rounded-lg shrink-0" style={{ color: T.accent, border: `1px solid ${T.border}`, ...fontBody }}><ExternalLink size={15} /> View Live Website</a>
       </div>
       <div className="flex gap-1 border-b" style={{ borderColor: T.border }}>
-        {pages.map(p => (<button key={p.id} onClick={() => { setPageId(p.id); setSectionId(null); }} className="px-4 py-2 text-sm -mb-px" style={{ ...fontBody, color: pageId === p.id ? T.ink : T.muted, borderBottom: pageId === p.id ? `2px solid ${T.accent}` : "2px solid transparent", fontWeight: pageId === p.id ? 500 : 400 }}>{p.name}</button>))}
+        {dbPages.map((p, i) => (<button key={p.id} onClick={() => { setPageIdx(i); setSectionId(null); setLocalBlocks({}); }} className="px-4 py-2 text-sm -mb-px" style={{ ...fontBody, color: pageIdx === i ? T.ink : T.muted, borderBottom: pageIdx === i ? `2px solid ${T.accent}` : "2px solid transparent", fontWeight: pageIdx === i ? 500 : 400 }}>{p.title}</button>))}
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         <div className="lg:col-span-3 rounded-xl overflow-hidden" style={{ backgroundColor: T.surface, border: `1px solid ${T.border}` }}>
-          <div className="px-5 py-4" style={{ borderBottom: `1px solid ${T.border}` }}><span className="text-sm font-medium" style={{ color: T.ink, ...fontBody }}>{page.name} — Sections</span></div>
-          {page.sections.map((s, i) => (<button key={s.id} onClick={() => setSectionId(s.id)} className="w-full flex items-center justify-between px-5 py-4 text-left hover:opacity-80" style={{ borderBottom: i < page.sections.length - 1 ? `1px solid ${T.border}` : "none", backgroundColor: sectionId === s.id ? T.accentSoft : "transparent" }}><div><div className="text-sm" style={{ color: T.ink, ...fontBody }}>{s.type}</div><div className="text-xs mt-0.5" style={{ color: T.muted, ...fontBody }}>{s.fields.length} editable field{s.fields.length !== 1 ? "s" : ""}</div></div><ChevronRight size={16} style={{ color: T.muted }} /></button>))}
+          <div className="px-5 py-4" style={{ borderBottom: `1px solid ${T.border}` }}><span className="text-sm font-medium" style={{ color: T.ink, ...fontBody }}>{page.title} — Sections</span></div>
+          {page.sections.map((s, i) => {
+            const label = TEMPLATE_LABELS[s.template_type] || s.template_type;
+            const fieldCount = (SECTION_FIELD_DEFS[s.template_type] || []).length;
+            return (
+              <button key={s.id} onClick={() => { setSectionId(s.id); setLocalBlocks({}); }} className="w-full flex items-center justify-between px-5 py-4 text-left hover:opacity-80" style={{ borderBottom: i < page.sections.length - 1 ? `1px solid ${T.border}` : "none", backgroundColor: sectionId === s.id ? T.accentSoft : "transparent" }}>
+                <div><div className="text-sm" style={{ color: T.ink, ...fontBody }}>{label}</div><div className="text-xs mt-0.5" style={{ color: T.muted, ...fontBody }}>{fieldCount} editable field{fieldCount !== 1 ? "s" : ""}</div></div>
+                <ChevronRight size={16} style={{ color: T.muted }} />
+              </button>
+            );
+          })}
+          {page.sections.length === 0 && <div className="px-5 py-10 text-center text-sm" style={{ color: T.muted, ...fontBody }}>No sections on this page yet.</div>}
         </div>
         <div className="lg:col-span-2 rounded-xl" style={{ backgroundColor: T.surface, border: `1px solid ${T.border}` }}>
           {!section ? (<div className="h-full flex items-center justify-center text-center px-8 py-16"><p className="text-sm" style={{ color: T.muted, ...fontBody }}>Select a section on the left to edit its content.</p></div>) : (
             <div className="p-5 flex flex-col gap-4">
-              <div className="flex items-center justify-between"><span className="text-sm font-medium" style={{ color: T.ink, ...fontBody }}>Edit {section.type}</span><button onClick={() => setSectionId(null)} style={{ color: T.muted }}><X size={16} /></button></div>
-              {section.fields.map(f => (<div key={f.key}><label className="text-xs block mb-1.5" style={{ color: T.muted, ...fontBody }}>{f.label}</label><FieldInput field={f} onChange={v => updateField(f.key, v)} /></div>))}
-              <button onClick={handleSave} className="mt-2 px-4 py-2 rounded-lg text-sm flex items-center justify-center gap-1.5" style={{ backgroundColor: T.accent, color: "#fff", ...fontBody }}>{savedFlash ? <><Check size={14} /> Saved</> : "Save Changes"}</button>
+              <div className="flex items-center justify-between"><span className="text-sm font-medium" style={{ color: T.ink, ...fontBody }}>Edit {TEMPLATE_LABELS[section.template_type] || section.template_type}</span><button onClick={() => setSectionId(null)} style={{ color: T.muted }}><X size={16} /></button></div>
+              {fieldDefs.map(f => {
+                const fieldObj = { type: f.type, value: getFieldValue(f.key) };
+                return (<div key={f.key}><label className="text-xs block mb-1.5" style={{ color: T.muted, ...fontBody }}>{f.label}</label><FieldInput field={fieldObj} onChange={v => updateField(f.key, v)} /></div>);
+              })}
+              {fieldDefs.length === 0 && <div className="text-xs" style={{ color: T.muted, ...fontBody }}>No editable fields defined for this section type.</div>}
+              <button onClick={handleSave} disabled={saving} className="mt-2 px-4 py-2 rounded-lg text-sm flex items-center justify-center gap-1.5" style={{ backgroundColor: T.accent, color: "#fff", ...fontBody, opacity: saving ? 0.7 : 1 }}>{savedFlash ? <><Check size={14} /> Saved</> : saving ? "Saving..." : "Save Changes"}</button>
             </div>
           )}
         </div>
@@ -747,11 +792,51 @@ function Media() {
   return (<div className="flex flex-col gap-6"><div className="flex items-center justify-between"><div><h1 className="text-2xl mb-1" style={{ ...fontDisplay, color: T.ink }}>Media</h1><p className="text-sm" style={{ color: T.muted, ...fontBody }}>Images used across your website.</p></div><button className="px-4 py-2 rounded-lg text-sm flex items-center gap-1.5" style={{ backgroundColor: T.accent, color: "#fff", ...fontBody }}><Upload size={14} /> Upload</button></div><div className="grid grid-cols-2 sm:grid-cols-4 gap-4">{MEDIA.map(m => <div key={m.id} className="rounded-xl overflow-hidden group relative" style={{ border: `1px solid ${T.border}` }}><img src={m.url} alt="" className="w-full h-32 object-cover" /></div>)}</div></div>);
 }
 
-function Settings({ pipelineStages, setPipelineStages, currency, setCurrency, modules, setModules, chatWidgetCode, setChatWidgetCode }) {
+function Settings({ pipelineStages, setPipelineStages, currency, setCurrency, modules, setModules, chatWidgetCode, setChatWidgetCode, settings, onSaveSettings }) {
   const [tab, setTab] = useState("Business");
   const tabs = ["Business", "Branding", "Social", "SEO", "Pipeline", "Modules", "Integrations"];
   const [newStageName, setNewStageName] = useState("");
-  const Field = ({ label, value, placeholder }) => (<div><label className="text-xs block mb-1.5" style={{ color: T.muted, ...fontBody }}>{label}</label><input defaultValue={value} placeholder={placeholder} className="w-full rounded-lg px-3 py-2 text-sm outline-none" style={{ border: `1px solid ${T.border}`, color: T.ink, ...fontBody, backgroundColor: T.bg }} /></div>);
+  const [form, setForm] = useState(null);
+  const [savedFlash, setSavedFlash] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (settings) {
+      setForm({
+        business_name: settings.business_name || "",
+        contact_email: settings.contact_email || "",
+        contact_phone: settings.contact_phone || "",
+        address: settings.address || "",
+        facebook_url: settings.facebook_url || "",
+        instagram_url: settings.instagram_url || "",
+        linkedin_url: settings.linkedin_url || "",
+        seo_title: settings.seo_title || "",
+        seo_description: settings.seo_description || "",
+        currency_symbol: settings.currency_symbol || "\u20B1",
+        chat_widget_code: settings.chat_widget_code || "",
+      });
+    }
+  }, [settings]);
+
+  const update = (key, val) => setForm(prev => ({ ...prev, [key]: val }));
+
+  const handleSave = async () => {
+    if (!form) return;
+    setSaving(true); setSavedFlash(false);
+    try {
+      await onSaveSettings(form);
+      setSavedFlash(true); setTimeout(() => setSavedFlash(false), 1800);
+    } catch (err) {
+    } finally { setSaving(false); }
+  };
+
+  const Field = ({ label, fieldKey, placeholder }) => form ? (
+    <div>
+      <label className="text-xs block mb-1.5" style={{ color: T.muted, ...fontBody }}>{label}</label>
+      <input value={form[fieldKey] || ""} onChange={e => update(fieldKey, e.target.value)} placeholder={placeholder} className="w-full rounded-lg px-3 py-2 text-sm outline-none" style={{ border: `1px solid ${T.border}`, color: T.ink, ...fontBody, backgroundColor: T.bg }} />
+    </div>
+  ) : null;
+
   const addStage = () => { if (!newStageName.trim() || pipelineStages.includes(newStageName.trim())) return; setPipelineStages(prev => [...prev, newStageName.trim()]); setNewStageName(""); };
   const removeStage = (stage) => { if (pipelineStages.length <= 2) return; setPipelineStages(prev => prev.filter(s => s !== stage)); };
   const renameStage = (oldName, newName) => { setPipelineStages(prev => prev.map(s => s === oldName ? newName : s)); };
@@ -762,14 +847,16 @@ function Settings({ pipelineStages, setPipelineStages, currency, setCurrency, mo
       <div><h1 className="text-2xl mb-1" style={{ ...fontDisplay, color: T.ink }}>Settings</h1><p className="text-sm" style={{ color: T.muted, ...fontBody }}>Business info, branding, and site-wide details.</p></div>
       <div className="flex gap-1 border-b flex-wrap" style={{ borderColor: T.border }}>{tabs.map(t => <button key={t} onClick={() => setTab(t)} className="px-4 py-2 text-sm -mb-px" style={{ ...fontBody, color: tab === t ? T.ink : T.muted, borderBottom: tab === t ? `2px solid ${T.accent}` : "2px solid transparent", fontWeight: tab === t ? 500 : 400 }}>{t}</button>)}</div>
       <div className="rounded-xl p-6 max-w-xl" style={{ backgroundColor: T.surface, border: `1px solid ${T.border}` }}>
-        {tab === "Business" && (<div className="flex flex-col gap-4"><Field label="Business Name" value="Air Fair Travel & Immigration" /><Field label="Email" value="hello@airfairtravel.ph" /><Field label="Phone" value="+63 917 000 0000" /><Field label="Address" value="Marikina City, Metro Manila" /><div><label className="text-xs block mb-1.5" style={{ color: T.muted, ...fontBody }}>Currency Symbol</label><input value={currency} onChange={e => setCurrency(e.target.value)} className="w-20 rounded-lg px-3 py-2 text-sm outline-none text-center" style={{ border: `1px solid ${T.border}`, color: T.ink, ...fontBody, backgroundColor: T.bg }} /><p className="text-xs mt-1.5" style={{ color: T.muted, ...fontBody }}>Used across Pipeline, Clients, and form Monetary fields.</p></div></div>)}
-        {tab === "Branding" && (<div className="flex flex-col gap-4"><div className="flex gap-4"><div className="flex-1"><label className="text-xs block mb-1.5" style={{ color: T.muted, ...fontBody }}>Primary Color</label><div className="flex items-center gap-2"><div className="w-9 h-9 rounded-lg" style={{ backgroundColor: T.accent, border: `1px solid ${T.border}` }} /><span className="text-sm" style={{ ...fontMono, color: T.ink }}>#3FA34D</span></div></div><div className="flex-1"><label className="text-xs block mb-1.5" style={{ color: T.muted, ...fontBody }}>Accent Color</label><div className="flex items-center gap-2"><div className="w-9 h-9 rounded-lg" style={{ backgroundColor: T.warn, border: `1px solid ${T.border}` }} /><span className="text-sm" style={{ ...fontMono, color: T.ink }}>#E08A2C</span></div></div></div><Field label="Logo" placeholder="Upload logo file" /></div>)}
-        {tab === "Social" && (<div className="flex flex-col gap-4"><Field label="Facebook" placeholder="facebook.com/yourpage" /><Field label="Instagram" placeholder="instagram.com/yourpage" /><Field label="LinkedIn" placeholder="linkedin.com/company/yourpage" /></div>)}
-        {tab === "SEO" && (<div className="flex flex-col gap-4"><Field label="Site Title" value="Air Fair Travel & Immigration | Marikina" /><Field label="Meta Description" value="Visa filing, flight bookings, and travel planning for Filipinos heading abroad." /></div>)}
+        {!form ? <div className="text-sm" style={{ color: T.muted, ...fontBody }}>Loading settings...</div> : (<>
+        {tab === "Business" && (<div className="flex flex-col gap-4"><Field label="Business Name" fieldKey="business_name" /><Field label="Email" fieldKey="contact_email" /><Field label="Phone" fieldKey="contact_phone" /><Field label="Address" fieldKey="address" /><div><label className="text-xs block mb-1.5" style={{ color: T.muted, ...fontBody }}>Currency Symbol</label><input value={form.currency_symbol || ""} onChange={e => update("currency_symbol", e.target.value)} className="w-20 rounded-lg px-3 py-2 text-sm outline-none text-center" style={{ border: `1px solid ${T.border}`, color: T.ink, ...fontBody, backgroundColor: T.bg }} /><p className="text-xs mt-1.5" style={{ color: T.muted, ...fontBody }}>Used across Pipeline, Clients, and form Monetary fields.</p></div></div>)}
+        {tab === "Branding" && (<div className="flex flex-col gap-4"><div className="flex gap-4"><div className="flex-1"><label className="text-xs block mb-1.5" style={{ color: T.muted, ...fontBody }}>Primary Color</label><div className="flex items-center gap-2"><div className="w-9 h-9 rounded-lg" style={{ backgroundColor: T.accent, border: `1px solid ${T.border}` }} /><span className="text-sm" style={{ ...fontMono, color: T.ink }}>#6EBE3D</span></div></div><div className="flex-1"><label className="text-xs block mb-1.5" style={{ color: T.muted, ...fontBody }}>Accent Color</label><div className="flex items-center gap-2"><div className="w-9 h-9 rounded-lg" style={{ backgroundColor: T.warn, border: `1px solid ${T.border}` }} /><span className="text-sm" style={{ ...fontMono, color: T.ink }}>#E08A2C</span></div></div></div><Field label="Logo" fieldKey="logo_url" placeholder="Upload logo file" /></div>)}
+        {tab === "Social" && (<div className="flex flex-col gap-4"><Field label="Facebook" fieldKey="facebook_url" placeholder="facebook.com/yourpage" /><Field label="Instagram" fieldKey="instagram_url" placeholder="instagram.com/yourpage" /><Field label="LinkedIn" fieldKey="linkedin_url" placeholder="linkedin.com/company/yourpage" /></div>)}
+        {tab === "SEO" && (<div className="flex flex-col gap-4"><Field label="Site Title" fieldKey="seo_title" /><Field label="Meta Description" fieldKey="seo_description" /></div>)}
         {tab === "Pipeline" && (<div className="flex flex-col gap-4"><p className="text-xs" style={{ color: T.muted, ...fontBody }}>These stages appear as columns in the Pipeline board, in this order. Every business's sales process is different — rename, reorder, add, or remove stages to match yours.</p><div className="flex flex-col gap-2">{pipelineStages.map((stage, i) => (<div key={stage} className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ border: `1px solid ${T.border}`, backgroundColor: T.bg }}><div className="flex flex-col"><button onClick={() => moveStage(i, -1)} disabled={i === 0} style={{ color: i === 0 ? T.border : T.muted }}><ChevronRight size={12} style={{ transform: "rotate(-90deg)" }} /></button><button onClick={() => moveStage(i, 1)} disabled={i === pipelineStages.length - 1} style={{ color: i === pipelineStages.length - 1 ? T.border : T.muted }}><ChevronRight size={12} style={{ transform: "rotate(90deg)" }} /></button></div><input value={stage} onChange={e => renameStage(stage, e.target.value)} className="flex-1 text-sm outline-none bg-transparent" style={{ color: T.ink, ...fontBody }} /><button onClick={() => removeStage(stage)} disabled={pipelineStages.length <= 2} style={{ color: pipelineStages.length <= 2 ? T.border : T.danger }}><Trash2 size={14} /></button></div>))}</div><div className="flex gap-2 pt-2"><input value={newStageName} onChange={e => setNewStageName(e.target.value)} placeholder="New stage name" className="flex-1 rounded-lg px-3 py-2 text-sm outline-none" style={{ border: `1px solid ${T.border}`, color: T.ink, ...fontBody, backgroundColor: T.bg }} /><button onClick={addStage} className="px-4 py-2 rounded-lg text-sm flex items-center gap-1.5" style={{ backgroundColor: T.accent, color: "#fff", ...fontBody }}><Plus size={14} /> Add Stage</button></div></div>)}
         {tab === "Modules" && (<div className="flex flex-col gap-4"><p className="text-xs" style={{ color: T.muted, ...fontBody }}>Turn off anything this business doesn't need — hidden modules disappear from the sidebar entirely.</p>{MODULE_INFO.map(m => (<label key={m.key} className="flex items-start gap-3 px-3 py-3 rounded-lg cursor-pointer" style={{ border: `1px solid ${T.border}`, backgroundColor: T.bg }}><input type="checkbox" checked={!!modules[m.key]} onChange={e => setModules(prev => ({ ...prev, [m.key]: e.target.checked }))} className="mt-0.5" style={{ accentColor: T.accent }} /><div><div className="text-sm" style={{ color: T.ink, ...fontBody, fontWeight: 500 }}>{m.label}</div><div className="text-xs mt-0.5" style={{ color: T.muted, ...fontBody }}>{m.desc}</div></div></label>))}</div>)}
-        {tab === "Integrations" && (<div className="flex flex-col gap-4"><div><h3 className="text-sm font-medium mb-1" style={{ color: T.ink, ...fontBody }}>Chat Widget</h3><p className="text-xs" style={{ color: T.muted, ...fontBody }}>Paste the embed code from any chat provider — Facebook Messenger Chat Plugin, Tawk.to, Crisp, Tidio, or a WhatsApp click-to-chat link. It shows up on your live website automatically, no developer needed.</p></div><textarea rows={6} value={chatWidgetCode} onChange={e => setChatWidgetCode(e.target.value)} placeholder={'<!-- Paste your widget script here, e.g. Facebook Messenger Chat Plugin or Tawk.to code -->'} className="w-full rounded-lg px-3 py-2 text-xs font-mono outline-none" style={{ border: `1px solid ${T.border}`, color: T.ink, backgroundColor: T.bg }} /><div className="rounded-lg p-3 text-xs" style={{ backgroundColor: T.infoSoft, color: T.info, ...fontBody }}>Recommended for this business: Facebook Messenger Chat Plugin (ties into the Facebook page you already use) or Tawk.to (free, no Facebook page needed).</div></div>)}
-        <button className="mt-6 px-4 py-2 rounded-lg text-sm" style={{ backgroundColor: T.accent, color: "#fff", ...fontBody }}>Save Changes</button>
+        {tab === "Integrations" && (<div className="flex flex-col gap-4"><div><h3 className="text-sm font-medium mb-1" style={{ color: T.ink, ...fontBody }}>Chat Widget</h3><p className="text-xs" style={{ color: T.muted, ...fontBody }}>Paste the embed code from any chat provider — Facebook Messenger Chat Plugin, Tawk.to, Crisp, Tidio, or a WhatsApp click-to-chat link. It shows up on your live website automatically, no developer needed.</p></div><textarea rows={6} value={form.chat_widget_code || ""} onChange={e => update("chat_widget_code", e.target.value)} placeholder={'<!-- Paste your widget script here, e.g. Facebook Messenger Chat Plugin or Tawk.to code -->'} className="w-full rounded-lg px-3 py-2 text-xs font-mono outline-none" style={{ border: `1px solid ${T.border}`, color: T.ink, backgroundColor: T.bg }} /><div className="rounded-lg p-3 text-xs" style={{ backgroundColor: T.infoSoft, color: T.info, ...fontBody }}>Recommended for this business: Facebook Messenger Chat Plugin (ties into the Facebook page you already use) or Tawk.to (free, no Facebook page needed).</div></div>)}
+        <button onClick={handleSave} disabled={saving} className="mt-6 px-4 py-2 rounded-lg text-sm flex items-center gap-1.5" style={{ backgroundColor: T.accent, color: "#fff", ...fontBody, opacity: saving ? 0.7 : 1 }}>{savedFlash ? <><Check size={14} /> Saved</> : saving ? "Saving..." : "Save Changes"}</button>
+        </>)}
       </div>
     </div>
   );
@@ -800,11 +887,12 @@ export default function Dashboard() {
   const [currency, setCurrency] = useState("\u20B1");
   const [modules, setModules] = useState({ pipeline: true, bookings: true, employees: true, services: true });
   const [chatWidgetCode, setChatWidgetCode] = useState("");
+  const [siteSettings, setSiteSettings] = useState(null);
   const [loaded, setLoaded] = useState(false);
 
   const loadAll = useCallback(async () => {
     try {
-      const [subsRes, contactsRes, bookingsRes, employeesRes, tasksRes, stageTasksRes, servicesRes, stagesRes] = await Promise.all([
+      const [subsRes, contactsRes, bookingsRes, employeesRes, tasksRes, stageTasksRes, servicesRes, stagesRes, settingsRes] = await Promise.all([
         supabase.from("form_submissions").select("*").order("created_at", { ascending: false }),
         supabase.from("contacts").select("*").order("created_at", { ascending: false }),
         supabase.from("bookings").select("*").order("created_at", { ascending: false }),
@@ -813,6 +901,7 @@ export default function Dashboard() {
         supabase.from("stage_task_templates").select("*").order("created_at", { ascending: false }),
         supabase.from("services").select("*").order("sort_order", { ascending: true }),
         supabase.from("pipeline_stages").select("*").order("sort_order", { ascending: true }),
+        fetchSiteSettings(),
       ]);
       if (subsRes.data) setSubmissions(subsRes.data.map(r => ({ id: r.id, name: r.name, email: r.email, type: r.form_type, date: r.created_at ? new Date(r.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "", status: r.status })));
       if (contactsRes.data) setContacts(contactsRes.data.map(r => ({ id: r.id, submissionId: r.submission_id, name: r.name, email: r.email, category: r.category, status: r.status, amount: r.amount ? Number(r.amount) : null, assignedEmployeeId: r.assigned_employee_id })));
@@ -822,6 +911,12 @@ export default function Dashboard() {
       if (stageTasksRes.data) setStageTasks(stageTasksRes.data.map(r => ({ id: r.id, stage: r.stage, title: r.title })));
       if (servicesRes.data) setServices(servicesRes.data.map(dbRowToService));
       if (stagesRes.data && stagesRes.data.length > 0) setPipelineStages(stagesRes.data.map(r => r.name));
+      if (settingsRes) {
+        setSiteSettings(settingsRes);
+        if (settingsRes.currency_symbol) setCurrency(settingsRes.currency_symbol);
+        if (settingsRes.enabled_modules) setModules(prev => ({ ...prev, ...settingsRes.enabled_modules }));
+        if (settingsRes.chat_widget_code !== undefined) setChatWidgetCode(settingsRes.chat_widget_code);
+      }
     } catch (err) { /* database not yet set up */ } finally { setLoaded(true); }
   }, []);
 
@@ -870,6 +965,14 @@ export default function Dashboard() {
     if (newTasks.length > 0) setEmployeeTasks(prev => [...prev, ...newTasks]);
   };
 
+  const handleSaveSettings = async (formData) => {
+    const saved = await saveSiteSettings(formData);
+    setSiteSettings(saved);
+    if (saved.currency_symbol) setCurrency(saved.currency_symbol);
+    if (saved.chat_widget_code !== undefined) setChatWidgetCode(saved.chat_widget_code);
+    if (saved.enabled_modules) setModules(prev => ({ ...prev, ...saved.enabled_modules }));
+  };
+
   const pageComponents = {
     overview: <Overview goTo={setPage} submissions={submissions} bookings={bookings} contacts={contacts} stages={pipelineStages} currency={currency} />,
     "edit-website": <EditWebsite />,
@@ -880,7 +983,7 @@ export default function Dashboard() {
     employees: <Employees employees={employees} setEmployees={setEmployees} tasks={employeeTasks} setTasks={setEmployeeTasks} stageTasks={stageTasks} setStageTasks={setStageTasks} stages={pipelineStages} />,
     bookings: <Bookings bookings={bookings} />,
     media: <Media />,
-    settings: <Settings pipelineStages={pipelineStages} setPipelineStages={setPipelineStages} currency={currency} setCurrency={setCurrency} modules={modules} setModules={setModules} chatWidgetCode={chatWidgetCode} setChatWidgetCode={setChatWidgetCode} />,
+    settings: <Settings pipelineStages={pipelineStages} setPipelineStages={setPipelineStages} currency={currency} setCurrency={setCurrency} modules={modules} setModules={setModules} chatWidgetCode={chatWidgetCode} setChatWidgetCode={setChatWidgetCode} settings={siteSettings} onSaveSettings={handleSaveSettings} />,
   };
 
   const visibleNav = NAV.filter(n => !n.moduleKey || modules[n.moduleKey]);
