@@ -140,6 +140,37 @@ body{margin:0;font-family:'DM Sans',sans-serif;color:#5B6C80;background:#fff}
 .service-tile h3{font-size:9px;color:#102B57;margin:7px 0 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .service-tile p{font-size:7px;line-height:1.45;margin:0;color:#738396;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
 
+.services-redesign{
+  background:#fff;
+  border-top:1px solid #f0f3ee;
+  border-bottom:1px solid #f0f3ee;
+}
+
+.services-redesign .service-grid{
+  align-items:stretch;
+}
+
+.services-redesign .service-tile{
+  display:flex;
+  flex-direction:column;
+  justify-content:flex-start;
+  min-width:0;
+  box-shadow:0 5px 14px rgba(16,45,104,.04);
+  transition:transform .2s ease, box-shadow .2s ease;
+}
+
+.services-redesign .service-tile:hover{
+  transform:translateY(-3px);
+  box-shadow:0 9px 20px rgba(16,45,104,.1);
+}
+
+.services-redesign .service-tile > svg{
+  width:17px;
+  height:17px;
+  flex:0 0 17px;
+  display:block;
+}
+
 .retirement{background:linear-gradient(100deg,#2F720E,#4B9B13 50%,#1E7A88);color:#fff}
 .retirement-inner{display:flex;align-items:center;justify-content:space-between;padding-top:26px;padding-bottom:26px}
 .retirement-inner>div:first-child{max-width:570px}
