@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import './index.css'
 import Website from './pages/Website.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 
