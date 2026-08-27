@@ -74,8 +74,7 @@ function SectionTitle({ eyebrow, title, description, light = false }) {
 
 function Logo({ light = false }) {
   return <div className="logo-lockup">
-    <span className="logo-mark"><Plane size={22} strokeWidth={2.5} /></span>
-    <span><strong style={{ color: light ? colors.white : colors.navy }}>AIR FAIR</strong><small style={{ color: light ? "#B7C9E4" : colors.text }}>TRAVEL &amp; TOURS OPC</small></span>
+    <img src="/airfair_logo_colored.png" alt="Air Fair Travel & Tours" className="logo-img" />
   </div>;
 }
 

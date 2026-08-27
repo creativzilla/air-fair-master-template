@@ -45,9 +45,7 @@ body{margin:0;font-family:'DM Sans',sans-serif;color:#5B6C80;background:#fff}
 .main-nav{background:white;border-bottom:1px solid #e4e8ec;position:sticky;top:0;z-index:20}
 .nav-inner{height:68px;max-width:1080px;margin:auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between}
 .logo-lockup{display:flex;align-items:center;gap:9px}
-.logo-mark{width:38px;height:38px;background:#102D68;color:#FFCB19;display:flex;align-items:center;justify-content:center;clip-path:polygon(50% 0,100% 100%,0 100%)}
-.logo-lockup strong{display:block;font-size:16px;line-height:1;color:#102D68;letter-spacing:.06em}
-.logo-lockup small{display:block;font-size:10px;letter-spacing:.09em;margin-top:4px}
+.logo-img{height:40px;width:auto;object-fit:contain;display:block}
 .nav-links{display:flex;align-items:center;gap:24px;margin-left:auto;margin-right:28px}
 .nav-links a{font-size:14px;color:#42546b;text-decoration:none;font-weight:600}
 .nav-links a:hover,.nav-links .nav-green{color:#4B9B13}
@@ -285,6 +283,7 @@ footer{background:#102D68;color:#9fb2cc;border-top:1px solid #284477}
   .section-shell{max-width:1320px;padding-left:40px;padding-right:40px}
   .nav-inner{max-width:1320px;padding:0 40px}
   .hero-inner{max-width:1320px}
+  .logo-img{height:46px}
 
   .promise-bar{font-size:14px;gap:64px}
   .nav-links{gap:30px;margin-right:40px}
