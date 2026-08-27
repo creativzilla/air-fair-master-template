@@ -1,615 +1,200 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { Plane, Menu, X, LogIn, ArrowRight, FileCheck2, ShieldCheck, MessageCircle, FileStack, Facebook, Instagram, Linkedin, Send, CircleCheck as CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import { ArrowRight, ChevronLeft, ChevronRight, Facebook, Instagram, Linkedin, Mail, MapPin, Phone, Plane, Search, ShieldCheck, Star, Ticket, UserRound, WalletCards, X, Menu } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { dbRowToService, getPriceLabel } from "../lib/catalog.js";
 import { fetchPublishedPages, fetchPublishedTestimonials, fetchSiteSettings } from "../lib/content.js";
 
-const T = {
-  navy: "#13293F",
-  navyDeep: "#0D1E2E",
-  green: "#6EBE3D",
-  greenDeep: "#549A2C",
-  paper: "#F5F7F2",
-  ink: "#151A22",
-  muted: "#5C6670",
-  gold: "#C8922A",
-  border: "#E4E8DF",
+const colors = {
+  green: "#4B9B13",
+  greenDark: "#2F720E",
+  greenSoft: "#EFF9D9",
+  yellow: "#FFCB19",
+  navy: "#102D68",
+  blue: "#1E7A88",
+  ink: "#102B57",
+  text: "#5B6C80",
+  line: "#E3E8ED",
+  white: "#FFFFFF",
 };
 
-const fontDisplay = { fontFamily: "'Fraunces', serif", fontWeight: 600 };
-const fontBody = { fontFamily: "'Inter', sans-serif" };
-const fontMono = { fontFamily: "'IBM Plex Mono', monospace" };
-
-const FALLBACK_CATALOG = [
-  { id: 1, type: "service", name: "Tourist Visa Assistance", category: "Visa", shortDescription: "Document checklist, application filing, and appointment booking for tourist visas.", pricingType: "starting", price: "3,500", image: "https://picsum.photos/seed/svc1/300/200", status: "Published" },
-  { id: 2, type: "service", name: "Flight & Hotel Booking", category: "Flight & Hotel", shortDescription: "End-to-end booking for flights and accommodations, matched to your itinerary and budget.", pricingType: "fixed", price: "800", image: "https://picsum.photos/seed/svc2/300/200", status: "Published" },
-  { id: 3, type: "service", name: "Visa Consultation", category: "Visa", shortDescription: "One-on-one review of your documents and eligibility before you apply.", pricingType: "fixed", price: "1,500", image: "https://picsum.photos/seed/svc3/300/200", status: "Published" },
-  { id: 4, type: "service", name: "Travel Insurance", category: "Insurance", shortDescription: "Coverage options for medical, trip cancellation, and lost baggage.", pricingType: "starting", price: "950", image: "https://picsum.photos/seed/svc4/300/200", status: "Published" },
-  { id: 5, type: "service", name: "Immigration Processing", category: "Immigration Processing", shortDescription: "End-to-end assistance for immigrant visas, permanent residency, and work permits abroad.", pricingType: "starting", price: "15,000", image: "https://picsum.photos/seed/svc5/300/200", status: "Published" },
-];
-
-const FALLBACK_TESTIMONIALS = [
-  { id: 1, client_name: "Marisol C.", quote: "Air Fair walked me through every requirement for my tourist visa. No surprises at the embassy.", service_category: "Visa" },
-  { id: 2, client_name: "Jonas R.", quote: "They handled my work permit application while I focused on my job offer. Smooth from start to finish.", service_category: "Immigration Processing" },
-  { id: 3, client_name: "Grace L.", quote: "Booked our whole family's flights and hotel in one call. Saved us so much time.", service_category: "Flight & Hotel" },
-];
-
-const FALLBACK_SETTINGS = {
+const fallbackSettings = {
   business_name: "Air Fair Travel & Immigration",
-  contact_email: "hello@airfairtravel.ph",
-  contact_phone: "+63 917 000 0000",
-  address: "Marikina City, Metro Manila",
+  contact_email: "airfairtravelandours@gmail.com",
+  contact_phone: "+63 906-331-7785",
+  address: "Philippines",
   facebook_url: "",
   instagram_url: "",
   linkedin_url: "",
-  seo_title: "Air Fair Travel & Immigration | Marikina",
-  seo_description: "Visa filing, flight bookings, and travel planning for Filipinos heading abroad.",
-  currency_symbol: "\u20B1",
+  seo_title: "Air Fair Travel & Immigration",
+  seo_description: "Expert visa, immigration, and travel services for Filipinos heading abroad.",
+  currency_symbol: "₱",
   chat_widget_code: "",
 };
 
-const HERO_SLIDES = [
-  { image: "/hero-slide-1.webp", eyebrow: "Tourist Visa Assistance", heading: "Your visa,\nhandled right.", subheading: "From tourist visas to permanent residency, Air Fair takes the paperwork off your plate — so you can focus on the trip, not the process." },
-  { image: "/hero-slide-2.webp", eyebrow: "Immigration Processing", heading: "Your family's future,\nsimplified.", subheading: "We handle immigrant visas, permanent residency, and work permits with care and precision. Every document, every deadline, covered." },
-  { image: "/hero-slide-3.webp", eyebrow: "Flight & Hotel Booking", heading: "Book the trip,\nnot just the visa.", subheading: "Flights, hotels, and travel insurance — all arranged to match your itinerary and budget. One team for the entire journey." },
+const fallbackSlides = [
+  { image: "/hero-slide-1.webp", kicker: "THE PHILIPPINES' TRUSTED TRAVEL & VISA AGENCY", title: "YOUR VISA JOURNEY", script: "Made Easy.", description: "Expert visa & immigration consulting — tourist, work, retirement and more. We handle everything for you." },
+  { image: "/hero-slide-2.webp", kicker: "IMMIGRATION SUPPORT YOU CAN TRUST", title: "YOUR NEXT CHAPTER", script: "Starts Here.", description: "From your first consultation to the final approval, our team keeps your journey clear and stress-free." },
+  { image: "/hero-slide-3.webp", kicker: "TRAVEL SMARTER WITH AIR FAIR", title: "SEE THE WORLD", script: "With Confidence.", description: "Visa filing, flights, hotels, and insurance — everything you need for a smooth trip abroad." },
 ];
 
-const PROCESS_STEPS = [
-  { num: "01", title: "Consult", desc: "We review your goals and eligibility, free of charge." },
-  { num: "02", title: "Prepare", desc: "We give you a document checklist built for your case." },
-  { num: "03", title: "File", desc: "We submit and track your application on your behalf." },
-  { num: "04", title: "Travel", desc: "Approved and ready — we help you plan the trip itself." },
+const destinationCards = [
+  { name: "Boracay", country: "Aklan, Philippines", price: "8,500", image: "https://picsum.photos/seed/boracay-airfair/480/320", discount: "-20%" },
+  { name: "El Nido", country: "Palawan, Philippines", price: "12,000", image: "https://picsum.photos/seed/elnido-airfair/480/320", discount: "-20%" },
+  { name: "Bohol", country: "Bohol, Philippines", price: "7,800", image: "https://picsum.photos/seed/bohol-airfair/480/320", discount: "-25%" },
+  { name: "Puerto Princesa", country: "Palawan, Philippines", price: "9,500", image: "https://picsum.photos/seed/puertoprincesa-airfair/480/320", discount: "-20%" },
+  { name: "Central Vietnam", country: "Da Nang / Hoi An", price: "689", image: "https://picsum.photos/seed/vietnam-airfair/480/320", discount: "-23%" },
 ];
 
-const NAV_LINKS = [
-  { href: "#services", label: "Services" },
-  { href: "#process", label: "How It Works" },
-  { href: "#testimonials", label: "Testimonials" },
-  { href: "#contact", label: "Contact" },
+const dealCards = [
+  { name: "Boracay All-In Package", details: "3D2N | Flights + Hotel + Transfers", price: "9,500", image: "https://picsum.photos/seed/boracay-sail/640/420", badge: "Best Seller", badgeColor: colors.green },
+  { name: "El Nido Island Escape", details: "4D3N | Flights + Hotel + Tours + Guide", price: "14,500", image: "https://picsum.photos/seed/elnido-lagoon/640/420", badge: "Hot Deal", badgeColor: "#D7443E" },
+  { name: "Vietnam Discovery", details: "5D4N | Flights + Hotel + Tours", price: "689", image: "https://picsum.photos/seed/vietnam-bridge/640/420", badge: "New Offer", badgeColor: "#2385A3" },
 ];
 
-function LogoMark({ size = 34 }) {
-  return (
-    <div className="rounded-lg flex items-center justify-center shrink-0" style={{ width: size, height: size, backgroundColor: T.navy }}>
-      <svg viewBox="0 0 24 24" width={size * 0.5} height={size * 0.5} fill="none">
-        <path d="M13 3 L13 21 L9 21 L9 11 L2 19 Z" fill={T.green} />
-      </svg>
-    </div>
-  );
+const visaServices = [
+  { icon: Ticket, code: "Tourist Visa", text: "Temporary visitor visa for leisure, business, or family visits." },
+  { icon: BriefcaseIcon, code: "9G Work Visa", text: "Pre-arranged employment visa with legal work authorization." },
+  { icon: UserRound, code: "13A Marriage Visa", text: "Immigrant visa by marriage for Filipino spouses." },
+  { icon: Plane, code: "SRRV / Retirement", text: "Special Resident Retiree's Visa for permanent residency." },
+  { icon: ShieldCheck, code: "ACR-I Card", text: "Alien Certificate of Registration — issuance, renewal, and cancellation." },
+  { icon: WalletCards, code: "Bureau Clearance", text: "Immigration clearance, blacklist lifting, and records verification." },
+];
+
+function BriefcaseIcon(props) {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" {...props}><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18M10 12v2h4v-2" /></svg>;
 }
 
-function StampBadge() {
-  return (
-    <div
-      className="hidden md:flex absolute items-center justify-center text-center rounded-full"
-      style={{
-        top: 64, right: 64, width: 128, height: 128,
-        border: `2px dashed ${T.gold}`, color: T.gold,
-        transform: "rotate(-9deg)", ...fontMono,
-      }}
-    >
-      <div className="text-[10px] leading-relaxed uppercase" style={{ letterSpacing: "0.06em" }}>
-        <span className="block text-[22px] font-semibold" style={{ letterSpacing: 0 }}>1,200+</span>
-        Visas<br />Approved
+function SectionTitle({ eyebrow, title, description, light = false }) {
+  return <div className="section-title" style={{ color: light ? colors.white : colors.ink }}>
+    {eyebrow && <span className="eyebrow">{eyebrow}</span>}
+    <h2>{title}</h2>
+    {description && <p>{description}</p>}
+  </div>;
+}
+
+function Logo({ light = false }) {
+  return <div className="logo-lockup">
+    <span className="logo-mark"><Plane size={22} strokeWidth={2.5} /></span>
+    <span><strong style={{ color: light ? colors.white : colors.navy }}>AIR FAIR</strong><small style={{ color: light ? "#B7C9E4" : colors.text }}>TRAVEL &amp; TOURS OPC</small></span>
+  </div>;
+}
+
+function TopBars({ settings }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const businessName = settings.business_name || fallbackSettings.business_name;
+  return <>
+    <div className="browser-bar"><span className="browser-dot">A</span><span>{businessName} — Website</span><span className="browser-actions">◌　□　<span>Make a copy</span><b>Share</b></span></div>
+    <div className="promise-bar"><span>✦ Free Cancellation within 24 hrs</span><span>Best Price Guarantee</span><span>Secure Booking</span><span>24/7 Customer Support</span></div>
+    <header className="main-nav">
+      <div className="nav-inner">
+        <a href="#top"><Logo /></a>
+        <nav className={menuOpen ? "nav-links open" : "nav-links"}>
+          <a href="#top" onClick={() => setMenuOpen(false)}>Home</a><a href="#destinations" onClick={() => setMenuOpen(false)}>Destinations</a><a href="#deals" onClick={() => setMenuOpen(false)}>Packages</a><a href="#services" onClick={() => setMenuOpen(false)} className="nav-green">Visa &amp; Immigration</a><a href="#srri" onClick={() => setMenuOpen(false)}>SRRV</a><a href="#about" onClick={() => setMenuOpen(false)}>About Us</a><a href="#contact" onClick={() => setMenuOpen(false)}>Contact</a>
+        </nav>
+        <div className="nav-actions"><button aria-label="Search" onClick={() => setSearchOpen(v => !v)}><Search size={15} /></button><a className="book-button" href="#contact">Book Now <ArrowRight size={14} /></a><button className="mobile-menu" aria-label="Menu" onClick={() => setMenuOpen(v => !v)}>{menuOpen ? <X size={20} /> : <Menu size={20} />}</button></div>
       </div>
-    </div>
-  );
-}
-
-function Nav({ settings }) {
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const goToDashboard = () => { window.location.href = "/dashboard"; };
-  return (
-    <header className="sticky top-0 z-20" style={{ backgroundColor: T.paper, borderBottom: `1px solid ${T.border}` }}>
-      <nav className="max-w-6xl mx-auto px-6 h-[76px] flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <LogoMark />
-          <div className="leading-tight">
-            <div className="text-base" style={{ ...fontDisplay, color: T.navy }}>Air Fair</div>
-            <div className="text-[9px] uppercase" style={{ color: T.muted, letterSpacing: "0.1em", ...fontBody }}>Travel & Immigration</div>
-          </div>
-        </div>
-        <div className="hidden md:flex items-center gap-8 text-sm font-medium" style={{ color: T.navy, ...fontBody }}>
-          {NAV_LINKS.map(l => (<a key={l.href} href={l.href} className="opacity-75 hover:opacity-100 transition-opacity">{l.label}</a>))}
-        </div>
-        <div className="hidden md:flex items-center gap-2.5">
-          <button onClick={goToDashboard} className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm" style={{ color: T.navy, border: `1px solid ${T.border}`, ...fontBody }}>
-            <LogIn size={14} /> Client Login
-          </button>
-          <a href="#contact" className="px-5 py-2.5 rounded-lg text-sm font-semibold" style={{ backgroundColor: T.green, color: "#fff", ...fontBody }}>Free Consultation</a>
-        </div>
-        <button className="md:hidden p-2" onClick={() => setMobileOpen(v => !v)} aria-label="Menu">
-          {mobileOpen ? <X size={20} color={T.navy} /> : <Menu size={20} color={T.navy} />}
-        </button>
-      </nav>
-      {mobileOpen && (
-        <div className="md:hidden flex flex-col gap-4 px-6 py-5" style={{ backgroundColor: T.paper, borderTop: `1px solid ${T.border}`, ...fontBody }}>
-          {NAV_LINKS.map(l => (<a key={l.href} href={l.href} onClick={() => setMobileOpen(false)} className="text-sm" style={{ color: T.navy }}>{l.label}</a>))}
-          <button onClick={goToDashboard} className="flex items-center gap-1.5 text-sm" style={{ color: T.navy }}><LogIn size={14} /> Client Login</button>
-          <a href="#contact" className="px-5 py-2.5 rounded-lg text-sm font-semibold text-center" style={{ backgroundColor: T.green, color: "#fff" }}>Free Consultation</a>
-        </div>
-      )}
+      {searchOpen && <div className="search-panel"><input autoFocus placeholder="Search destinations, services, or packages" /><X size={16} onClick={() => setSearchOpen(false)} /></div>}
     </header>
-  );
+  </>;
 }
 
-function HeroSlider({ content }) {
-  const [slide, setSlide] = useState(0);
-  const slideCount = HERO_SLIDES.length;
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setSlide(s => (s + 1) % slideCount);
-    }, 5500);
-    return () => clearInterval(timer);
-  }, [slideCount]);
-
-  const goToSlide = (idx) => setSlide((idx + slideCount) % slideCount);
-
-  const heading = content?.blocks?.heading || HERO_SLIDES[0].heading;
-  const subheading = content?.blocks?.subheading || HERO_SLIDES[0].subheading;
-  const ctaText = content?.blocks?.cta_text || "Book a Free Consultation";
-  const ctaUrl = content?.blocks?.cta_url || "#contact";
-
-  return (
-    <section className="relative overflow-hidden" style={{ backgroundColor: T.navy, color: "#fff" }}>
-      {HERO_SLIDES.map((s, i) => (
-        <div
-          key={i}
-          className="absolute inset-0 transition-opacity duration-1000"
-          style={{ opacity: i === slide ? 1 : 0, zIndex: i === slide ? 1 : 0 }}
-        >
-          <img src={s.image} alt="" className="w-full h-full object-cover" style={{ filter: "brightness(0.35)" }} />
-        </div>
-      ))}
-      <div className="absolute inset-0" style={{ background: "linear-gradient(135deg, rgba(19,41,63,0.85) 0%, rgba(13,30,46,0.6) 100%)", zIndex: 2 }} />
-      <StampBadge />
-      <div className="max-w-6xl mx-auto px-6 pt-24 pb-20 relative" style={{ zIndex: 3 }}>
-        <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase mb-5 transition-all duration-500" style={{ color: T.green, letterSpacing: "0.08em", ...fontBody, opacity: slide === 0 ? 1 : 0, transform: slide === 0 ? "translateY(0)" : "translateY(10px)" }}>
-          <span className="w-4 h-px" style={{ backgroundColor: T.green }} />
-          {HERO_SLIDES[slide].eyebrow}
-        </div>
-        <h1 className="max-w-xl mb-5 transition-all duration-700" style={{ ...fontDisplay, fontSize: "clamp(36px, 5.5vw, 58px)", lineHeight: 1.08, whiteSpace: "pre-line" }}>
-          {heading}
-        </h1>
-        <p className="max-w-md text-[17px] mb-9 transition-all duration-700" style={{ color: "#C4CFD8", ...fontBody }}>
-          {subheading}
-        </p>
-        <div className="flex flex-wrap gap-3.5">
-          <a href={ctaUrl} className="inline-flex items-center gap-2 px-6 py-3.5 rounded-lg text-sm font-semibold transition-transform hover:scale-105" style={{ backgroundColor: T.green, color: "#fff", ...fontBody }}>
-            {ctaText} <ArrowRight size={15} />
-          </a>
-          <a href="#services" className="inline-flex items-center gap-2 px-6 py-3.5 rounded-lg text-sm font-semibold" style={{ border: "1px solid rgba(255,255,255,.3)", color: "#fff", ...fontBody }}>
-            View Our Services
-          </a>
-        </div>
-      </div>
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-2.5" style={{ zIndex: 4 }}>
-        {HERO_SLIDES.map((_, i) => (
-          <button
-            key={i}
-            onClick={() => goToSlide(i)}
-            className="transition-all rounded-full"
-            style={{
-              width: i === slide ? 24 : 8,
-              height: 8,
-              backgroundColor: i === slide ? T.green : "rgba(255,255,255,0.4)",
-            }}
-            aria-label={`Go to slide ${i + 1}`}
-          />
-        ))}
-      </div>
-      <button
-        onClick={() => goToSlide(slide - 1)}
-        className="absolute left-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full flex items-center justify-center transition-opacity hover:opacity-100"
-        style={{ backgroundColor: "rgba(255,255,255,0.1)", color: "#fff", opacity: 0.6 }}
-        aria-label="Previous slide"
-      >
-        <ChevronLeft size={20} />
-      </button>
-      <button
-        onClick={() => goToSlide(slide + 1)}
-        className="absolute right-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full flex items-center justify-center transition-opacity hover:opacity-100"
-        style={{ backgroundColor: "rgba(255,255,255,0.1)", color: "#fff", opacity: 0.6 }}
-        aria-label="Next slide"
-      >
-        <ChevronRight size={20} />
-      </button>
-    </section>
-  );
-}
-
-function StatStrip() {
-  const stats = [
-    { num: "1,200+", label: "Visas Processed" },
-    { num: "98%", label: "Approval Rate" },
-    { num: "15 yrs", label: "In Business" },
-    { num: "24/7", label: "Client Support" },
-  ];
-  return (
-    <div style={{ backgroundColor: T.paper, borderBottom: `1px solid ${T.border}` }}>
-      <div className="max-w-6xl mx-auto px-6 py-9 grid grid-cols-2 md:grid-cols-4 gap-6">
-        {stats.map(s => (
-          <div key={s.label}>
-            <div className="text-[28px] font-medium" style={{ ...fontMono, color: T.navy }}>{s.num}</div>
-            <div className="text-xs mt-1" style={{ color: T.muted, ...fontBody }}>{s.label}</div>
-          </div>
-        ))}
+function Hero({ content }) {
+  const [active, setActive] = useState(0);
+  useEffect(() => { const timer = setInterval(() => setActive(v => (v + 1) % fallbackSlides.length), 6000); return () => clearInterval(timer); }, []);
+  const managedHeading = content?.blocks?.heading;
+  const managedSubheading = content?.blocks?.subheading;
+  const managedButton = content?.blocks?.cta_text || "Apply for Visa";
+  const slide = fallbackSlides[active];
+  return <section id="top" className="hero">
+    {fallbackSlides.map((item, index) => <img key={item.image} className={index === active ? "hero-image active" : "hero-image"} src={item.image} alt="" />)}
+    <div className="hero-overlay" />
+    <button className="hero-arrow left" onClick={() => setActive(v => (v - 1 + fallbackSlides.length) % fallbackSlides.length)} aria-label="Previous slide"><ChevronLeft size={19} /></button>
+    <button className="hero-arrow right" onClick={() => setActive(v => (v + 1) % fallbackSlides.length)} aria-label="Next slide"><ChevronRight size={19} /></button>
+    <div className="hero-inner">
+      <div className="hero-copy" key={active}>
+        <span className="hero-kicker">✦ {slide.kicker}</span>
+        <h1>{managedHeading || slide.title}<em>{slide.script}</em></h1>
+        <p>{managedSubheading || slide.description}</p>
+        <div className="hero-buttons"><a href="#contact" className="yellow-button">{managedButton} <ArrowRight size={14} /></a><a href="#services" className="outline-button">Our Services</a></div>
+        <div className="trust-row"><div className="mini-avatars"><span>MC</span><span>JR</span><span>GL</span><span>+1k</span></div><small>Trusted by 10,000+ happy travelers &amp; visa applicants</small></div>
       </div>
     </div>
-  );
+    <div className="hero-dots">{fallbackSlides.map((_, i) => <button key={i} onClick={() => setActive(i)} className={i === active ? "active" : ""} aria-label={`Slide ${i + 1}`} />)}</div>
+  </section>;
 }
 
-function SectionHead({ eyebrow, title, sub, dark }) {
-  return (
-    <div className="max-w-xl mx-auto mb-12 text-center">
-      <div className="text-xs font-semibold uppercase mb-3" style={{ color: dark ? T.green : T.greenDeep, letterSpacing: "0.08em", ...fontBody }}>{eyebrow}</div>
-      <h2 className="mb-3" style={{ ...fontDisplay, fontSize: "clamp(28px, 4vw, 38px)", color: dark ? "#fff" : T.navy }}>{title}</h2>
-      {sub && <p className="text-[15px]" style={{ color: dark ? "#9FB0BD" : T.muted, ...fontBody }}>{sub}</p>}
-    </div>
-  );
+function DestinationCard({ item }) {
+  return <article className="destination-card"><div className="card-image"><img src={item.image} alt={item.name} /><span className="discount">{item.discount}</span></div><div className="destination-body"><div><h3>{item.name}</h3><p>{item.country}</p></div><div className="rating"><Star size={11} fill={colors.yellow} color={colors.yellow} /> <span>4.9</span></div><strong>₱{item.price}</strong><small>per person</small></div></article>;
 }
 
-function Services({ sectionContent, settings }) {
-  const [items, setItems] = useState(FALLBACK_CATALOG);
-  const [loading, setLoading] = useState(true);
-  const currency = settings?.currency_symbol || "\u20B1";
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const { data, error } = await supabase
-          .from("services")
-          .select("*")
-          .eq("status", "Published")
-          .order("sort_order", { ascending: true });
-        if (!error && data && data.length > 0) {
-          setItems(data.map(dbRowToService));
-        }
-      } catch (err) {
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
-
-  const published = items.filter(it => it.status === "Published");
-  const heading = sectionContent?.blocks?.heading || "Every step of your journey, covered.";
-  const subheading = sectionContent?.blocks?.subheading || "Pick a service on its own, or let us manage the full process from consultation to approval.";
-
-  return (
-    <section id="services" style={{ padding: "88px 0" }}>
-      <div className="max-w-6xl mx-auto px-6">
-        <SectionHead eyebrow="What We Offer" title={heading} sub={subheading} />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {published.map(it => (
-            <div key={it.id} className="rounded-2xl overflow-hidden transition-transform hover:-translate-y-1" style={{ backgroundColor: "#fff", border: `1px solid ${T.border}` }}>
-              <img src={it.image} alt="" className="w-full h-36 object-cover" />
-              <div className="p-6">
-                <div className="inline-block px-2 py-0.5 rounded-full text-[10px] font-medium mb-2.5" style={{ backgroundColor: it.type === "product" ? "rgba(29,138,138,0.12)" : "rgba(110,190,61,0.12)", color: it.type === "product" ? "#1D8A8A" : T.greenDeep }}>
-                  {it.type === "product" ? "Package" : "Service"}
-                </div>
-                <h3 className="text-[17px] mb-2" style={{ ...fontDisplay, color: T.navy }}>{it.name}</h3>
-                <p className="text-[13.5px] mb-3.5" style={{ color: T.muted, ...fontBody }}>{it.shortDescription}</p>
-                <div className="text-xs font-medium" style={{ ...fontMono, color: T.greenDeep }}>{getPriceLabel(it, currency)}</div>
-              </div>
-            </div>
-          ))}
-          <div className="rounded-2xl p-7" style={{ backgroundColor: T.navy, border: `1px solid ${T.navy}` }}>
-            <h3 className="text-[17px] mb-2" style={{ ...fontDisplay, color: "#fff" }}>Not sure where to start?</h3>
-            <p className="text-[13.5px] mb-4" style={{ color: "#9FB0BD", ...fontBody }}>Tell us about your trip or move, and we'll recommend the right service for your situation.</p>
-            <a href="#contact" className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg text-sm font-semibold" style={{ backgroundColor: T.green, color: "#fff", ...fontBody }}>
-              Talk to Us <ArrowRight size={14} />
-            </a>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
+function Destinations() {
+  return <section id="destinations" className="destinations section-shell"><div className="section-heading-row"><SectionTitle title="Popular Destinations ✈" description="Discover the best of the Philippines and top international destinations" /><a className="view-all" href="#deals">View All →</a></div><div className="destination-grid">{destinationCards.map(item => <DestinationCard key={item.name} item={item} />)}</div></section>;
 }
 
-function Process() {
-  return (
-    <section id="process" style={{ backgroundColor: T.navy, padding: "88px 0" }}>
-      <div className="max-w-6xl mx-auto px-6">
-        <SectionHead dark eyebrow="How It Works" title="A clear process, start to finish." sub="No guesswork — you'll know exactly what stage your case is in." />
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-y-9 gap-x-4">
-          {PROCESS_STEPS.map((s, i) => (
-            <div key={s.num} className="text-center px-4 relative">
-              <div className="text-[13px] mb-2.5" style={{ ...fontMono, color: T.green }}>{s.num}</div>
-              <h3 className="text-base mb-2" style={{ color: "#fff", ...fontBody, fontWeight: 600 }}>{s.title}</h3>
-              <p className="text-[13px]" style={{ color: "#9FB0BD", ...fontBody }}>{s.desc}</p>
-              {i < PROCESS_STEPS.length - 1 && (
-                <div className="hidden lg:block absolute top-2 right-[-8px] w-4 h-px" style={{ backgroundColor: "rgba(255,255,255,.25)" }} />
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
+function DealCard({ deal }) {
+  return <article className="deal-card"><div className="deal-image"><img src={deal.image} alt={deal.name} /><span className="deal-badge" style={{ backgroundColor: deal.badgeColor }}>{deal.badge}</span></div><div className="deal-content"><h3>{deal.name}</h3><p>{deal.details}</p><div className="deal-bottom"><strong>₱{deal.price}</strong><a href="#contact">View Details →</a></div></div></article>;
 }
 
-function Testimonials({ sectionContent, testimonials }) {
-  const items = testimonials.length > 0 ? testimonials : FALLBACK_TESTIMONIALS;
-  const heading = sectionContent?.blocks?.heading || "Trusted by travelers and families alike.";
-  return (
-    <section id="testimonials" style={{ padding: "88px 0" }}>
-      <div className="max-w-6xl mx-auto px-6">
-        <SectionHead eyebrow="Client Stories" title={heading} />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {items.map(t => (
-            <div key={t.id} className="rounded-2xl p-6" style={{ backgroundColor: "#fff", border: `1px solid ${T.border}` }}>
-              <span className="block text-4xl mb-2 leading-none" style={{ ...fontDisplay, color: T.gold }}>"</span>
-              <p className="text-sm mb-4" style={{ color: T.ink, ...fontBody }}>{t.quote}</p>
-              <div className="text-xs" style={{ color: T.muted, ...fontBody }}>
-                <strong style={{ color: T.navy }}>{t.client_name}</strong>{t.service_category ? ` — ${t.service_category}` : ""}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
+function Deals() {
+  return <section id="deals" className="deals-section"><div className="section-shell"><div className="deal-layout"><div className="deal-intro"><span className="eyebrow yellow">LIMITED TIME</span><h2>Top Deals<br /><span>This Week</span></h2><p>Exclusive packages at unbeatable prices — don't miss out!</p><a className="yellow-button" href="#contact">Grab Deals →</a></div>{dealCards.map(deal => <DealCard key={deal.name} deal={deal} />)}</div></div></section>;
 }
 
-function CtaBand({ sectionContent }) {
-  const heading = sectionContent?.blocks?.heading || "Ready to start your journey?";
-  const subheading = sectionContent?.blocks?.subheading || "Book a free consultation and we'll map out what your case needs.";
-  const ctaText = sectionContent?.blocks?.cta_text || "Get a Free Consultation";
-  const ctaUrl = sectionContent?.blocks?.cta_url || "#contact";
-  return (
-    <section style={{ backgroundColor: T.green, color: "#fff", textAlign: "center", padding: "88px 0" }}>
-      <div className="max-w-6xl mx-auto px-6">
-        <h2 className="mb-3.5" style={{ ...fontDisplay, fontSize: "clamp(26px, 4vw, 36px)", color: "#fff" }}>{heading}</h2>
-        <p className="mb-7 text-[15px]" style={{ color: "rgba(255,255,255,.9)", ...fontBody }}>{subheading}</p>
-        <a href={ctaUrl} className="inline-flex items-center gap-2 px-6 py-3.5 rounded-lg text-sm font-semibold" style={{ backgroundColor: T.navy, color: "#fff", ...fontBody }}>
-          {ctaText} <ArrowRight size={15} />
-        </a>
-      </div>
-    </section>
-  );
+function Services({ content, settings }) {
+  const [items, setItems] = useState([]);
+  useEffect(() => { (async () => { const { data } = await supabase.from("services").select("*").eq("status", "Published").order("sort_order", { ascending: true }); if (data) setItems(data.map(dbRowToService)); })(); }, []);
+  const cards = items.slice(0, 6);
+  const heading = content?.blocks?.heading || "Visa & Immigration Services";
+  return <section id="services" className="services section-shell"><div className="services-copy"><span className="eyebrow">EXPERT VISA CONSULTANTS</span><h2>{heading}</h2><p>Planning to study, work, retire, or settle in the Philippines — or heading abroad? Our certified immigration consultants guide you through every step of the process.</p><p><strong>At Air Fair, we are driven to pursue your VISA success.</strong> We handle everything from document preparation to submission and follow-up.</p><div className="service-buttons"><a className="green-button" href="#contact">Apply Now →</a><a className="phone-button" href={`tel:${settings.contact_phone || fallbackSettings.contact_phone}`}><Phone size={14} /> {settings.contact_phone || fallbackSettings.contact_phone}</a></div></div><div className="service-grid">{(cards.length ? cards : visaServices).map((item, index) => { const Icon = item.icon || visaServices[index % visaServices.length].icon; return <div className="service-tile" key={item.id || item.code || item.name}><Icon size={17} /><h3>{item.name || item.code}</h3><p>{item.shortDescription || item.text}</p></div>; })}</div></section>;
 }
 
-const SERVICE_OPTIONS = [
-  "Tourist Visa Assistance",
-  "Flight & Hotel Booking",
-  "Visa Consultation",
-  "Travel Insurance",
-  "Immigration Processing",
-  "Not sure yet",
-];
+function Retirement() {
+  return <section id="srri" className="retirement"><div className="section-shell retirement-inner"><div><span>PHILIPPINE RETIREMENT AUTHORITY PARTNER</span><h2>Your Dream Retirement <em>Starts Here!</em></h2><p>The SRRV (Special Resident Retiree's Visa) grants permanent residency in the Philippines with unlimited travel, no annual reporting, and government discounts.</p></div><div className="retirement-actions"><a href="#about" className="outline-button">Learn About SRRV →</a><a href="#contact" className="yellow-button">Apply Now</a></div></div></section>;
+}
 
-function InquiryForm() {
-  const [values, setValues] = useState({ name: "", email: "", phone: "", service: SERVICE_OPTIONS[0], message: "" });
-  const [status, setStatus] = useState("idle");
-  const [error, setError] = useState("");
-  const update = (key, val) => setValues(prev => ({ ...prev, [key]: val }));
+function Benefits() {
+  const benefits = [["✦", "Best Price Guarantee", "We match any lower price you find"], ["▥", "Visa Experts", "Certified immigration consultants"], ["▣", "Secure Booking", "100% safe and encrypted process"], ["☎", "24/7 Support", "We're here whenever you need us"], ["✓", "Easy Process", "Simple steps, no hidden fees"]];
+  return <section className="benefits"><div className="section-shell benefits-grid">{benefits.map(([icon, title, text]) => <div key={title}><b>{icon}</b><h3>{title}</h3><p>{text}</p></div>)}</div></section>;
+}
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!values.name.trim() || !values.email.trim()) {
-      setError("Name and email are required.");
-      return;
-    }
-    setError("");
-    setStatus("submitting");
-    try {
-      const { error: insertError } = await supabase.from("form_submissions").insert({
-        form_type: "website_inquiry",
-        name: values.name,
-        email: values.email,
-        phone: values.phone,
-        raw_data: { service: values.service, message: values.message },
-      });
-      if (insertError) throw insertError;
-      setStatus("done");
-    } catch (err) {
-      setError("Something went wrong. Please try again or call us directly.");
-      setStatus("idle");
-    }
-  };
+function Testimonials({ content, testimonials }) {
+  const fallback = [{ client_name: "Maria Santos", quote: "Air Fair helped me get my Japan visa in just 2 weeks! Their preparation and support were professional and honest.", service_category: "Tourist Visa" }, { client_name: "James Reyes", quote: "Booked an El Nido package for our family of 5. Hotel, transfers, island tours — everything was seamless.", service_category: "Travel Package" }, { client_name: "Ana Cruz", quote: "They processed my 13A marriage visa without any hassle. The team is knowledgeable, patient, and kept me updated throughout.", service_category: "13A Visa" }];
+  const rows = testimonials.length ? testimonials : fallback;
+  return <section id="about" className="testimonials section-shell"><SectionTitle title={content?.blocks?.heading || "What Our Clients Say ✈"} description="Thousands of happy travelers and successful visa applicants trust Air Fair" /><div className="testimonials-grid">{rows.slice(0, 3).map((item, index) => <article className="testimonial-card" key={item.id || index}><span className="quote">“</span><p>{item.quote}</p><div className="client"><div className="client-avatar">{item.client_name.split(" ").map(part => part[0]).join("").slice(0, 2)}</div><div><strong>{item.client_name}</strong><small>{item.service_category || "Air Fair Client"}</small></div><span className="stars">★★★★★</span></div></article>)}<div className="newsletter-card"><Mail size={18} /><h3>Get Exclusive Travel Deals</h3><p>Subscribe for the latest packages, visa tips, and special promotions.</p><input placeholder="Your email address" /><button>Subscribe Now</button></div></div></section>;
+}
 
-  if (status === "done") {
-    return (
-      <section id="contact" style={{ padding: "88px 0" }}>
-        <div className="max-w-xl mx-auto px-6 text-center">
-          <CheckCircle2 size={40} color={T.green} className="mx-auto mb-4" />
-          <h2 className="mb-2" style={{ ...fontDisplay, fontSize: 28, color: T.navy }}>Thanks, {values.name.split(" ")[0]}!</h2>
-          <p className="text-sm" style={{ color: T.muted, ...fontBody }}>We've received your inquiry and will reach out within one business day.</p>
-        </div>
-      </section>
-    );
-  }
-
-  return (
-    <section id="contact" style={{ padding: "88px 0" }}>
-      <div className="max-w-xl mx-auto px-6">
-        <SectionHead eyebrow="Get In Touch" title="Tell us about your trip or move." sub="Fill this out and we'll follow up with next steps." />
-        <form onSubmit={handleSubmit} className="rounded-2xl p-7 flex flex-col gap-4" style={{ backgroundColor: "#fff", border: `1px solid ${T.border}` }}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs block mb-1.5" style={{ color: T.muted, ...fontBody }}>Full Name *</label>
-              <input value={values.name} onChange={e => update("name", e.target.value)} className="w-full rounded-lg px-3 py-2.5 text-sm outline-none" style={{ border: `1px solid ${T.border}`, ...fontBody }} />
-            </div>
-            <div>
-              <label className="text-xs block mb-1.5" style={{ color: T.muted, ...fontBody }}>Email *</label>
-              <input type="email" value={values.email} onChange={e => update("email", e.target.value)} className="w-full rounded-lg px-3 py-2.5 text-sm outline-none" style={{ border: `1px solid ${T.border}`, ...fontBody }} />
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs block mb-1.5" style={{ color: T.muted, ...fontBody }}>Phone</label>
-              <input value={values.phone} onChange={e => update("phone", e.target.value)} placeholder="+63 9XX XXX XXXX" className="w-full rounded-lg px-3 py-2.5 text-sm outline-none" style={{ border: `1px solid ${T.border}`, ...fontBody }} />
-            </div>
-            <div>
-              <label className="text-xs block mb-1.5" style={{ color: T.muted, ...fontBody }}>Interested In</label>
-              <select value={values.service} onChange={e => update("service", e.target.value)} className="w-full rounded-lg px-3 py-2.5 text-sm outline-none" style={{ border: `1px solid ${T.border}`, ...fontBody, backgroundColor: "#fff" }}>
-                {SERVICE_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-          </div>
-          <div>
-            <label className="text-xs block mb-1.5" style={{ color: T.muted, ...fontBody }}>Message</label>
-            <textarea rows={4} value={values.message} onChange={e => update("message", e.target.value)} placeholder="Tell us a bit about your situation..." className="w-full rounded-lg px-3 py-2.5 text-sm outline-none" style={{ border: `1px solid ${T.border}`, ...fontBody }} />
-          </div>
-          {error && <div className="text-xs" style={{ color: "#D64545", ...fontBody }}>{error}</div>}
-          <button type="submit" disabled={status === "submitting"} className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg text-sm font-semibold" style={{ backgroundColor: T.green, color: "#fff", ...fontBody, opacity: status === "submitting" ? 0.7 : 1 }}>
-            {status === "submitting" ? "Sending..." : <>Send Inquiry <Send size={14} /></>}
-          </button>
-        </form>
-      </div>
-    </section>
-  );
+function Contact({ settings }) {
+  const [form, setForm] = useState({ name: "", email: "", phone: "", message: "" });
+  const [sent, setSent] = useState(false);
+  const update = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
+  const submit = async event => { event.preventDefault(); const { error } = await supabase.from("form_submissions").insert({ form_type: "website_inquiry", name: form.name, email: form.email, phone: form.phone, raw_data: { message: form.message } }); if (!error) setSent(true); };
+  return <section id="contact" className="contact-section"><div className="section-shell contact-layout"><div><span className="eyebrow yellow">LET'S PLAN YOUR JOURNEY</span><h2>Ready to make your travel dreams a reality?</h2><p>Tell us what you need and our travel experts will get back to you with the best next step.</p><div className="contact-detail"><Phone size={16} /> {settings.contact_phone || fallbackSettings.contact_phone}</div><div className="contact-detail"><Mail size={16} /> {settings.contact_email || fallbackSettings.contact_email}</div><div className="contact-detail"><MapPin size={16} /> {settings.address || fallbackSettings.address}</div></div>{sent ? <div className="sent-card"><ShieldCheck size={38} /><h3>Thank you for reaching out.</h3><p>We've received your inquiry and will contact you soon.</p></div> : <form className="contact-form" onSubmit={submit}><input required placeholder="Full name" value={form.name} onChange={e => update("name", e.target.value)} /><input required type="email" placeholder="Email address" value={form.email} onChange={e => update("email", e.target.value)} /><input placeholder="Phone number" value={form.phone} onChange={e => update("phone", e.target.value)} /><textarea rows="4" placeholder="How can we help?" value={form.message} onChange={e => update("message", e.target.value)} /><button className="yellow-button" type="submit">Send Inquiry <ArrowRight size={14} /></button></form>}</div></section>;
 }
 
 function Footer({ settings }) {
-  const businessName = settings?.business_name || FALLBACK_SETTINGS.business_name;
-  const email = settings?.contact_email || FALLBACK_SETTINGS.contact_email;
-  const phone = settings?.contact_phone || FALLBACK_SETTINGS.contact_phone;
-  const address = settings?.address || FALLBACK_SETTINGS.address;
-  const fb = settings?.facebook_url;
-  const ig = settings?.instagram_url;
-  const li = settings?.linkedin_url;
-  return (
-    <footer style={{ backgroundColor: T.navyDeep, color: "#9FB0BD", padding: "56px 0 28px", fontSize: 13.5 }}>
-      <div className="max-w-6xl mx-auto px-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-10">
-          <div className="col-span-2 md:col-span-1">
-            <div className="flex items-center gap-2.5 mb-3">
-              <LogoMark size={30} />
-              <div style={{ ...fontDisplay, color: "#fff", fontSize: 15 }}>Air Fair</div>
-            </div>
-            <p className="max-w-[220px]" style={{ ...fontBody }}>Delivering journeys, simplifying visas — for Filipinos heading abroad.</p>
-            <div className="flex gap-3 mt-4">
-              {fb && <a href={fb} target="_blank" rel="noopener noreferrer"><Facebook size={16} /></a>}
-              {ig && <a href={ig} target="_blank" rel="noopener noreferrer"><Instagram size={16} /></a>}
-              {li && <a href={li} target="_blank" rel="noopener noreferrer"><Linkedin size={16} /></a>}
-            </div>
-          </div>
-          <div>
-            <h4 className="text-xs uppercase mb-3.5 font-semibold" style={{ color: "#fff", letterSpacing: "0.06em", ...fontBody }}>Company</h4>
-            <ul className="flex flex-col gap-2.5" style={fontBody}>
-              <li><a href="#services">Services</a></li>
-              <li><a href="#process">How It Works</a></li>
-              <li><a href="#testimonials">Testimonials</a></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="text-xs uppercase mb-3.5 font-semibold" style={{ color: "#fff", letterSpacing: "0.06em", ...fontBody }}>Services</h4>
-            <ul className="flex flex-col gap-2.5" style={fontBody}>
-              <li>Visa Assistance</li>
-              <li>Flight & Hotel</li>
-              <li>Immigration</li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="text-xs uppercase mb-3.5 font-semibold" style={{ color: "#fff", letterSpacing: "0.06em", ...fontBody }}>Contact</h4>
-            <ul className="flex flex-col gap-2.5" style={fontBody}>
-              <li>{email}</li>
-              <li>{phone}</li>
-              <li>{address}</li>
-            </ul>
-          </div>
-        </div>
-        <div className="flex flex-wrap justify-between gap-2.5 pt-5 text-xs" style={{ borderTop: "1px solid rgba(255,255,255,.1)", ...fontBody }}>
-          <span>© 2026 {businessName}. All rights reserved.</span>
-          <span>Draft preview — content and pricing are placeholders</span>
-        </div>
-      </div>
-    </footer>
-  );
+  const socials = [[Facebook, settings.facebook_url], [Instagram, settings.instagram_url], [Linkedin, settings.linkedin_url]];
+  return <footer><div className="section-shell footer-grid"><div className="footer-brand"><Logo light /><p>Your trusted travel partner and visa consultant for unforgettable journeys and hassle-free immigration services.</p><div className="socials">{socials.map(([Icon, url], index) => <a key={index} href={url || "#"} aria-label="Social link"><Icon size={13} /></a>)}</div></div><div><h4>COMPANY</h4><a href="#about">About Us</a><a href="#about">Our Team</a><a href="#services">Careers</a><a href="#about">Blog</a><a href="#contact">Contact Us</a></div><div><h4>VISA SERVICES</h4><a href="#services">Tourist Visa</a><a href="#services">9G Work Visa</a><a href="#services">13A Marriage Visa</a><a href="#srri">SRRV / Retirement</a><a href="#services">ACR-I Card</a><a href="#services">Other Services</a></div><div><h4>CONTACT US</h4><a href={`tel:${settings.contact_phone}`}>☎ {settings.contact_phone || fallbackSettings.contact_phone}</a><a href={`mailto:${settings.contact_email}`}>✉ {settings.contact_email || fallbackSettings.contact_email}</a><a href="#contact">▣ {settings.address || fallbackSettings.address}</a></div></div><div className="footer-bottom section-shell"><span>© 2025 Air Fair Travel and Tours OPC. All rights reserved.</span><span>Privacy Policy　 Terms &amp; Conditions</span></div></footer>;
 }
 
 function ChatWidget({ code }) {
-  const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    if (!code || !code.trim()) return;
-    const script = document.createElement("script");
-    script.innerHTML = code;
-    document.body.appendChild(script);
-    return () => { document.body.removeChild(script); };
-  }, [code]);
-
-  if (!code || !code.trim()) {
-    return (
-      <div style={{ position: "fixed", bottom: 20, right: 20, zIndex: 50 }}>
-        {open && (
-          <div className="rounded-2xl p-4 mb-3" style={{ width: 260, backgroundColor: "#fff", border: `1px solid ${T.border}`, boxShadow: "0 12px 32px -12px rgba(19,41,63,.25)" }}>
-            <div className="text-sm font-medium mb-1" style={{ color: T.navy, ...fontBody }}>Chat widget placeholder</div>
-            <p className="text-xs" style={{ color: T.muted, ...fontBody }}>
-              Once a chat provider is configured in Settings → Integrations, the real widget renders here automatically.
-            </p>
-          </div>
-        )}
-        <button onClick={() => setOpen(v => !v)} aria-label="Chat" style={{ width: 52, height: 52, borderRadius: "9999px", backgroundColor: T.green, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 8px 20px -6px rgba(110,190,61,.55)", border: "none", cursor: "pointer" }}>
-          <MessageCircle size={22} />
-        </button>
-      </div>
-    );
-  }
-  return null;
+  useEffect(() => { if (!code?.trim()) return undefined; const script = document.createElement("script"); script.innerHTML = code; document.body.appendChild(script); return () => document.body.removeChild(script); }, [code]);
+  if (code?.trim()) return null;
+  return <a className="chat-bubble" href="#contact" aria-label="Contact Air Fair"><Mail size={21} /></a>;
 }
 
 export default function Website() {
   const [pages, setPages] = useState([]);
   const [testimonials, setTestimonials] = useState([]);
-  const [settings, setSettings] = useState(null);
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    (async () => {
-      const [pageData, testData, settingsData] = await Promise.all([
-        fetchPublishedPages(),
-        fetchPublishedTestimonials(),
-        fetchSiteSettings(),
-      ]);
-      setPages(pageData);
-      setTestimonials(testData);
-      setSettings(settingsData);
-      setLoaded(true);
-
-      if (settingsData?.seo_title) {
-        document.title = settingsData.seo_title;
-      }
-      if (settingsData?.seo_description) {
-        let meta = document.querySelector('meta[name="description"]');
-        if (!meta) {
-          meta = document.createElement("meta");
-          meta.setAttribute("name", "description");
-          document.head.appendChild(meta);
-        }
-        meta.setAttribute("content", settingsData.seo_description);
-      }
-    })();
-  }, []);
-
-  const homePage = pages.find(p => p.slug === "home");
-  const heroSection = homePage?.sections.find(s => s.template_type === "hero");
-  const servicesSection = homePage?.sections.find(s => s.template_type === "services_preview");
-  const testimonialsSection = homePage?.sections.find(s => s.template_type === "testimonials");
-  const ctaSection = homePage?.sections.find(s => s.template_type === "cta");
-  const effectiveSettings = settings || FALLBACK_SETTINGS;
-
-  return (
-    <div style={{ backgroundColor: T.paper, color: T.ink, ...fontBody }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap');
-      `}</style>
-      <div className="text-center text-xs py-2" style={{ backgroundColor: T.navyDeep, color: "#fff", letterSpacing: "0.03em" }}>
-        Draft Preview — basic website design for {effectiveSettings.business_name}, not yet live
-      </div>
-      <Nav settings={effectiveSettings} />
-      <HeroSlider content={heroSection} />
-      <StatStrip />
-      <Services sectionContent={servicesSection} settings={effectiveSettings} />
-      <Process />
-      <Testimonials sectionContent={testimonialsSection} testimonials={testimonials} />
-      <CtaBand sectionContent={ctaSection} />
-      <InquiryForm />
-      <Footer settings={effectiveSettings} />
-      <ChatWidget code={effectiveSettings.chat_widget_code} />
-    </div>
-  );
+  const [settings, setSettings] = useState(fallbackSettings);
+  useEffect(() => { (async () => { const [pageData, testimonialData, settingsData] = await Promise.all([fetchPublishedPages(), fetchPublishedTestimonials(), fetchSiteSettings()]); setPages(pageData); setTestimonials(testimonialData); if (settingsData) setSettings({ ...fallbackSettings, ...settingsData }); })(); }, []);
+  useEffect(() => { document.title = settings.seo_title || fallbackSettings.seo_title; }, [settings.seo_title]);
+  const homePage = pages.find(page => page.slug === "home");
+  const section = type => homePage?.sections.find(item => item.template_type === type);
+  const heroContent = section("hero");
+  const servicesContent = section("services_preview");
+  const testimonialsContent = section("testimonials");
+  return <div className="travel-site"><style>{`
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Pacifico&display=swap');
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;font-family:'DM Sans',sans-serif;color:${colors.text};background:#fff}.travel-site{overflow:hidden}.section-shell{max-width:1080px;margin:0 auto;padding-left:24px;padding-right:24px}.browser-bar{height:20px;background:#fafafa;border-bottom:1px solid #e9e9e9;padding:0 12px;display:flex;align-items:center;gap:5px;font-size:7px;color:#777}.browser-dot{font-size:7px;background:#ddd;border-radius:50%;padding:1px 3px}.browser-actions{margin-left:auto;display:flex;align-items:center;gap:5px}.browser-actions span{border:1px solid #ddd;border-radius:3px;padding:2px 5px}.browser-actions b{background:#4c63ef;color:white;border-radius:3px;padding:2px 7px}.promise-bar{height:18px;background:${colors.greenDark};color:#f8fbdc;display:flex;align-items:center;justify-content:center;gap:48px;font-size:7px}.main-nav{background:white;border-bottom:1px solid #e4e8ec;position:sticky;top:0;z-index:20}.nav-inner{height:58px;max-width:1080px;margin:auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between}.logo-lockup{display:flex;align-items:center;gap:7px}.logo-mark{width:31px;height:31px;background:${colors.navy};color:${colors.yellow};display:flex;align-items:center;justify-content:center;clip-path:polygon(50% 0,100% 100%,0 100%)}.logo-lockup strong{display:block;font-size:12px;line-height:1;color:${colors.navy};letter-spacing:.06em}.logo-lockup small{display:block;font-size:5px;letter-spacing:.09em;margin-top:3px}.nav-links{display:flex;align-items:center;gap:20px;margin-left:auto;margin-right:25px}.nav-links a{font-size:9px;color:#42546b;text-decoration:none;font-weight:600}.nav-links a:hover,.nav-links .nav-green{color:${colors.green}}.nav-actions{display:flex;align-items:center;gap:12px}.nav-actions button{border:0;background:none;color:#687a8d;cursor:pointer;padding:4px}.book-button,.green-button,.yellow-button,.outline-button,.phone-button{display:inline-flex;align-items:center;gap:6px;text-decoration:none;cursor:pointer;font-size:10px;font-weight:700;border-radius:18px;padding:9px 18px;transition:transform .2s,opacity .2s}.book-button:hover,.green-button:hover,.yellow-button:hover{transform:translateY(-2px)}.book-button{background:${colors.green};color:white}.mobile-menu{display:none!important}.search-panel{position:absolute;right:24px;top:58px;background:white;border:1px solid ${colors.line};padding:10px;display:flex;align-items:center;gap:8px;box-shadow:0 10px 24px #102d6818}.search-panel input{border:0;outline:0;width:280px;font-size:12px}.hero{height:390px;position:relative;color:white;overflow:hidden}.hero-image{position:absolute;width:100%;height:100%;object-fit:cover;object-position:center;opacity:0;transition:opacity 1s}.hero-image.active{opacity:1}.hero-overlay{position:absolute;inset:0;background:linear-gradient(90deg,rgba(11,62,25,.9),rgba(10,49,87,.58) 56%,rgba(7,27,58,.37)),linear-gradient(0deg,rgba(0,0,0,.18),transparent)}.hero-inner{position:relative;z-index:2;max-width:1080px;margin:auto;padding:55px 24px}.hero-copy{animation:heroIn .7s ease both}.hero-kicker{display:inline-block;background:${colors.green};color:#fff;border-radius:12px;font-size:8px;font-weight:700;padding:5px 10px;margin-bottom:13px}.hero h1{font-size:40px;line-height:.98;letter-spacing:.01em;margin:0 0 13px;font-weight:700;color:#fff}.hero h1 em{display:block;font-family:Pacifico,cursive;font-size:42px;line-height:1.1;color:${colors.yellow};font-weight:400;letter-spacing:0}.hero p{max-width:400px;font-size:11px;line-height:1.7;color:#edf3f7;margin:0 0 18px}.hero-buttons{display:flex;gap:8px}.yellow-button{background:${colors.yellow};color:#263b19}.outline-button{border:1px solid ${colors.yellow};color:${colors.yellow};background:transparent}.hero .outline-button{border-color:${colors.yellow}}.trust-row{display:flex;align-items:center;gap:8px;margin-top:19px}.trust-row small{font-size:8px;color:#e1ebef}.mini-avatars{display:flex}.mini-avatars span{width:19px;height:19px;border-radius:50%;background:${colors.green};border:2px solid white;margin-right:-4px;font-size:5px;display:flex;align-items:center;justify-content:center;color:white;font-weight:700}.mini-avatars span:nth-child(2){background:#c28364}.mini-avatars span:nth-child(3){background:#ba9c62}.mini-avatars span:nth-child(4){background:${colors.navy};font-size:5px}.hero-arrow{position:absolute;z-index:4;top:50%;transform:translateY(-50%);border:0;color:#fff;background:#ffffff2e;width:29px;height:29px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer}.hero-arrow.left{left:13px}.hero-arrow.right{right:13px}.hero-dots{position:absolute;z-index:4;bottom:12px;left:50%;transform:translateX(-50%);display:flex;gap:6px}.hero-dots button{width:7px;height:7px;border:0;border-radius:50%;background:#d8e1dd;cursor:pointer;padding:0}.hero-dots button.active{width:18px;border-radius:5px;background:${colors.green}}@keyframes heroIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}.destinations{padding-top:32px;padding-bottom:35px}.section-heading-row{display:flex;align-items:flex-end;justify-content:space-between}.section-title{margin-bottom:18px}.section-title h2{font-size:21px;line-height:1.15;color:${colors.ink};margin:0 0 6px;font-weight:700}.section-title p{font-size:9px;color:#718093;margin:0}.view-all{font-size:9px;color:${colors.green};text-decoration:none;font-weight:700;margin-bottom:21px}.destination-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}.destination-card{border:1px solid ${colors.line};border-radius:8px;overflow:hidden;background:white;box-shadow:0 2px 5px #102d6807}.card-image{height:103px;position:relative}.card-image img{width:100%;height:100%;object-fit:cover}.discount{position:absolute;left:5px;top:5px;border-radius:4px;background:#ed443b;color:#fff;padding:3px 5px;font-size:7px;font-weight:700}.destination-body{padding:8px 8px 9px;display:grid;grid-template-columns:1fr auto;gap:3px}.destination-body h3{font-size:10px;margin:0;color:${colors.ink}}.destination-body p{font-size:7px;margin:3px 0 0;color:#8090a0}.destination-body strong{font-size:11px;color:${colors.navy};grid-column:1}.destination-body small{font-size:7px;color:#8b9aa8;grid-column:2;grid-row:2;align-self:end}.rating{font-size:7px;color:#8190a1;display:flex;align-items:center;gap:2px}.deals-section{background:${colors.greenSoft};padding:34px 0}.deal-layout{display:grid;grid-template-columns:1.05fr 1fr 1fr 1fr;gap:9px}.deal-intro{background:${colors.green};border-radius:8px;padding:21px 16px;color:#fff;display:flex;flex-direction:column;align-items:flex-start;justify-content:center}.eyebrow{display:inline-block;font-size:8px;letter-spacing:.05em;color:${colors.green};font-weight:700;background:#eaf5d6;border-radius:10px;padding:4px 8px;margin-bottom:9px}.eyebrow.yellow{color:${colors.yellow};background:transparent;padding:0}.deal-intro h2{font-size:19px;line-height:1.12;margin:0 0 10px;color:#fff}.deal-intro h2 span{color:${colors.yellow}}.deal-intro p{font-size:9px;line-height:1.5;margin:0 0 15px;color:#e7f6d0}.deal-intro .yellow-button{font-size:8px;padding:8px 12px}.deal-card{background:white;border-radius:8px;overflow:hidden;border:1px solid #dfe7d3;box-shadow:0 2px 5px #102d6808}.deal-image{height:100px;position:relative}.deal-image img{width:100%;height:100%;object-fit:cover}.deal-badge{position:absolute;left:6px;top:6px;border-radius:4px;padding:3px 5px;color:#fff;font-size:7px;font-weight:700}.deal-content{padding:9px}.deal-content h3{font-size:10px;color:${colors.ink};margin:0 0 4px}.deal-content p{font-size:7px;margin:0 0 9px;color:#7e8d9a}.deal-bottom{display:flex;align-items:center;justify-content:space-between}.deal-bottom strong{font-size:12px;color:${colors.green}}.deal-bottom a{font-size:7px;color:${colors.green};text-decoration:none}.services{display:grid;grid-template-columns:1fr 1fr;gap:65px;padding-top:55px;padding-bottom:52px;align-items:center}.services-copy h2{font-size:23px;line-height:1.2;color:${colors.ink};margin:0 0 12px}.services-copy h2::first-line{color:${colors.ink}}.services-copy>p{font-size:10px;line-height:1.65;color:#66778a;max-width:410px}.services-copy>p strong{color:${colors.ink}}.service-buttons{display:flex;align-items:center;gap:8px;margin-top:16px}.green-button{background:${colors.green};color:#fff}.phone-button{border:1px solid ${colors.navy};color:${colors.navy};padding:8px 12px}.service-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.service-tile{background:${colors.greenSoft};border-radius:7px;padding:14px 11px;min-height:93px;color:${colors.green}.service-tile:nth-child(2n){background:#edf7dd}.service-tile h3{font-size:9px;color:${colors.ink};margin:7px 0 4px}.service-tile p{font-size:7px;line-height:1.5;margin:0;color:#738396}.retirement{background:linear-gradient(100deg,${colors.greenDark},${colors.green} 50%,${colors.blue});color:#fff}.retirement-inner{display:flex;align-items:center;justify-content:space-between;padding-top:26px;padding-bottom:26px}.retirement-inner>div:first-child{max-width:570px}.retirement-inner span{font-size:7px;color:${colors.yellow};font-weight:700;letter-spacing:.06em}.retirement h2{font-size:18px;margin:7px 0 5px;color:#fff}.retirement h2 em{font-family:Pacifico,cursive;color:${colors.yellow};font-size:20px;font-weight:400}.retirement p{font-size:8px;line-height:1.6;margin:0;color:#e2f1dc}.retirement-actions{display:flex;gap:9px}.retirement-actions .outline-button{font-size:8px;padding:8px 13px;border-color:#fff;color:#fff}.retirement-actions .yellow-button{font-size:8px;padding:8px 13px}.benefits{background:${colors.greenSoft};border-bottom:1px solid #cfe4a8}.benefits-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:15px;text-align:center;padding-top:24px;padding-bottom:24px}.benefits-grid b{display:block;color:${colors.green};font-size:19px;height:22px}.benefits-grid h3{font-size:8px;color:${colors.ink};margin:8px 0 4px}.benefits-grid p{font-size:7px;color:#849291;margin:0}.testimonials{padding-top:48px;padding-bottom:52px}.testimonials>.section-title{text-align:center}.testimonials-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}.testimonial-card{border:1px solid ${colors.line};border-radius:8px;padding:14px 13px;min-height:148px}.quote{font-size:24px;line-height:.6;color:${colors.green};font-weight:700}.testimonial-card>p{font-size:8px;line-height:1.65;color:#6c7b8c;min-height:65px}.client{border-top:1px solid ${colors.line};padding-top:9px;display:flex;align-items:center;gap:6px}.client-avatar{width:23px;height:23px;border-radius:50%;background:${colors.navy};color:#fff;display:flex;align-items:center;justify-content:center;font-size:7px}.client strong{display:block;color:${colors.ink};font-size:8px}.client small{display:block;color:#8b98a4;font-size:7px;margin-top:2px}.stars{margin-left:auto;color:${colors.yellow};font-size:8px;letter-spacing:-1px}.newsletter-card{border-radius:8px;background:${colors.green};color:#fff;padding:15px;display:flex;flex-direction:column;justify-content:center}.newsletter-card>svg{color:${colors.yellow};margin-bottom:8px}.newsletter-card h3{font-size:11px;margin:0 0 6px}.newsletter-card p{font-size:8px;line-height:1.5;color:#e5f3d5;margin:0 0 10px}.newsletter-card input{border:0;border-radius:5px;background:#ffffff22;color:#fff;padding:8px;font-size:8px;outline:0;margin-bottom:6px}.newsletter-card input::placeholder{color:#d9f0c8}.newsletter-card button{border:0;border-radius:5px;background:#66ad1c;color:#fff;padding:8px;font-size:8px;font-weight:700}.contact-section{background:${colors.navy};color:#fff;padding:48px 0}.contact-layout{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center}.contact-layout h2{font-size:26px;line-height:1.2;color:#fff;margin:10px 0}.contact-layout>div>p{font-size:10px;line-height:1.7;color:#c4d3e7;max-width:400px}.contact-detail{font-size:10px;color:#d8e3f2;display:flex;align-items:center;gap:8px;margin-top:10px}.contact-detail svg{color:${colors.yellow}}.contact-form{background:#fff;border-radius:9px;padding:18px;display:grid;gap:9px}.contact-form input,.contact-form textarea{font-family:inherit;border:1px solid ${colors.line};border-radius:5px;padding:10px;font-size:10px;outline:0;resize:vertical}.contact-form button{border:0;justify-content:center}.sent-card{background:#fff;color:${colors.ink};border-radius:9px;padding:36px;text-align:center}.sent-card svg{color:${colors.green}}.sent-card h3{font-size:17px}.sent-card p{color:${colors.text};font-size:10px}footer{background:${colors.navy};color:#9fb2cc;border-top:1px solid #284477}.footer-grid{display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:50px;padding-top:35px;padding-bottom:30px}.footer-brand p{font-size:9px;line-height:1.7;max-width:225px}.footer-grid h4{font-size:8px;color:${colors.green};letter-spacing:.07em;margin:3px 0 13px}.footer-grid>div:not(.footer-brand){display:flex;flex-direction:column;gap:8px}.footer-grid a{font-size:8px;color:#afc0d6;text-decoration:none}.socials{display:flex;gap:6px;margin-top:12px}.socials a{width:22px;height:22px;border-radius:50%;background:#26447a;color:#fff;display:flex;align-items:center;justify-content:center}.footer-bottom{border-top:1px solid #294477;display:flex;justify-content:space-between;padding-top:12px;padding-bottom:12px;font-size:7px}.chat-bubble{position:fixed;right:19px;bottom:19px;width:42px;height:42px;border-radius:50%;background:${colors.green};color:white;display:flex;align-items:center;justify-content:center;z-index:30;box-shadow:0 5px 15px #0003}@media(max-width:800px){.promise-bar{gap:12px;font-size:6px}.nav-links{display:none}.nav-links.open{display:flex;position:absolute;top:58px;left:0;right:0;margin:0;padding:18px 24px;background:#fff;border-top:1px solid ${colors.line};align-items:flex-start;flex-direction:column;gap:16px;box-shadow:0 8px 20px #0001}.mobile-menu{display:block!important}.destination-grid{grid-template-columns:repeat(2,1fr)}.destination-card:last-child{display:none}.deal-layout{grid-template-columns:repeat(2,1fr)}.deal-intro{grid-row:span 2}.services{grid-template-columns:1fr;gap:28px}.retirement-inner{align-items:flex-start;gap:20px;flex-direction:column}.benefits-grid{grid-template-columns:repeat(3,1fr)}.benefits-grid>div:nth-child(n+4){display:none}.testimonials-grid{grid-template-columns:repeat(2,1fr)}.newsletter-card{grid-column:span 2}.footer-grid{grid-template-columns:repeat(2,1fr);gap:25px}.footer-brand{grid-column:span 2}.contact-layout{grid-template-columns:1fr;gap:25px}.hero h1{font-size:34px}.hero h1 em{font-size:36px}}@media(max-width:480px){.browser-actions{display:none}.browser-bar{justify-content:center}.promise-bar span:nth-child(n+3){display:none}.nav-inner{padding:0 16px}.book-button{display:none}.hero{height:430px}.hero-inner{padding:70px 24px}.hero p{max-width:300px}.section-shell{padding-left:16px;padding-right:16px}.destination-grid{gap:7px}.deal-layout{grid-template-columns:1fr}.deal-intro{grid-row:auto}.deal-card{display:grid;grid-template-columns:42% 58%}.deal-image{height:100%}.deal-content{display:flex;flex-direction:column;justify-content:center}.service-grid{grid-template-columns:repeat(2,1fr)}.benefits-grid{gap:4px}.benefits-grid h3{font-size:7px}.testimonials-grid{grid-template-columns:1fr}.newsletter-card{grid-column:auto}.footer-bottom{gap:8px;flex-direction:column}.footer-bottom span:last-child{display:none}}
+  `}</style><TopBars settings={settings} /><Hero content={heroContent} /><Destinations /><Deals /><Services content={servicesContent} settings={settings} /><Retirement /><Benefits /><Testimonials content={testimonialsContent} testimonials={testimonials} /><Contact settings={settings} /><Footer settings={settings} /><ChatWidget code={settings.chat_widget_code} /></div>;
 }
