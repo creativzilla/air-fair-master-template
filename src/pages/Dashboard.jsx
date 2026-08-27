@@ -559,6 +559,13 @@ function Catalog({ services, onSaveService, onDeleteService, categories, currenc
   };
 
   const tabs = [{ id: "all", label: "All" }, { id: "service", label: "Services" }, { id: "product", label: "Products" }];
+  const editorPanel = !draft ? (<div className="h-full flex items-center justify-center text-center px-8 py-16"><p className="text-sm" style={{ color: T.muted, ...fontBody }}>Select an item to edit, or add a new offering.</p></div>) : (
+    <div className="p-5 flex flex-col gap-4">
+      <div className="flex items-center justify-between"><span className="text-sm font-medium" style={{ color: T.ink, ...fontBody }}>{activeId === "new" ? "New " : "Edit "}{draft.type === "service" ? "Service" : "Product / Package"}</span><button onClick={() => { setActiveId(null); setDraft(null); }} style={{ color: T.muted }}><X size={16} /></button></div>
+      {draft.type === "service" ? <ServiceForm draft={draft} update={updateDraft} currency={currency} /> : <ProductForm draft={draft} update={updateDraft} currency={currency} />}
+      <button onClick={handleSave} disabled={saving} className="mt-2 px-4 py-2 rounded-lg text-sm flex items-center justify-center gap-1.5" style={{ backgroundColor: T.accent, color: "#fff", ...fontBody, opacity: saving ? 0.7 : 1 }}>{savedFlash ? <><Check size={14} /> Saved</> : saving ? "Saving..." : "Save"}</button>
+    </div>
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -572,33 +579,31 @@ function Catalog({ services, onSaveService, onDeleteService, categories, currenc
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 dash-grid-5">
         <div className="lg:col-span-3 rounded-xl overflow-hidden" style={{ backgroundColor: T.surface, border: `1px solid ${T.border}` }}>
+          {activeId === "new" && <div className="dash-catalog-mobile-editor" style={{ backgroundColor: T.surface, borderBottom: `1px solid ${T.border}` }}>{editorPanel}</div>}
           {filtered.map((it, i) => (
-            <div key={it.id} className="flex items-center gap-4 px-5 py-4" style={{ borderBottom: i < filtered.length - 1 ? `1px solid ${T.border}` : "none" }}>
-              <GripVertical size={15} style={{ color: T.border }} />
-              <img src={it.image} alt="" className="w-14 h-10 object-cover rounded-md" style={{ border: `1px solid ${T.border}` }} />
-              <button onClick={() => openItem(it)} className="flex-1 text-left min-w-0">
-                <div className="text-sm truncate" style={{ color: T.ink, ...fontBody }}>{it.name}</div>
-                <div className="flex items-center gap-2 mt-1 flex-wrap">
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-medium flex items-center gap-1" style={{ backgroundColor: it.type === "service" ? T.infoSoft : T.tealSoft, color: it.type === "service" ? T.info : T.teal, ...fontBody }}>{it.type === "service" ? <Briefcase size={10} /> : <Package size={10} />}{it.type === "service" ? "Service" : "Product"}</span>
-                  {it.category && <CategoryTag category={it.category} categories={categories} />}
-                  <span className="text-xs" style={{ color: T.muted, ...fontBody }}>{getPriceLabel(it, currency)}</span>
-                  <Badge status={it.status} />
-                </div>
-              </button>
-              <button onClick={() => openItem(it)} className="text-xs px-2.5 py-1 rounded-md shrink-0" style={{ backgroundColor: T.accentSoft, color: T.accent, ...fontBody }}>Edit</button>
-              <button onClick={() => handleDelete(it.id)} style={{ color: T.muted }} className="shrink-0"><Trash2 size={15} /></button>
-            </div>
+            <React.Fragment key={it.id}>
+              <div className="flex items-center gap-4 px-5 py-4" style={{ borderBottom: i < filtered.length - 1 && activeId !== it.id ? `1px solid ${T.border}` : "none" }}>
+                <GripVertical size={15} style={{ color: T.border }} />
+                <img src={it.image} alt="" className="w-14 h-10 object-cover rounded-md" style={{ border: `1px solid ${T.border}` }} />
+                <button onClick={() => openItem(it)} className="flex-1 text-left min-w-0">
+                  <div className="text-sm truncate" style={{ color: T.ink, ...fontBody }}>{it.name}</div>
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium flex items-center gap-1" style={{ backgroundColor: it.type === "service" ? T.infoSoft : T.tealSoft, color: it.type === "service" ? T.info : T.teal, ...fontBody }}>{it.type === "service" ? <Briefcase size={10} /> : <Package size={10} />}{it.type === "service" ? "Service" : "Product"}</span>
+                    {it.category && <CategoryTag category={it.category} categories={categories} />}
+                    <span className="text-xs" style={{ color: T.muted, ...fontBody }}>{getPriceLabel(it, currency)}</span>
+                    <Badge status={it.status} />
+                  </div>
+                </button>
+                <button onClick={() => openItem(it)} className="text-xs px-2.5 py-1 rounded-md shrink-0" style={{ backgroundColor: T.accentSoft, color: T.accent, ...fontBody }}>Edit</button>
+                <button onClick={() => handleDelete(it.id)} style={{ color: T.muted }} className="shrink-0"><Trash2 size={15} /></button>
+              </div>
+              {activeId === it.id && <div className="dash-catalog-mobile-editor" style={{ backgroundColor: T.surface, borderTop: `1px solid ${T.border}`, borderBottom: i < filtered.length - 1 ? `1px solid ${T.border}` : "none" }}>{editorPanel}</div>}
+            </React.Fragment>
           ))}
           {filtered.length === 0 && <div className="px-5 py-10 text-center text-sm" style={{ color: T.muted, ...fontBody }}>No items match this view yet.</div>}
         </div>
-        <div className="lg:col-span-2 rounded-xl overflow-y-auto dash-mobile-full" style={{ backgroundColor: T.surface, border: `1px solid ${T.border}`, maxHeight: 720 }}>
-          {!draft ? (<div className="h-full flex items-center justify-center text-center px-8 py-16"><p className="text-sm" style={{ color: T.muted, ...fontBody }}>Select an item to edit, or add a new offering.</p></div>) : (
-            <div className="p-5 flex flex-col gap-4">
-              <div className="flex items-center justify-between"><span className="text-sm font-medium" style={{ color: T.ink, ...fontBody }}>{activeId === "new" ? "New " : "Edit "}{draft.type === "service" ? "Service" : "Product / Package"}</span><button onClick={() => { setActiveId(null); setDraft(null); }} style={{ color: T.muted }}><X size={16} /></button></div>
-              {draft.type === "service" ? <ServiceForm draft={draft} update={updateDraft} currency={currency} /> : <ProductForm draft={draft} update={updateDraft} currency={currency} />}
-              <button onClick={handleSave} disabled={saving} className="mt-2 px-4 py-2 rounded-lg text-sm flex items-center justify-center gap-1.5" style={{ backgroundColor: T.accent, color: "#fff", ...fontBody, opacity: saving ? 0.7 : 1 }}>{savedFlash ? <><Check size={14} /> Saved</> : saving ? "Saving..." : "Save"}</button>
-            </div>
-          )}
+        <div className="lg:col-span-2 rounded-xl overflow-y-auto dash-mobile-full dash-catalog-desktop-editor" style={{ backgroundColor: T.surface, border: `1px solid ${T.border}`, maxHeight: 720 }}>
+          {editorPanel}
         </div>
       </div>
       {showChooser && <AddOfferingModal onClose={() => setShowChooser(false)} onChoose={openNew} />}
@@ -1145,6 +1150,8 @@ export default function Dashboard() {
         .dash-mobile-nav{display:none}
         .dash-mobile-bar{display:none}
         .dash-mobile-overlay{display:none}
+        .dash-catalog-mobile-editor{display:none}
+        .dash-catalog-desktop-editor{display:block}
         @media(max-width:768px){
           .dash-desktop-sidebar{display:none!important}
           .dash-mobile-bar{display:flex!important}
@@ -1156,6 +1163,8 @@ export default function Dashboard() {
           .dash-grid-2{grid-template-columns:1fr!important;flex-direction:column!important}
           .dash-mobile-full{max-width:100%!important;max-height:none!important}
           .dash-mobile-hide{display:none!important}
+          .dash-catalog-desktop-editor{display:none!important}
+          .dash-catalog-mobile-editor{display:block!important}
           .dash-modal-full{width:100%!important;max-width:none!important;border-radius:0!important;min-height:100vh!important}
         }
       `}</style>
