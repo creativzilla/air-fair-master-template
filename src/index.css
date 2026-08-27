@@ -128,7 +128,7 @@ body{margin:0;font-family:'DM Sans',sans-serif;color:#5B6C80;background:#fff}
 .deal-bottom a{font-size:14px;color:#4B9B13;text-decoration:none}
 
 .services{display:grid;grid-template-columns:1fr 1fr;gap:65px;padding-top:64px;padding-bottom:62px;align-items:center}
-.services-copy h2{font-size:30px;line-height:1.2;color:#102B57;margin:0 0 14px}
+.services-copy h2{font-size:30px;line-height:1.2;color:#102B57;margin:0 0 14px;font-weight:700}
 .services-copy>p{font-size:16px;line-height:1.65;color:#66778a;max-width:460px}
 .services-copy>p strong{color:#102B57}
 .service-buttons{display:flex;align-items:center;gap:10px;margin-top:20px}
