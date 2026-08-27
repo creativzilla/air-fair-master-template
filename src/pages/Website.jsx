@@ -125,11 +125,23 @@ function Hero({ content }) {
 }
 
 function DestinationCard({ item }) {
-  return <a className="destination-card" href={`/package/${item.slug}`}><div className="card-image"><img src={item.image} alt={item.name} /><span className="discount">{item.discount}</span></div><div className="destination-body"><div><h3>{item.name}</h3><p>{item.country}</p></div><div className="rating"><Star size={11} fill={colors.yellow} color={colors.yellow} /> <span>4.9</span></div><strong>{item.priceLabel || `₱${item.price}`}</strong><small>per person</small></div></a>;
+  const discount = item.discount && item.discount !== "Featured" ? item.discount : null;
+  return <a className="destination-card" href={`/package/${item.slug}`}>
+    <img src={item.image} alt={item.name} />
+    <div className="destination-shade" />
+    <div className="destination-badges">
+      {item.discount === "Featured" && <span className="destination-featured">Featured</span>}
+      {discount && <span className="destination-discount">{discount}</span>}
+    </div>
+    <div className="destination-overlay">
+      <h3>{item.name}</h3>
+      <p>{item.priceLabel || `₱${item.price}`} <span>per person</span></p>
+    </div>
+  </a>;
 }
 
 function Destinations({ products }) {
-  const items = products.length ? products.slice(0, 5).map((item, index) => ({ ...item, country: item.category || "Travel Package", priceLabel: getPriceLabel(item), discount: index % 2 ? "-20%" : "Featured" })) : destinationCards;
+  const items = products.length ? products.slice(0, 5).map((item, index) => ({ ...item, priceLabel: getPriceLabel(item), discount: index % 2 ? "-20%" : "Featured" })) : destinationCards;
   return <section id="destinations" className="destinations section-shell"><div className="section-heading-row"><SectionTitle title="Popular Destinations ✈" description="Discover the best of the Philippines and top international destinations" /><a className="view-all" href="#deals">View All →</a></div><div className="destination-grid">{items.map(item => <DestinationCard key={item.id || item.name} item={item} />)}</div></section>;
 }
 

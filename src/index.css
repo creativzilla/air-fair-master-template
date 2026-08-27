@@ -94,16 +94,17 @@ body{margin:0;font-family:'Poppins',sans-serif;color:#5B6C80;background:#fff}
 .section-title p{font-size:16px;color:#718093;margin:0}
 .view-all{font-size:16px;color:#4B9B13;text-decoration:none;font-weight:600;margin-bottom:26px}
 .destination-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
-.destination-card{border:1px solid #E3E8ED;border-radius:10px;overflow:hidden;background:white;box-shadow:0 2px 5px #102d6807}
-.card-image{height:140px;position:relative}
-.card-image img{width:100%;height:100%;object-fit:cover}
-.discount{position:absolute;left:7px;top:7px;border-radius:5px;background:#ed443b;color:#fff;padding:4px 7px;font-size:12px;font-weight:700}
-.destination-body{padding:12px 12px 13px;display:grid;grid-template-columns:1fr auto;gap:4px}
-.destination-body h3{font-size:16px;margin:0;color:#102B57}
-.destination-body p{font-size:13px;margin:4px 0 0;color:#8090a0}
-.destination-body strong{font-size:18px;color:#102D68;grid-column:1}
-.destination-body small{font-size:13px;color:#8b9aa8;grid-column:2;grid-row:2;align-self:end}
-.rating{font-size:13px;color:#8190a1;display:flex;align-items:center;gap:3px}
+.destination-card{position:relative;border-radius:12px;overflow:hidden;display:block;aspect-ratio:3/4;box-shadow:0 4px 14px #102d680a}
+.destination-card img{width:100%;height:100%;object-fit:cover;transition:transform .5s ease}
+.destination-card:hover img{transform:scale(1.06)}
+.destination-shade{position:absolute;inset:0;background:linear-gradient(to top,rgba(16,43,87,0.72) 0%,rgba(16,43,87,0.1) 45%,transparent 70%)}
+.destination-badges{position:absolute;left:8px;top:8px;display:flex;flex-direction:column;gap:4px;z-index:2}
+.destination-featured{border-radius:6px;background:rgba(255,255,255,0.92);color:#102D68;padding:3px 8px;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;backdrop-filter:blur(4px)}
+.destination-discount{border-radius:6px;background:#ed443b;color:#fff;padding:3px 8px;font-size:10px;font-weight:700}
+.destination-overlay{position:absolute;left:0;right:0;bottom:0;padding:14px;z-index:2}
+.destination-overlay h3{font-size:16px;margin:0 0 2px;color:#fff;font-weight:700;line-height:1.25;text-shadow:0 1px 3px rgba(0,0,0,0.3)}
+.destination-overlay p{font-size:14px;margin:0;color:rgba(255,255,255,0.9);font-weight:600}
+.destination-overlay p span{font-size:12px;font-weight:400;opacity:0.8}
 
 .deals-section{background:#EFF9D9;padding:48px 0}
 .deal-layout{display:grid;grid-template-columns:1.05fr 1fr 1fr 1fr;gap:12px}
@@ -307,14 +308,6 @@ footer{background:#102D68;color:#9fb2cc;border-top:1px solid #284477}
   .section-title p{font-size:16px}
   .view-all{font-size:16px}
   .destination-grid{gap:16px}
-  .card-image{height:180px}
-  .destination-body{padding:14px 14px 15px}
-  .destination-body h3{font-size:18px}
-  .destination-body p{font-size:14px}
-  .destination-body strong{font-size:20px}
-  .destination-body small{font-size:14px}
-  .rating{font-size:14px}
-  .discount{font-size:13px;padding:5px 9px}
 
   .deals-section{padding:60px 0}
   .deal-layout{gap:16px}
