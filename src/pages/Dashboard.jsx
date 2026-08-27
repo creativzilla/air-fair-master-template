@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { LayoutDashboard, File as FileEdit, Inbox, CalendarDays, Image as ImageIcon, Settings as SettingsIcon, ExternalLink, ChevronRight, ChevronLeft, Bell, Plus, X, Upload, Clock, Search, Check, MoveHorizontal as MoreHorizontal, Briefcase, Trash2, GripVertical, Mail, CalendarPlus, Wallet, Users, Plane, Globe, ArrowUp, UserPlus, FileText, Contact as Contact2, UserCog, ListChecks, LayoutTemplate, User, Calendar, Phone, MapPin, Building2, Landmark, TextCursorInput, AlignLeft, List, ChevronDown, SquareCheck as CheckSquare, Circle, Star, Hash, PenLine, Send, CreditCard, Monitor, Smartphone, ArrowLeft, Pencil, Package, Lock, LogOut, Eye, EyeOff, Loader as Loader2, Menu as MenuIcon, Home } from "lucide-react";
+import { LayoutDashboard, File as FileEdit, Inbox, CalendarDays, Image as ImageIcon, Settings as SettingsIcon, ExternalLink, ChevronRight, ChevronLeft, Bell, Plus, X, Upload, Clock, Search, Check, MoveHorizontal as MoreHorizontal, Briefcase, Trash2, GripVertical, Mail, CalendarPlus, Wallet, Users, Plane, Globe, ArrowUp, UserPlus, FileText, Contact as Contact2, UserCog, ListChecks, LayoutTemplate, User, Calendar, Phone, MapPin, Building2, Landmark, TextCursorInput, AlignLeft, List, ChevronDown, SquareCheck as CheckSquare, Circle, Star, Hash, PenLine, Send, CreditCard, Monitor, Smartphone, ArrowLeft, Pencil, Package, Lock, LogOut, Eye, EyeOff, Loader as Loader2, Menu as MenuIcon, Chrome as Home } from "lucide-react";
 import { supabase, uploadCatalogImage } from "../lib/supabase.js";
 import { dbRowToService, serviceToDbRow, getPriceLabel } from "../lib/catalog.js";
 import { fetchAllPagesForEditor, saveContentBlock, fetchSiteSettings, saveSiteSettings } from "../lib/content.js";
@@ -995,6 +995,7 @@ export default function Dashboard() {
   const [signingOut, setSigningOut] = useState(false);
   const [page, setPage] = useState("overview");
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [submissions, setSubmissions] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [bookings, setBookings] = useState([]);
@@ -1136,8 +1137,6 @@ export default function Dashboard() {
   if (!session) {
     return <LoginScreen />;
   }
-
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   return (
     <div className="w-full min-h-screen flex" style={{ backgroundColor: T.bg, ...fontBody }}>
