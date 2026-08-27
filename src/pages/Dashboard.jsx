@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { LayoutDashboard, File as FileEdit, Inbox, CalendarDays, Image as ImageIcon, Settings as SettingsIcon, ExternalLink, ChevronRight, ChevronLeft, Bell, Plus, X, Upload, Clock, Search, Check, MoveHorizontal as MoreHorizontal, Briefcase, Trash2, GripVertical, Mail, CalendarPlus, Wallet, Users, Plane, Globe, ArrowUp, UserPlus, FileText, Contact as Contact2, UserCog, ListChecks, LayoutTemplate, User, Calendar, Phone, MapPin, Building2, Landmark, TextCursorInput, AlignLeft, List, ChevronDown, SquareCheck as CheckSquare, Circle, Star, Hash, PenLine, Send, CreditCard, Monitor, Smartphone, ArrowLeft, Pencil, Package } from "lucide-react";
+import { LayoutDashboard, File as FileEdit, Inbox, CalendarDays, Image as ImageIcon, Settings as SettingsIcon, ExternalLink, ChevronRight, ChevronLeft, Bell, Plus, X, Upload, Clock, Search, Check, MoveHorizontal as MoreHorizontal, Briefcase, Trash2, GripVertical, Mail, CalendarPlus, Wallet, Users, Plane, Globe, ArrowUp, UserPlus, FileText, Contact as Contact2, UserCog, ListChecks, LayoutTemplate, User, Calendar, Phone, MapPin, Building2, Landmark, TextCursorInput, AlignLeft, List, ChevronDown, SquareCheck as CheckSquare, Circle, Star, Hash, PenLine, Send, CreditCard, Monitor, Smartphone, ArrowLeft, Pencil, Package, Lock, LogOut, Eye, EyeOff, Loader2 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { dbRowToService, serviceToDbRow, getPriceLabel } from "../lib/catalog.js";
 import { fetchAllPagesForEditor, saveContentBlock, fetchSiteSettings, saveSiteSettings } from "../lib/content.js";
@@ -873,7 +873,89 @@ function inferCategory(submissionType, categories = []) {
   return match || categories[0] || "General";
 }
 
+function LoginScreen({ onAuth }) {
+  const [mode, setMode] = useState("signin");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    if (!email.trim() || !password) {
+      setError("Please enter your email and password.");
+      return;
+    }
+    setLoading(true);
+    try {
+      if (mode === "signup") {
+        const { data, error: signUpError } = await supabase.auth.signUp({ email: email.trim(), password });
+        if (signUpError) throw signUpError;
+        if (!data.session) {
+          setError("Account created. Please sign in with your email and password.");
+          setMode("signin");
+        }
+      } else {
+        const { data, error: signInError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+        if (signInError) throw signInError;
+      }
+    } catch (err) {
+      setError(err.message || "Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="w-full min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: T.bg, ...fontBody }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');`}</style>
+      <div className="w-full max-w-md">
+        <div className="flex flex-col items-center mb-8">
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4" style={{ backgroundColor: T.sidebarBg }}>
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none"><path d="M13 3 L13 21 L9 21 L9 11 L2 19 Z" fill={T.accent} /></svg>
+          </div>
+          <h1 className="text-2xl mb-1" style={{ ...fontDisplay, color: T.ink }}>Air Fair Travel & Immigration</h1>
+          <p className="text-sm" style={{ color: T.muted, ...fontBody }}>Dashboard login</p>
+        </div>
+        <div className="rounded-2xl p-8" style={{ backgroundColor: T.surface, border: `1px solid ${T.border}` }}>
+          <div className="flex gap-1 mb-6 p-1 rounded-lg" style={{ backgroundColor: T.bg }}>
+            <button onClick={() => { setMode("signin"); setError(""); }} className="flex-1 py-2 rounded-md text-sm font-medium transition-all" style={{ ...fontBody, backgroundColor: mode === "signin" ? T.surface : "transparent", color: mode === "signin" ? T.ink : T.muted, border: mode === "signin" ? `1px solid ${T.border}` : "1px solid transparent" }}>Sign In</button>
+            <button onClick={() => { setMode("signup"); setError(""); }} className="flex-1 py-2 rounded-md text-sm font-medium transition-all" style={{ ...fontBody, backgroundColor: mode === "signup" ? T.surface : "transparent", color: mode === "signup" ? T.ink : T.muted, border: mode === "signup" ? `1px solid ${T.border}` : "1px solid transparent" }}>Create Account</button>
+          </div>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <div>
+              <label className="text-xs block mb-1.5" style={{ color: T.muted, ...fontBody }}>Email</label>
+              <div className="relative">
+                <Mail size={15} style={{ position: "absolute", left: 12, top: 12, color: T.muted }} />
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="your@email.com" className="w-full rounded-lg pl-9 pr-3 py-2.5 text-sm outline-none" style={{ border: `1px solid ${T.border}`, color: T.ink, ...fontBody, backgroundColor: T.bg }} autoFocus />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs block mb-1.5" style={{ color: T.muted, ...fontBody }}>Password</label>
+              <div className="relative">
+                <Lock size={15} style={{ position: "absolute", left: 12, top: 12, color: T.muted }} />
+                <input type={showPassword ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} placeholder={mode === "signup" ? "At least 8 characters" : "Enter your password"} className="w-full rounded-lg pl-9 pr-9 py-2.5 text-sm outline-none" style={{ border: `1px solid ${T.border}`, color: T.ink, ...fontBody, backgroundColor: T.bg }} />
+                <button type="button" onClick={() => setShowPassword(s => !s)} className="absolute right-2 top-2 p-1" style={{ color: T.muted }}>{showPassword ? <EyeOff size={15} /> : <Eye size={15} />}</button>
+              </div>
+            </div>
+            {error && <div className="text-xs rounded-lg px-3 py-2" style={{ color: T.danger, backgroundColor: T.dangerSoft, ...fontBody }}>{error}</div>}
+            <button type="submit" disabled={loading} className="w-full py-2.5 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-opacity" style={{ backgroundColor: T.accent, color: "#fff", ...fontBody, opacity: loading ? 0.7 : 1 }}>
+              {loading ? <><Loader2 size={15} className="animate-spin" /> {mode === "signup" ? "Creating account..." : "Signing in..."}</> : mode === "signup" ? "Create Account" : "Sign In"}
+            </button>
+          </form>
+        </div>
+        <p className="text-center text-xs mt-6" style={{ color: T.muted, ...fontBody }}>Use your dashboard account email and password to sign in.</p>
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
+  const [session, setSession] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const [page, setPage] = useState("overview");
   const [collapsed, setCollapsed] = useState(false);
   const [submissions, setSubmissions] = useState([]);
@@ -920,7 +1002,28 @@ export default function Dashboard() {
     } catch (err) { /* database not yet set up */ } finally { setLoaded(true); }
   }, []);
 
-  useEffect(() => { loadAll(); }, [loadAll]);
+  useEffect(() => {
+    let mounted = true;
+    supabase.auth.getSession().then(({ data: { session: s } }) => {
+      if (!mounted) return;
+      setSession(s);
+      setAuthReady(true);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
+      setSession(s);
+    });
+    return () => { mounted = false; sub.subscription.unsubscribe(); };
+  }, []);
+
+  useEffect(() => { if (session) loadAll(); }, [session, loadAll]);
+
+  const handleSignOut = async () => {
+    setSigningOut(true);
+    await supabase.auth.signOut();
+    setSigningOut(false);
+    setSession(null);
+    setLoaded(false);
+  };
 
   const categories = Array.from(new Set(services.map(s => s.category).filter(Boolean)));
 
@@ -989,6 +1092,14 @@ export default function Dashboard() {
   const visibleNav = NAV.filter(n => !n.moduleKey || modules[n.moduleKey]);
   const activeLabel = visibleNav.find(n => n.id === page)?.label ?? NAV.find(n => n.id === page)?.label ?? "";
 
+  if (!authReady) {
+    return <div className="w-full min-h-screen flex items-center justify-center" style={{ backgroundColor: T.bg, ...fontBody }}><Loader2 size={24} className="animate-spin" style={{ color: T.muted }} /></div>;
+  }
+
+  if (!session) {
+    return <LoginScreen />;
+  }
+
   return (
     <div className="w-full min-h-screen flex" style={{ backgroundColor: T.bg, ...fontBody }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');`}</style>
@@ -1006,7 +1117,7 @@ export default function Dashboard() {
       <div className="flex-1 flex flex-col min-w-0">
         <div className="h-16 flex items-center justify-between px-8 shrink-0" style={{ borderBottom: `1px solid ${T.border}` }}>
           <div className="text-sm" style={{ color: T.ink, fontWeight: 600, ...fontBody }}>{activeLabel}</div>
-          <div className="flex items-center gap-5"><Search size={17} style={{ color: T.muted }} /><div className="relative"><Bell size={17} style={{ color: T.muted }} /><span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px]" style={{ backgroundColor: T.danger, color: "#fff", ...fontBody }}>3</span></div><div className="flex items-center gap-2"><div className="w-8 h-8 rounded-full flex items-center justify-center text-xs" style={{ backgroundColor: T.accent, color: "#fff", ...fontBody }}>AF</div><span className="text-sm hidden sm:inline" style={{ color: T.ink, ...fontBody }}>Air Fair Travel & Immigration</span><ChevronRight size={13} style={{ color: T.muted, transform: "rotate(90deg)" }} /></div></div>
+          <div className="flex items-center gap-5"><Search size={17} style={{ color: T.muted }} /><div className="relative"><Bell size={17} style={{ color: T.muted }} /><span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px]" style={{ backgroundColor: T.danger, color: "#fff", ...fontBody }}>3</span></div><div className="flex items-center gap-2"><div className="w-8 h-8 rounded-full flex items-center justify-center text-xs" style={{ backgroundColor: T.accent, color: "#fff", ...fontBody }}>AF</div><span className="text-sm hidden sm:inline" style={{ color: T.ink, ...fontBody }}>{session.user.email}</span><button onClick={handleSignOut} disabled={signingOut} title="Sign out" className="p-1.5 rounded-md transition-colors" style={{ color: T.muted }}>{signingOut ? <Loader2 size={15} className="animate-spin" /> : <LogOut size={16} />}</button></div></div>
         </div>
         <div className="flex-1 overflow-auto px-8 py-8">{pageComponents[page]}</div>
       </div>
