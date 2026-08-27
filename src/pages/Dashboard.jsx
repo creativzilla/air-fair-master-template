@@ -19,12 +19,12 @@ const fontMono = { fontFamily: "'Inter', sans-serif", fontWeight: 600 };
 
 const NAV = [
   { id: "overview", label: "Dashboard", icon: LayoutDashboard },
+  { id: "services", label: "Catalog", icon: Briefcase, moduleKey: "services" },
   { id: "pipeline", label: "Pipeline", icon: Users, moduleKey: "pipeline" },
   { id: "bookings", label: "Calendar", icon: CalendarDays, moduleKey: "bookings" },
   { id: "clients", label: "Clients", icon: Contact2 },
   { id: "employees", label: "Employees", icon: UserCog, moduleKey: "employees" },
   { id: "forms", label: "Forms", icon: Inbox },
-  { id: "services", label: "Catalog", icon: Briefcase, moduleKey: "services" },
   { id: "media", label: "Media", icon: ImageIcon },
   { id: "edit-website", label: "Edit Website", icon: FileEdit },
   { id: "settings", label: "Settings", icon: SettingsIcon },
