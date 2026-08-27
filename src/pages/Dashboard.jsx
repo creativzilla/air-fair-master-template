@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { LayoutDashboard, File as FileEdit, Inbox, CalendarDays, Image as ImageIcon, Settings as SettingsIcon, ExternalLink, ChevronRight, ChevronLeft, Bell, Plus, X, Upload, Clock, Search, Check, MoveHorizontal as MoreHorizontal, Briefcase, Trash2, GripVertical, Mail, CalendarPlus, Wallet, Users, Plane, Globe, ArrowUp, UserPlus, FileText, Contact as Contact2, UserCog, ListChecks, LayoutTemplate, User, Calendar, Phone, MapPin, Building2, Landmark, TextCursorInput, AlignLeft, List, ChevronDown, SquareCheck as CheckSquare, Circle, Star, Hash, PenLine, Send, CreditCard, Monitor, Smartphone, ArrowLeft, Pencil, Package, Lock, LogOut, Eye, EyeOff, Loader as Loader2 } from "lucide-react";
+import { LayoutDashboard, File as FileEdit, Inbox, CalendarDays, Image as ImageIcon, Settings as SettingsIcon, ExternalLink, ChevronRight, ChevronLeft, Bell, Plus, X, Upload, Clock, Search, Check, MoveHorizontal as MoreHorizontal, Briefcase, Trash2, GripVertical, Mail, CalendarPlus, Wallet, Users, Plane, Globe, ArrowUp, UserPlus, FileText, Contact as Contact2, UserCog, ListChecks, LayoutTemplate, User, Calendar, Phone, MapPin, Building2, Landmark, TextCursorInput, AlignLeft, List, ChevronDown, SquareCheck as CheckSquare, Circle, Star, Hash, PenLine, Send, CreditCard, Monitor, Smartphone, ArrowLeft, Pencil, Package, Lock, LogOut, Eye, EyeOff, Loader as Loader2, Menu as MenuIcon, Home } from "lucide-react";
 import { supabase, uploadCatalogImage } from "../lib/supabase.js";
 import { dbRowToService, serviceToDbRow, getPriceLabel } from "../lib/catalog.js";
 import { fetchAllPagesForEditor, saveContentBlock, fetchSiteSettings, saveSiteSettings } from "../lib/content.js";
@@ -230,7 +230,7 @@ function Overview({ goTo, submissions, bookings, contacts, stages, currency }) {
           ))}
         </div>
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 dash-grid-3">
         <div className="rounded-2xl" style={{ backgroundColor: T.surface, border: `1px solid ${T.border}` }}>
           <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: `1px solid ${T.border}` }}>
             <h2 className="text-sm font-semibold" style={{ color: T.ink, ...fontBody }}>Recent Submissions</h2>
@@ -442,7 +442,7 @@ function EditWebsite() {
       <div className="flex gap-1 border-b" style={{ borderColor: T.border }}>
         {dbPages.map((p, i) => (<button key={p.id} onClick={() => { setPageIdx(i); setSectionId(null); setLocalBlocks({}); }} className="px-4 py-2 text-sm -mb-px" style={{ ...fontBody, color: pageIdx === i ? T.ink : T.muted, borderBottom: pageIdx === i ? `2px solid ${T.accent}` : "2px solid transparent", fontWeight: pageIdx === i ? 500 : 400 }}>{p.title}</button>))}
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 dash-grid-5">
         <div className="lg:col-span-3 rounded-xl overflow-hidden" style={{ backgroundColor: T.surface, border: `1px solid ${T.border}` }}>
           <div className="px-5 py-4" style={{ borderBottom: `1px solid ${T.border}` }}><span className="text-sm font-medium" style={{ color: T.ink, ...fontBody }}>{page.title} — Sections</span></div>
           {page.sections.map((s, i) => {
@@ -520,7 +520,7 @@ function ProductForm({ draft, update, currency }) {
 }
 
 function AddOfferingModal({ onClose, onChoose }) {
-  return (<div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: "rgba(21,26,34,0.45)" }}><div className="w-full max-w-lg rounded-2xl p-6" style={{ backgroundColor: T.surface }}><div className="flex items-center justify-between mb-5"><h2 className="text-base font-semibold" style={{ color: T.ink, ...fontBody }}>What would you like to add?</h2><button onClick={onClose} style={{ color: T.muted }}><X size={18} /></button></div><div className="grid grid-cols-2 gap-3"><button onClick={() => onChoose("service")} className="text-left rounded-xl p-4" style={{ border: `1px solid ${T.border}` }}><div className="w-9 h-9 rounded-lg flex items-center justify-center mb-3" style={{ backgroundColor: T.infoSoft }}><Briefcase size={16} style={{ color: T.info }} /></div><div className="text-sm font-medium mb-1" style={{ color: T.ink, ...fontBody }}>Service</div><p className="text-xs" style={{ color: T.muted, ...fontBody }}>For work performed for a customer — visa processing, consultation, booking assistance, immigration processing.</p></button><button onClick={() => onChoose("product")} className="text-left rounded-xl p-4" style={{ border: `1px solid ${T.border}` }}><div className="w-9 h-9 rounded-lg flex items-center justify-center mb-3" style={{ backgroundColor: T.tealSoft }}><Package size={16} style={{ color: T.teal }} /></div><div className="text-sm font-medium mb-1" style={{ color: T.ink, ...fontBody }}>Product / Package</div><p className="text-xs" style={{ color: T.muted, ...fontBody }}>For packaged or predefined offers — tour packages, insurance packages, physical or digital products.</p></button></div></div></div>);
+  return (<div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: "rgba(21,26,34,0.45)" }}><div className="w-full max-w-lg rounded-2xl p-6 dash-modal-full" style={{ backgroundColor: T.surface }}><div className="flex items-center justify-between mb-5"><h2 className="text-base font-semibold" style={{ color: T.ink, ...fontBody }}>What would you like to add?</h2><button onClick={onClose} style={{ color: T.muted }}><X size={18} /></button></div><div className="grid grid-cols-2 gap-3 dash-grid-2"><button onClick={() => onChoose("service")} className="text-left rounded-xl p-4" style={{ border: `1px solid ${T.border}` }}><div className="w-9 h-9 rounded-lg flex items-center justify-center mb-3" style={{ backgroundColor: T.infoSoft }}><Briefcase size={16} style={{ color: T.info }} /></div><div className="text-sm font-medium mb-1" style={{ color: T.ink, ...fontBody }}>Service</div><p className="text-xs" style={{ color: T.muted, ...fontBody }}>For work performed for a customer — visa processing, consultation, booking assistance, immigration processing.</p></button><button onClick={() => onChoose("product")} className="text-left rounded-xl p-4" style={{ border: `1px solid ${T.border}` }}><div className="w-9 h-9 rounded-lg flex items-center justify-center mb-3" style={{ backgroundColor: T.tealSoft }}><Package size={16} style={{ color: T.teal }} /></div><div className="text-sm font-medium mb-1" style={{ color: T.ink, ...fontBody }}>Product / Package</div><p className="text-xs" style={{ color: T.muted, ...fontBody }}>For packaged or predefined offers — tour packages, insurance packages, physical or digital products.</p></button></div></div></div>);
 }
 
 const emptyServiceDraft = { type: "service", name: "", category: "", shortDescription: "", fullDescription: "", pricingType: "starting", price: "", priceMin: "", priceMax: "", duration: "", image: "https://picsum.photos/seed/newservice/300/200", gallery: [], ctaLabel: "Learn More", ctaLink: "", featured: false, status: "Draft" };
@@ -570,7 +570,7 @@ function Catalog({ services, onSaveService, onDeleteService, categories, currenc
         <div className="flex gap-2">{tabs.map(t => (<button key={t.id} onClick={() => setTab(t.id)} className="px-3 py-1.5 rounded-full text-xs" style={{ ...fontBody, backgroundColor: tab === t.id ? T.ink : T.surface, color: tab === t.id ? "#fff" : T.muted, border: `1px solid ${tab === t.id ? T.ink : T.border}` }}>{t.label}</button>))}</div>
         <div className="relative w-full sm:w-56"><Search size={14} style={{ color: T.muted, position: "absolute", left: 10, top: 9 }} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search catalog" className="w-full rounded-lg pl-8 pr-3 py-1.5 text-sm outline-none" style={{ border: `1px solid ${T.border}`, backgroundColor: T.surface, color: T.ink, ...fontBody }} /></div>
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 dash-grid-5">
         <div className="lg:col-span-3 rounded-xl overflow-hidden" style={{ backgroundColor: T.surface, border: `1px solid ${T.border}` }}>
           {filtered.map((it, i) => (
             <div key={it.id} className="flex items-center gap-4 px-5 py-4" style={{ borderBottom: i < filtered.length - 1 ? `1px solid ${T.border}` : "none" }}>
@@ -591,7 +591,7 @@ function Catalog({ services, onSaveService, onDeleteService, categories, currenc
           ))}
           {filtered.length === 0 && <div className="px-5 py-10 text-center text-sm" style={{ color: T.muted, ...fontBody }}>No items match this view yet.</div>}
         </div>
-        <div className="lg:col-span-2 rounded-xl overflow-y-auto" style={{ backgroundColor: T.surface, border: `1px solid ${T.border}`, maxHeight: 720 }}>
+        <div className="lg:col-span-2 rounded-xl overflow-y-auto dash-mobile-full" style={{ backgroundColor: T.surface, border: `1px solid ${T.border}`, maxHeight: 720 }}>
           {!draft ? (<div className="h-full flex items-center justify-center text-center px-8 py-16"><p className="text-sm" style={{ color: T.muted, ...fontBody }}>Select an item to edit, or add a new offering.</p></div>) : (
             <div className="p-5 flex flex-col gap-4">
               <div className="flex items-center justify-between"><span className="text-sm font-medium" style={{ color: T.ink, ...fontBody }}>{activeId === "new" ? "New " : "Edit "}{draft.type === "service" ? "Service" : "Product / Package"}</span><button onClick={() => { setActiveId(null); setDraft(null); }} style={{ color: T.muted }}><X size={16} /></button></div>
@@ -652,8 +652,8 @@ function FormBuilderView({ form, onBack, currency }) {
         {topTab === "edit" ? (<div className="flex gap-1 shrink-0"><button onClick={() => setDevice("desktop")} className="p-1.5 rounded-md" style={{ backgroundColor: device === "desktop" ? T.accentSoft : "transparent" }}><Monitor size={16} style={{ color: device === "desktop" ? T.accent : T.muted }} /></button><button onClick={() => setDevice("mobile")} className="p-1.5 rounded-md" style={{ backgroundColor: device === "mobile" ? T.accentSoft : "transparent" }}><Smartphone size={16} style={{ color: device === "mobile" ? T.accent : T.muted }} /></button></div>) : <div className="w-16 shrink-0" />}
       </div>
       {topTab !== "edit" ? (<div className="flex-1 rounded-xl flex items-center justify-center p-10" style={{ backgroundColor: T.surface, border: `1px solid ${T.border}` }}><p className="text-sm text-center" style={{ color: T.muted, ...fontBody }}>{topTab === "settings" && "Form settings (redirect URL, notifications email) — coming soon."}{topTab === "submissions" && "This form's submissions will show here once it's live."}{topTab === "notifications" && "Configure who gets emailed on a new submission — coming soon."}{topTab === "analytics" && "Views, completion rate, and conversion — coming soon."}</p></div>) : (
-        <div className="gap-5 min-h-0" style={{ display: "flex", flexDirection: "row", flexWrap: "nowrap", flex: 1 }}>
-          <div className="rounded-xl overflow-y-auto" style={{ backgroundColor: T.surface, border: `1px solid ${T.border}`, maxHeight: 640, width: 260, minWidth: 260, flexShrink: 0 }}>
+        <div className="gap-5 min-h-0 dash-grid-2" style={{ display: "flex", flexDirection: "row", flexWrap: "nowrap", flex: 1 }}>
+          <div className="rounded-xl overflow-y-auto dash-mobile-full" style={{ backgroundColor: T.surface, border: `1px solid ${T.border}`, maxHeight: 640, width: 260, minWidth: 260, flexShrink: 0 }}>
             {FIELD_PALETTE.map(cat => (<div key={cat.category} className="px-3.5 py-3.5" style={{ borderBottom: `1px solid ${T.border}` }}><div className="text-[11px] font-semibold uppercase mb-2.5" style={{ color: T.muted, letterSpacing: "0.05em", ...fontBody }}>{cat.category}</div><div className="grid grid-cols-2 gap-2">{cat.fields.map(f => { const Icon = f.icon; return (<button key={f.type + f.label} draggable onDragStart={(e) => { e.dataTransfer.setData("field-type", f.type); e.dataTransfer.setData("field-label", f.label); e.dataTransfer.effectAllowed = "copy"; }} onClick={() => addField(f.type, f.label)} className="flex flex-col items-center gap-1.5 rounded-lg py-3 px-1 text-center cursor-grab active:cursor-grabbing" style={{ border: `1px solid ${T.border}`, backgroundColor: T.bg }}><Icon size={16} style={{ color: T.ink }} /><span className="text-[10.5px] leading-tight" style={{ color: T.ink, ...fontBody }}>{f.label}</span></button>); })}</div></div>))}
           </div>
           <div onDragOver={(e) => { if (e.dataTransfer.types.includes("field-type")) { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; setCanvasDragOver(true); } }} onDragLeave={() => setCanvasDragOver(false)} onDrop={(e) => { const type = e.dataTransfer.getData("field-type"); if (type) { e.preventDefault(); addField(type, e.dataTransfer.getData("field-label")); } setCanvasDragOver(false); }} className="rounded-xl overflow-y-auto p-6 transition-colors" style={{ backgroundColor: canvasDragOver ? T.accentSoft : T.bg, border: `1.5px dashed ${canvasDragOver ? T.accent : T.border}`, maxHeight: 640, flex: 1, minWidth: 0 }}>
@@ -790,7 +790,7 @@ function Employees({ employees, setEmployees, tasks, setTasks, stageTasks, setSt
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between flex-wrap gap-3"><div><h1 className="text-2xl mb-1" style={{ ...fontDisplay, color: T.ink }}>Employees</h1><p className="text-sm" style={{ color: T.muted, ...fontBody }}>Your internal team and the tasks assigned to each of them.</p></div><button onClick={openAdd} className="px-4 py-2 rounded-lg text-sm flex items-center gap-1.5" style={{ backgroundColor: T.accent, color: "#fff", ...fontBody }}><Plus size={14} /> Add Employee</button></div>
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 dash-grid-5">
         <div className="lg:col-span-2 rounded-xl overflow-hidden" style={{ backgroundColor: T.surface, border: `1px solid ${T.border}` }}>
           {employees.map((e, i) => { const count = tasks.filter(t => t.employeeId === e.id && !t.done).length; return (<button key={e.id} onClick={() => selectEmployee(e.id)} className="w-full flex items-center gap-3 px-5 py-4 text-left" style={{ borderBottom: i < employees.length - 1 ? `1px solid ${T.border}` : "none", backgroundColor: activeId === e.id ? T.accentSoft : "transparent" }}><div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-xs" style={{ backgroundColor: T.accent, color: "#fff", ...fontBody }}>{e.name.split(" ").map(p => p[0]).join("").slice(0, 2).toUpperCase()}</div><div className="flex-1 min-w-0"><div className="text-sm truncate" style={{ color: T.ink, ...fontBody }}>{e.name}</div><div className="text-xs truncate" style={{ color: T.muted, ...fontBody }}>{e.role}</div></div>{count > 0 && <span className="text-xs px-2 py-0.5 rounded-full shrink-0" style={{ backgroundColor: T.warnSoft, color: T.warn, ...fontBody }}>{count}</span>}</button>); })}
           {employees.length === 0 && <div className="px-5 py-10 text-center text-sm" style={{ color: T.muted, ...fontBody }}>No employees yet.</div>}
@@ -948,7 +948,7 @@ function LoginScreen({ onAuth }) {
   return (
     <div className="w-full min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: T.bg, ...fontBody }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');`}</style>
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-md dash-modal-full">
         <div className="flex flex-col items-center mb-8">
           <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4" style={{ backgroundColor: T.sidebarBg }}>
             <svg viewBox="0 0 24 24" width="28" height="28" fill="none"><path d="M13 3 L13 21 L9 21 L9 11 L2 19 Z" fill={T.accent} /></svg>
@@ -1137,10 +1137,47 @@ export default function Dashboard() {
     return <LoginScreen />;
   }
 
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
   return (
     <div className="w-full min-h-screen flex" style={{ backgroundColor: T.bg, ...fontBody }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');`}</style>
-      <aside className="flex flex-col shrink-0 transition-all duration-200" style={{ backgroundColor: T.sidebarBg, width: collapsed ? 76 : 240 }}>
+      <style>{`
+        .dash-mobile-nav{display:none}
+        .dash-mobile-bar{display:none}
+        .dash-mobile-overlay{display:none}
+        @media(max-width:768px){
+          .dash-desktop-sidebar{display:none!important}
+          .dash-mobile-bar{display:flex!important}
+          .dash-mobile-nav{display:flex!important}
+          .dash-content-pad{padding:16px!important}
+          .dash-header-pad{padding:0 16px!important}
+          .dash-grid-5{grid-template-columns:1fr!important}
+          .dash-grid-3{grid-template-columns:1fr!important}
+          .dash-grid-2{grid-template-columns:1fr!important;flex-direction:column!important}
+          .dash-mobile-full{max-width:100%!important;max-height:none!important}
+          .dash-mobile-hide{display:none!important}
+          .dash-modal-full{width:100%!important;max-width:none!important;border-radius:0!important;min-height:100vh!important}
+        }
+      `}</style>
+      {/* Mobile slide-out nav */}
+      {mobileNavOpen && (
+        <>
+          <div className="dash-mobile-overlay" onClick={() => setMobileNavOpen(false)} style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", zIndex: 100 }} />
+          <aside className="dash-mobile-nav" style={{ position: "fixed", top: 0, left: 0, bottom: 0, width: 240, backgroundColor: T.sidebarBg, flexDirection: "column", zIndex: 101, transition: "transform 0.2s" }}>
+            <div className="flex items-center gap-2.5 px-4 h-16" style={{ borderBottom: "1px solid #1F3A52" }}>
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: T.accent }}><svg viewBox="0 0 24 24" width="16" height="16" fill="none"><path d="M13 3 L13 21 L9 21 L9 11 L2 19 Z" fill="#13293F" /></svg></div>
+              <div className="leading-tight"><div className="text-sm" style={{ color: "#fff", ...fontDisplay }}>Air Fair</div><div className="text-[9px] uppercase" style={{ color: T.sidebarText, letterSpacing: "0.08em", ...fontBody }}>Travel & Immigration</div></div>
+              <button onClick={() => setMobileNavOpen(false)} className="ml-auto" style={{ color: T.sidebarText }}><X size={18} /></button>
+            </div>
+            <nav className="flex-1 py-3 px-2 flex flex-col gap-0.5 overflow-y-auto">
+              {visibleNav.map(n => { const Icon = n.icon; const active = page === n.id; return (<button key={n.id} onClick={() => { setPage(n.id); setMobileNavOpen(false); }} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-left" style={{ backgroundColor: active ? T.sidebarActiveBg : "transparent", color: active ? T.sidebarTextActive : T.sidebarText, fontWeight: active ? 500 : 400 }}><Icon size={18} /><span>{n.label}</span></button>); })}
+            </nav>
+          </aside>
+        </>
+      )}
+      {/* Desktop sidebar */}
+      <aside className="dash-desktop-sidebar flex flex-col shrink-0 transition-all duration-200" style={{ backgroundColor: T.sidebarBg, width: collapsed ? 76 : 240 }}>
         <div className="flex items-center gap-2.5 px-4 h-16" style={{ borderBottom: "1px solid #1F3A52" }}>
           <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: T.accent }}><svg viewBox="0 0 24 24" width="16" height="16" fill="none"><path d="M13 3 L13 21 L9 21 L9 11 L2 19 Z" fill="#13293F" /></svg></div>
           {!collapsed && <div className="leading-tight"><div className="text-sm" style={{ color: "#fff", ...fontDisplay }}>Air Fair</div><div className="text-[9px] uppercase" style={{ color: T.sidebarText, letterSpacing: "0.08em", ...fontBody }}>Travel & Immigration</div></div>}
@@ -1151,13 +1188,22 @@ export default function Dashboard() {
         </nav>
         {!collapsed && <div className="mx-3 mb-3 rounded-xl overflow-hidden relative" style={{ height: 130 }}><img src="https://picsum.photos/seed/wing/300/200" alt="" className="w-full h-full object-cover" /><div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(16,22,37,0) 20%, rgba(16,22,37,0.92) 100%)" }} /><div className="absolute bottom-0 left-0 right-0 p-3"><div className="text-xs font-medium mb-0.5" style={{ color: "#fff", ...fontBody }}>Delivering Journeys.</div><div className="text-xs mb-1.5" style={{ color: "#fff", ...fontBody }}>Simplifying Visas.</div><div className="w-6 h-0.5 rounded" style={{ backgroundColor: T.accent }} /></div></div>}
       </aside>
-      <div className="flex-1 flex flex-col min-w-0">
-        <div className="h-16 flex items-center justify-between px-8 shrink-0" style={{ borderBottom: `1px solid ${T.border}` }}>
-          <div className="text-sm" style={{ color: T.ink, fontWeight: 600, ...fontBody }}>{activeLabel}</div>
-          <div className="flex items-center gap-5"><Search size={17} style={{ color: T.muted }} /><div className="relative"><Bell size={17} style={{ color: T.muted }} /><span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px]" style={{ backgroundColor: T.danger, color: "#fff", ...fontBody }}>3</span></div><div className="flex items-center gap-2"><div className="w-8 h-8 rounded-full flex items-center justify-center text-xs" style={{ backgroundColor: T.accent, color: "#fff", ...fontBody }}>AF</div><span className="text-sm hidden sm:inline" style={{ color: T.ink, ...fontBody }}>{session.user.email}</span><button onClick={handleSignOut} disabled={signingOut} title="Sign out" className="p-1.5 rounded-md transition-colors" style={{ color: T.muted }}>{signingOut ? <Loader2 size={15} className="animate-spin" /> : <LogOut size={16} />}</button></div></div>
+      <div className="flex-1 flex flex-col min-w-0" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+        {/* Header */}
+        <div className="h-16 flex items-center justify-between dash-header-pad px-8 shrink-0" style={{ borderBottom: `1px solid ${T.border}` }}>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setMobileNavOpen(true)} className="dash-mobile-bar p-1.5 rounded-md" style={{ color: T.ink }}><MenuIcon size={20} /></button>
+            <div className="text-sm" style={{ color: T.ink, fontWeight: 600, ...fontBody }}>{activeLabel}</div>
+          </div>
+          <div className="flex items-center gap-5"><Search size={17} style={{ color: T.muted }} className="dash-mobile-hide" /><div className="relative dash-mobile-hide"><Bell size={17} style={{ color: T.muted }} /><span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px]" style={{ backgroundColor: T.danger, color: "#fff", ...fontBody }}>3</span></div><div className="flex items-center gap-2"><div className="w-8 h-8 rounded-full flex items-center justify-center text-xs" style={{ backgroundColor: T.accent, color: "#fff", ...fontBody }}>AF</div><span className="text-sm hidden sm:inline" style={{ color: T.ink, ...fontBody }}>{session.user.email}</span><button onClick={handleSignOut} disabled={signingOut} title="Sign out" className="p-1.5 rounded-md transition-colors" style={{ color: T.muted }}>{signingOut ? <Loader2 size={15} className="animate-spin" /> : <LogOut size={16} />}</button></div></div>
         </div>
-        <div className="flex-1 overflow-auto px-8 py-8">{pageComponents[page]}</div>
+        <div className="flex-1 overflow-auto dash-content-pad px-8 py-8" style={{ paddingBottom: 80 }}>{pageComponents[page]}</div>
       </div>
+      {/* Mobile bottom tab bar */}
+      <nav className="dash-mobile-bar" style={{ position: "fixed", bottom: 0, left: 0, right: 0, height: 56, backgroundColor: T.surface, borderTop: `1px solid ${T.border}`, alignItems: "center", justifyContent: "space-around", zIndex: 90, paddingBottom: "env(safe-area-inset-bottom)" }}>
+        {visibleNav.slice(0, 5).map(n => { const Icon = n.icon; const active = page === n.id; return (<button key={n.id} onClick={() => setPage(n.id)} className="flex flex-col items-center gap-0.5" style={{ color: active ? T.accent : T.muted, flex: 1 }}><Icon size={20} /><span className="text-[9px]" style={{ ...fontBody, fontWeight: active ? 600 : 400 }}>{n.label.split(" ")[0]}</span></button>); })}
+        <button onClick={() => setMobileNavOpen(true)} className="flex flex-col items-center gap-0.5" style={{ color: T.muted, flex: 1 }}><MenuIcon size={20} /><span className="text-[9px]" style={{ ...fontBody }}>More</span></button>
+      </nav>
     </div>
   );
 }
