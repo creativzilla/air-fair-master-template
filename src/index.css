@@ -280,3 +280,107 @@ footer{background:#102D68;color:#9fb2cc;border-top:1px solid #284477}
   .footer-bottom{gap:8px;flex-direction:column}
   .footer-bottom span:last-child{display:none}
 }
+
+@media(min-width:1440px){
+  .section-shell{max-width:1320px;padding-left:40px;padding-right:40px}
+  .nav-inner{max-width:1320px;padding:0 40px}
+  .hero-inner{max-width:1320px}
+
+  .promise-bar{font-size:8px;gap:64px}
+  .nav-links{gap:28px;margin-right:35px}
+  .nav-links a{font-size:10px}
+  .book-button,.green-button,.yellow-button,.outline-button,.phone-button{font-size:11px;padding:10px 22px}
+
+  .hero{height:720px}
+  .hero-inner{padding:30px 40px}
+  .hero-kicker{font-size:10px;padding:6px 14px}
+  .hero h1{font-size:48px}
+  .hero h1 em{font-size:50px}
+  .hero p{font-size:13px;max-width:480px}
+  .trust-row small{font-size:10px}
+  .mini-avatars span{width:24px;height:24px;font-size:7px}
+  .hero-arrow{width:36px;height:36px}
+  .hero-arrow svg{width:22px;height:22px}
+
+  .destinations{padding-top:50px;padding-bottom:52px}
+  .section-title h2{font-size:26px}
+  .section-title p{font-size:11px}
+  .view-all{font-size:11px}
+  .destination-grid{gap:12px}
+  .card-image{height:140px}
+  .destination-body{padding:11px 11px 12px}
+  .destination-body h3{font-size:12px}
+  .destination-body p{font-size:9px}
+  .destination-body strong{font-size:14px}
+  .destination-body small{font-size:9px}
+  .rating{font-size:9px}
+  .discount{font-size:9px;padding:4px 7px}
+
+  .deals-section{padding:48px 0}
+  .deal-layout{gap:14px}
+  .deal-intro{padding:28px 22px}
+  .deal-intro h2{font-size:24px}
+  .deal-intro p{font-size:11px}
+  .deal-intro .yellow-button{font-size:10px;padding:10px 16px}
+  .deal-image{height:130px}
+  .deal-content{padding:12px}
+  .deal-content h3{font-size:12px}
+  .deal-content p{font-size:9px}
+  .deal-bottom strong{font-size:15px}
+  .deal-bottom a{font-size:9px}
+  .deal-badge{font-size:9px;padding:4px 7px}
+
+  .services{gap:90px;padding-top:72px;padding-bottom:70px}
+  .services-copy h2{font-size:30px}
+  .services-copy>p{font-size:13px;max-width:480px}
+  .service-buttons{gap:12px;margin-top:22px}
+  .service-grid{gap:12px}
+  .service-tile{padding:16px 14px;height:168px}
+  .service-tile>svg{width:22px;height:22px;flex:0 0 22px}
+  .service-tile h3{font-size:12px;margin:10px 0 6px}
+  .service-tile p{font-size:9px;line-height:1.55}
+  .eyebrow{font-size:10px;padding:5px 11px}
+
+  .retirement-inner{padding-top:36px;padding-bottom:36px}
+  .retirement-inner span{font-size:9px}
+  .retirement h2{font-size:24px}
+  .retirement h2 em{font-size:26px}
+  .retirement p{font-size:10px}
+  .retirement-actions .outline-button,.retirement-actions .yellow-button{font-size:10px;padding:10px 16px}
+
+  .benefits-grid{gap:22px;padding-top:34px;padding-bottom:34px}
+  .benefits-grid b{font-size:24px;height:28px}
+  .benefits-grid h3{font-size:11px}
+  .benefits-grid p{font-size:9px}
+
+  .testimonials{padding-top:64px;padding-bottom:64px}
+  .testimonial-card{padding:18px 16px;min-height:172px}
+  .testimonial-card>p{font-size:10px;min-height:78px}
+  .client-avatar{width:28px;height:28px;font-size:9px}
+  .client strong{font-size:10px}
+  .client small{font-size:9px}
+  .stars{font-size:10px}
+  .newsletter-card{padding:20px}
+  .newsletter-card h3{font-size:14px}
+  .newsletter-card p{font-size:10px}
+  .newsletter-card input{font-size:10px;padding:10px}
+  .newsletter-card button{font-size:10px;padding:10px}
+
+  .contact-section{padding:64px 0}
+  .contact-layout{gap:80px}
+  .contact-layout h2{font-size:32px}
+  .contact-layout>div>p{font-size:13px;max-width:480px}
+  .contact-detail{font-size:13px}
+  .contact-form{padding:24px;gap:12px}
+  .contact-form input,.contact-form textarea{font-size:13px;padding:13px}
+  .sent-card{padding:48px}
+  .sent-card h3{font-size:22px}
+  .sent-card p{font-size:13px}
+
+  .footer-grid{gap:64px;padding-top:48px;padding-bottom:40px}
+  .footer-brand p{font-size:11px;max-width:280px}
+  .footer-grid h4{font-size:10px}
+  .footer-grid a{font-size:10px}
+  .socials a{width:26px;height:26px}
+  .footer-bottom{padding-top:16px;padding-bottom:16px;font-size:9px}
+}
