@@ -552,10 +552,10 @@ function Catalog({ services, onSaveService, onDeleteService, categories, currenc
       await onSaveService(draft, activeId === "new" ? null : activeId);
       setSavedFlash(true); setTimeout(() => setSavedFlash(false), 1200);
       setActiveId(null); setDraft(null);
-    } catch (err) { /* error handled by parent */ } finally { setSaving(false); }
+    } catch (err) { console.error("Failed to save service:", err); } finally { setSaving(false); }
   };
   const handleDelete = async (id) => {
-    try { await onDeleteService(id); if (activeId === id) { setActiveId(null); setDraft(null); } } catch (err) {}
+    try { await onDeleteService(id); if (activeId === id) { setActiveId(null); setDraft(null); } } catch (err) { console.error("Failed to delete service:", err); }
   };
 
   const tabs = [{ id: "all", label: "All" }, { id: "service", label: "Services" }, { id: "product", label: "Products" }];
@@ -773,7 +773,7 @@ function ClientsDirectory({ contacts, bookings, goTo, categories, stages, curren
 function Employees({ employees, setEmployees, tasks, setTasks, stageTasks, setStageTasks, stages }) {
   const [activeId, setActiveId] = useState(employees[0]?.id ?? null);
   const [addingEmployee, setAddingEmployee] = useState(false);
-  const [draft, setDraft] = useState({ name: "", email: "", role: "", password: "", confirmPassword: "" });
+  const [draft, setDraft] = useState({ name: "", email: "", role: "" });
   const [addError, setAddError] = useState("");
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskDue, setNewTaskDue] = useState("");
@@ -783,15 +783,61 @@ function Employees({ employees, setEmployees, tasks, setTasks, stageTasks, setSt
   const active = employees.find(e => e.id === activeId);
   const activeTasks = tasks.filter(t => t.employeeId === activeId);
   const stageTemplates = stageTasks.filter(t => t.stage === pickerStage);
-  const openAdd = () => { setAddingEmployee(true); setActiveId(null); setAddError(""); setDraft({ name: "", email: "", role: "", password: "", confirmPassword: "" }); };
+  const openAdd = () => { setAddingEmployee(true); setActiveId(null); setAddError(""); setDraft({ name: "", email: "", role: "" }); };
   const selectEmployee = (id) => { setActiveId(id); setAddingEmployee(false); setCheckedTemplateIds([]); };
-  const saveEmployee = () => { if (!draft.name.trim() || !draft.email.trim()) { setAddError("Name and email are required."); return; } if (!draft.password || draft.password.length < 8) { setAddError("Set a password of at least 8 characters — you'll share this with them directly."); return; } if (draft.password !== draft.confirmPassword) { setAddError("Passwords don't match."); return; } setAddError(""); const id = Date.now(); const { password, confirmPassword, ...employeeRecord } = draft; setEmployees(prev => [...prev, { id, ...employeeRecord, allowedModules: { ...DEFAULT_EMPLOYEE_ACCESS } }]); setAddingEmployee(false); setActiveId(id); };
-  const toggleAccess = (employeeId, moduleKey) => { setEmployees(prev => prev.map(e => e.id === employeeId ? { ...e, allowedModules: { ...(e.allowedModules || DEFAULT_EMPLOYEE_ACCESS), [moduleKey]: !((e.allowedModules || DEFAULT_EMPLOYEE_ACCESS)[moduleKey]) } } : e)); };
-  const addTask = () => { if (!newTaskTitle.trim() || !activeId) return; setTasks(prev => [...prev, { id: Date.now(), employeeId: activeId, title: newTaskTitle, due: newTaskDue || "No due date", done: false }]); setNewTaskTitle(""); setNewTaskDue(""); };
-  const toggleTask = (taskId) => { setTasks(prev => prev.map(t => t.id === taskId ? { ...t, done: !t.done } : t)); };
+  const saveEmployee = async () => {
+    if (!draft.name.trim() || !draft.email.trim()) { setAddError("Name and email are required."); return; }
+    setAddError("");
+    const allowedModules = { ...DEFAULT_EMPLOYEE_ACCESS };
+    const { data, error } = await supabase.from("employees").insert({ name: draft.name.trim(), email: draft.email.trim(), role: draft.role.trim(), allowed_modules: allowedModules }).select().single();
+    if (error) { setAddError("Could not save employee: " + error.message); return; }
+    setEmployees(prev => [...prev, { id: data.id, name: data.name, email: data.email, role: data.role, allowedModules: data.allowed_modules || allowedModules }]);
+    setAddingEmployee(false);
+    setActiveId(data.id);
+  };
+  const toggleAccess = (employeeId, moduleKey) => {
+    const target = employees.find(e => e.id === employeeId);
+    if (!target) return;
+    const current = target.allowedModules || DEFAULT_EMPLOYEE_ACCESS;
+    const updatedModules = { ...current, [moduleKey]: !current[moduleKey] };
+    setEmployees(prev => prev.map(e => e.id === employeeId ? { ...e, allowedModules: updatedModules } : e));
+    supabase.from("employees").update({ allowed_modules: updatedModules }).eq("id", employeeId).then(({ error }) => { if (error) console.error("Failed to update employee access:", error); });
+  };
+  const addTask = async () => {
+    if (!newTaskTitle.trim() || !activeId) return;
+    const title = newTaskTitle.trim();
+    const due = newTaskDue || null;
+    setNewTaskTitle(""); setNewTaskDue("");
+    const { data, error } = await supabase.from("employee_tasks").insert({ employee_id: activeId, title, due_date: due, is_done: false }).select().single();
+    if (error) { console.error("Failed to add task:", error); return; }
+    setTasks(prev => [...prev, { id: data.id, employeeId: data.employee_id, contactId: data.contact_id, title: data.title, due: data.due_date || "No due date", done: data.is_done }]);
+  };
+  const toggleTask = (taskId) => {
+    const target = tasks.find(t => t.id === taskId);
+    if (!target) return;
+    const nextDone = !target.done;
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, done: nextDone } : t));
+    supabase.from("employee_tasks").update({ is_done: nextDone }).eq("id", taskId).then(({ error }) => { if (error) console.error("Failed to update task:", error); });
+  };
   const toggleTemplateChecked = (id) => { setCheckedTemplateIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]); };
-  const addNewTemplate = () => { if (!newTemplateTitle.trim()) return; setStageTasks(prev => [...prev, { id: Date.now(), stage: pickerStage, title: newTemplateTitle }]); setNewTemplateTitle(""); };
-  const addSelectedTemplateTasks = () => { if (!activeId || checkedTemplateIds.length === 0) return; const toAdd = stageTasks.filter(t => checkedTemplateIds.includes(t.id)); const newTasks = toAdd.map((t, i) => ({ id: Date.now() + i, employeeId: activeId, title: t.title, due: "TBD", done: false })); setTasks(prev => [...prev, ...newTasks]); setCheckedTemplateIds([]); };
+  const addNewTemplate = async () => {
+    if (!newTemplateTitle.trim()) return;
+    const title = newTemplateTitle.trim();
+    setNewTemplateTitle("");
+    const { data, error } = await supabase.from("stage_task_templates").insert({ stage: pickerStage, title }).select().single();
+    if (error) { console.error("Failed to add task template:", error); return; }
+    setStageTasks(prev => [...prev, { id: data.id, stage: data.stage, title: data.title }]);
+  };
+  const addSelectedTemplateTasks = async () => {
+    if (!activeId || checkedTemplateIds.length === 0) return;
+    const toAdd = stageTasks.filter(t => checkedTemplateIds.includes(t.id));
+    const rows = toAdd.map(t => ({ employee_id: activeId, title: t.title, is_done: false }));
+    setCheckedTemplateIds([]);
+    const { data, error } = await supabase.from("employee_tasks").insert(rows).select();
+    if (error) { console.error("Failed to add template tasks:", error); return; }
+    const newTasks = data.map(r => ({ id: r.id, employeeId: r.employee_id, contactId: r.contact_id, title: r.title, due: r.due_date || "TBD", done: r.is_done }));
+    setTasks(prev => [...prev, ...newTasks]);
+  };
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between flex-wrap gap-3"><div><h1 className="text-2xl mb-1" style={{ ...fontDisplay, color: T.ink }}>Employees</h1><p className="text-sm" style={{ color: T.muted, ...fontBody }}>Your internal team and the tasks assigned to each of them.</p></div><button onClick={openAdd} className="px-4 py-2 rounded-lg text-sm flex items-center gap-1.5" style={{ backgroundColor: T.accent, color: "#fff", ...fontBody }}><Plus size={14} /> Add Employee</button></div>
@@ -802,7 +848,7 @@ function Employees({ employees, setEmployees, tasks, setTasks, stageTasks, setSt
         </div>
         <div className="lg:col-span-3 rounded-xl" style={{ backgroundColor: T.surface, border: `1px solid ${T.border}` }}>
           {addingEmployee ? (
-            <div className="p-5 flex flex-col gap-4"><div className="flex items-center justify-between"><span className="text-sm font-medium" style={{ color: T.ink, ...fontBody }}>New Employee</span><button onClick={() => setAddingEmployee(false)} style={{ color: T.muted }}><X size={16} /></button></div>{[{ key: "name", label: "Full Name" }, { key: "email", label: "Email (their login)" }, { key: "role", label: "Role (e.g. Visa Officer)" }].map(f => (<div key={f.key}><label className="text-xs block mb-1.5" style={{ color: T.muted, ...fontBody }}>{f.label}</label><input value={draft[f.key]} onChange={e => setDraft(prev => ({ ...prev, [f.key]: e.target.value }))} className="w-full rounded-lg px-3 py-2 text-sm outline-none" style={{ border: `1px solid ${T.border}`, color: T.ink, ...fontBody, backgroundColor: T.bg }} /></div>))}<div className="pt-2" style={{ borderTop: `1px solid ${T.border}` }}><p className="text-xs mb-3" style={{ color: T.muted, ...fontBody }}>No email invites are set up yet, so set their password here and share it with them yourself — they can change it after logging in.</p><div className="grid grid-cols-1 sm:grid-cols-2 gap-3"><div><label className="text-xs block mb-1.5" style={{ color: T.muted, ...fontBody }}>Set Password</label><input type="password" value={draft.password} onChange={e => setDraft(prev => ({ ...prev, password: e.target.value }))} className="w-full rounded-lg px-3 py-2 text-sm outline-none" style={{ border: `1px solid ${T.border}`, color: T.ink, ...fontBody, backgroundColor: T.bg }} /></div><div><label className="text-xs block mb-1.5" style={{ color: T.muted, ...fontBody }}>Confirm Password</label><input type="password" value={draft.confirmPassword} onChange={e => setDraft(prev => ({ ...prev, confirmPassword: e.target.value }))} className="w-full rounded-lg px-3 py-2 text-sm outline-none" style={{ border: `1px solid ${T.border}`, color: T.ink, ...fontBody, backgroundColor: T.bg }} /></div></div></div>{addError && <div className="text-xs" style={{ color: T.danger, ...fontBody }}>{addError}</div>}<button onClick={saveEmployee} className="mt-2 px-4 py-2 rounded-lg text-sm" style={{ backgroundColor: T.accent, color: "#fff", ...fontBody }}>Save Employee</button></div>
+            <div className="p-5 flex flex-col gap-4"><div className="flex items-center justify-between"><span className="text-sm font-medium" style={{ color: T.ink, ...fontBody }}>New Employee</span><button onClick={() => setAddingEmployee(false)} style={{ color: T.muted }}><X size={16} /></button></div>{[{ key: "name", label: "Full Name" }, { key: "email", label: "Email" }, { key: "role", label: "Role (e.g. Visa Officer)" }].map(f => (<div key={f.key}><label className="text-xs block mb-1.5" style={{ color: T.muted, ...fontBody }}>{f.label}</label><input value={draft[f.key]} onChange={e => setDraft(prev => ({ ...prev, [f.key]: e.target.value }))} className="w-full rounded-lg px-3 py-2 text-sm outline-none" style={{ border: `1px solid ${T.border}`, color: T.ink, ...fontBody, backgroundColor: T.bg }} /></div>))}<p className="text-xs" style={{ color: T.muted, ...fontBody }}>This adds an internal team record for task assignment — it doesn't create a dashboard login for them yet.</p>{addError && <div className="text-xs" style={{ color: T.danger, ...fontBody }}>{addError}</div>}<button onClick={saveEmployee} className="mt-2 px-4 py-2 rounded-lg text-sm" style={{ backgroundColor: T.accent, color: "#fff", ...fontBody }}>Save Employee</button></div>
           ) : !active ? (
             <div className="h-full flex items-center justify-center text-center px-8 py-16"><p className="text-sm" style={{ color: T.muted, ...fontBody }}>Select an employee to view their tasks.</p></div>
           ) : (
@@ -834,7 +880,7 @@ function Media() {
   return (<div className="flex flex-col gap-6"><div className="flex items-center justify-between"><div><h1 className="text-2xl mb-1" style={{ ...fontDisplay, color: T.ink }}>Media</h1><p className="text-sm" style={{ color: T.muted, ...fontBody }}>Images used across your website.</p></div><button className="px-4 py-2 rounded-lg text-sm flex items-center gap-1.5" style={{ backgroundColor: T.accent, color: "#fff", ...fontBody }}><Upload size={14} /> Upload</button></div><div className="grid grid-cols-2 sm:grid-cols-4 gap-4">{MEDIA.map(m => <div key={m.id} className="rounded-xl overflow-hidden group relative" style={{ border: `1px solid ${T.border}` }}><img src={m.url} alt="" className="w-full h-32 object-cover" /></div>)}</div></div>);
 }
 
-function Settings({ pipelineStages, setPipelineStages, currency, setCurrency, modules, setModules, chatWidgetCode, setChatWidgetCode, settings, onSaveSettings }) {
+function Settings({ pipelineStages, setPipelineStages, pipelineStageRows, setPipelineStageRows, currency, setCurrency, modules, setModules, chatWidgetCode, setChatWidgetCode, settings, onSaveSettings }) {
   const [tab, setTab] = useState("Business");
   const tabs = ["Business", "Branding", "Social", "SEO", "Pipeline", "Modules", "Integrations"];
   const [newStageName, setNewStageName] = useState("");
@@ -879,10 +925,48 @@ function Settings({ pipelineStages, setPipelineStages, currency, setCurrency, mo
     </div>
   ) : null;
 
-  const addStage = () => { if (!newStageName.trim() || pipelineStages.includes(newStageName.trim())) return; setPipelineStages(prev => [...prev, newStageName.trim()]); setNewStageName(""); };
-  const removeStage = (stage) => { if (pipelineStages.length <= 2) return; setPipelineStages(prev => prev.filter(s => s !== stage)); };
-  const renameStage = (oldName, newName) => { setPipelineStages(prev => prev.map(s => s === oldName ? newName : s)); };
-  const moveStage = (index, dir) => { setPipelineStages(prev => { const next = [...prev]; const target = index + dir; if (target < 0 || target >= next.length) return prev; [next[index], next[target]] = [next[target], next[index]]; return next; }); };
+  const renameTimers = useRef({});
+  const addStage = async () => {
+    const name = newStageName.trim();
+    if (!name || pipelineStages.includes(name)) return;
+    setNewStageName("");
+    const { data, error } = await supabase.from("pipeline_stages").insert({ name, sort_order: pipelineStageRows.length }).select().single();
+    if (error) { console.error("Failed to add stage:", error); return; }
+    setPipelineStages(prev => [...prev, name]);
+    setPipelineStageRows(prev => [...prev, data]);
+  };
+  const removeStage = async (stage) => {
+    if (pipelineStages.length <= 2) return;
+    const row = pipelineStageRows.find(r => r.name === stage);
+    if (row) {
+      const { error } = await supabase.from("pipeline_stages").delete().eq("id", row.id);
+      if (error) { console.error("Failed to remove stage:", error); return; }
+    }
+    setPipelineStages(prev => prev.filter(s => s !== stage));
+    setPipelineStageRows(prev => prev.filter(r => r.name !== stage));
+  };
+  const renameStage = (oldName, newName) => {
+    setPipelineStages(prev => prev.map(s => s === oldName ? newName : s));
+    setPipelineStageRows(prev => prev.map(r => r.name === oldName ? { ...r, name: newName } : r));
+    const row = pipelineStageRows.find(r => r.name === oldName);
+    if (!row) return;
+    clearTimeout(renameTimers.current[row.id]);
+    renameTimers.current[row.id] = setTimeout(() => {
+      supabase.from("pipeline_stages").update({ name: newName }).eq("id", row.id).then(({ error }) => { if (error) console.error("Failed to rename stage:", error); });
+    }, 600);
+  };
+  const moveStage = (index, dir) => {
+    const target = index + dir;
+    if (target < 0 || target >= pipelineStages.length) return;
+    const rowA = pipelineStageRows[index];
+    const rowB = pipelineStageRows[target];
+    setPipelineStages(prev => { const next = [...prev]; [next[index], next[target]] = [next[target], next[index]]; return next; });
+    setPipelineStageRows(prev => { const next = [...prev]; [next[index], next[target]] = [next[target], next[index]]; return next; });
+    if (rowA && rowB) {
+      supabase.from("pipeline_stages").update({ sort_order: target }).eq("id", rowA.id).then(({ error }) => { if (error) console.error("Failed to reorder stage:", error); });
+      supabase.from("pipeline_stages").update({ sort_order: index }).eq("id", rowB.id).then(({ error }) => { if (error) console.error("Failed to reorder stage:", error); });
+    }
+  };
   const MODULE_INFO = [{ key: "pipeline", label: "Pipeline", desc: "Kanban board for tracking leads through your sales stages." }, { key: "bookings", label: "Calendar", desc: "Scheduled meetings/appointments with clients." }, { key: "employees", label: "Employees", desc: "Internal staff, task assignment, and pipeline automation." }, { key: "services", label: "Catalog", desc: "Manage the products, services, and packages you offer clients." }];
   return (
     <div className="flex flex-col gap-6">
@@ -1009,6 +1093,7 @@ export default function Dashboard() {
   const [stageTasks, setStageTasks] = useState([]);
   const [services, setServices] = useState([]);
   const [pipelineStages, setPipelineStages] = useState(["New Lead", "Contacted", "Qualified", "Proposal Sent", "Booked Appointment", "Close"]);
+  const [pipelineStageRows, setPipelineStageRows] = useState([]);
   const [currency, setCurrency] = useState("\u20B1");
   const [modules, setModules] = useState({ pipeline: true, bookings: true, employees: true, services: true });
   const [chatWidgetCode, setChatWidgetCode] = useState("");
@@ -1028,6 +1113,15 @@ export default function Dashboard() {
         supabase.from("pipeline_stages").select("*").order("sort_order", { ascending: true }),
         fetchSiteSettings(),
       ]);
+      if (subsRes.error) console.error("Failed to load form_submissions:", subsRes.error);
+      if (contactsRes.error) console.error("Failed to load contacts:", contactsRes.error);
+      if (bookingsRes.error) console.error("Failed to load bookings:", bookingsRes.error);
+      if (employeesRes.error) console.error("Failed to load employees:", employeesRes.error);
+      if (tasksRes.error) console.error("Failed to load employee_tasks:", tasksRes.error);
+      if (stageTasksRes.error) console.error("Failed to load stage_task_templates:", stageTasksRes.error);
+      if (servicesRes.error) console.error("Failed to load services:", servicesRes.error);
+      if (stagesRes.error) console.error("Failed to load pipeline_stages:", stagesRes.error);
+
       if (subsRes.data) setSubmissions(subsRes.data.map(r => ({ id: r.id, name: r.name, email: r.email, type: r.form_type, date: r.created_at ? new Date(r.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "", status: r.status })));
       if (contactsRes.data) setContacts(contactsRes.data.map(r => ({ id: r.id, submissionId: r.submission_id, name: r.name, email: r.email, category: r.category, status: r.status, amount: r.amount ? Number(r.amount) : null, assignedEmployeeId: r.assigned_employee_id })));
       if (bookingsRes.data) setBookings(bookingsRes.data.map(r => ({ id: r.id, contactId: r.contact_id, name: r.name, purpose: r.purpose, date: r.date || "TBD", time: r.time || "", status: r.status })));
@@ -1035,14 +1129,14 @@ export default function Dashboard() {
       if (tasksRes.data) setEmployeeTasks(tasksRes.data.map(r => ({ id: r.id, employeeId: r.employee_id, contactId: r.contact_id, title: r.title, due: r.due_date || "No due date", done: r.is_done })));
       if (stageTasksRes.data) setStageTasks(stageTasksRes.data.map(r => ({ id: r.id, stage: r.stage, title: r.title })));
       if (servicesRes.data) setServices(servicesRes.data.map(dbRowToService));
-      if (stagesRes.data && stagesRes.data.length > 0) setPipelineStages(stagesRes.data.map(r => r.name));
+      if (stagesRes.data && stagesRes.data.length > 0) { setPipelineStages(stagesRes.data.map(r => r.name)); setPipelineStageRows(stagesRes.data); }
       if (settingsRes) {
         setSiteSettings(settingsRes);
         if (settingsRes.currency_symbol) setCurrency(settingsRes.currency_symbol);
         if (settingsRes.enabled_modules) setModules(prev => ({ ...prev, ...settingsRes.enabled_modules }));
         if (settingsRes.chat_widget_code !== undefined) setChatWidgetCode(settingsRes.chat_widget_code);
       }
-    } catch (err) { /* database not yet set up */ } finally { setLoaded(true); }
+    } catch (err) { console.error("Dashboard failed to load data:", err); } finally { setLoaded(true); }
   }, []);
 
   useEffect(() => {
@@ -1094,6 +1188,8 @@ export default function Dashboard() {
     const { data, error } = await supabase.from("contacts").insert({ submission_id: submission.id, name: submission.name, email: submission.email, category, status: pipelineStages[0] }).select().single();
     const newContact = data ? { id: data.id, submissionId: data.submission_id, name: data.name, email: data.email, category: data.category, status: data.status, amount: null, assignedEmployeeId: null } : { id: Date.now(), submissionId: submission.id, name: submission.name, email: submission.email, category, status: pipelineStages[0], amount: null, assignedEmployeeId: null };
     setContacts(prev => [...prev, newContact]);
+    const { error: statusError } = await supabase.from("form_submissions").update({ status: "Contacted" }).eq("id", submission.id);
+    if (statusError) console.error("Failed to update submission status:", statusError);
     setSubmissions(prev => prev.map(s => s.id === submission.id ? { ...s, status: "Contacted" } : s));
     setPage("pipeline");
   };
@@ -1129,7 +1225,7 @@ export default function Dashboard() {
     employees: <Employees employees={employees} setEmployees={setEmployees} tasks={employeeTasks} setTasks={setEmployeeTasks} stageTasks={stageTasks} setStageTasks={setStageTasks} stages={pipelineStages} />,
     bookings: <Bookings bookings={bookings} />,
     media: <Media />,
-    settings: <Settings pipelineStages={pipelineStages} setPipelineStages={setPipelineStages} currency={currency} setCurrency={setCurrency} modules={modules} setModules={setModules} chatWidgetCode={chatWidgetCode} setChatWidgetCode={setChatWidgetCode} settings={siteSettings} onSaveSettings={handleSaveSettings} />,
+    settings: <Settings pipelineStages={pipelineStages} setPipelineStages={setPipelineStages} pipelineStageRows={pipelineStageRows} setPipelineStageRows={setPipelineStageRows} currency={currency} setCurrency={setCurrency} modules={modules} setModules={setModules} chatWidgetCode={chatWidgetCode} setChatWidgetCode={setChatWidgetCode} settings={siteSettings} onSaveSettings={handleSaveSettings} />,
   };
 
   const visibleNav = NAV.filter(n => !n.moduleKey || modules[n.moduleKey]);
