@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ArrowRight, Award, CheckCircle2, ChevronLeft, ChevronRight, Compass, Facebook, FileCheck, Globe, Headphones, Heart, Instagram, Landmark, Linkedin, Lock, LogOut, Mail, MapPin, MessageCircle, Phone, Plane, PlayCircle, RefreshCw, Scale, Search, ShieldCheck, Star, Ticket, IdCard, Users, X, Menu, Check, CalendarDays } from "lucide-react";
+import { ArrowRight, CheckCircle2, ChevronLeft, ChevronRight, Compass, Facebook, FileCheck, FileCheck2, Gavel, Globe, Heart, Home, Instagram, Landmark, Linkedin, Lock, Mail, MapPin, MessageCircle, Phone, Plane, PlayCircle, Search, ShieldCheck, Stamp, Star, Ticket, IdCard, Users, X, Menu, Check, CalendarDays, Zap } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useParams } from "react-router-dom";
 import { dbRowToService, getPriceLabel } from "../lib/catalog.js";
@@ -34,49 +34,64 @@ const fallbackSettings = {
 
 const heroSlides = [
   {
+    tag: "Immigration Services", icon: Stamp,
+    headline: "Philippine ", highlight: "Immigration Services",
+    subheading: "Your trusted partner for every visa journey.",
+    description: "Visa, residency, citizenship, documentation, and immigration compliance — handled end-to-end by accredited consultants.",
+    features: ["Government-Accredited", "End-to-End Processing", "Trusted by Thousands"],
+    cta: "Explore Immigration Services",
+    href: "#our-services",
+    images: [
+      "https://images.unsplash.com/photo-1563463149242-bd378d9ab05c?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1750941416707-4dff777c67b1?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1581553673739-c4906b5d0de8?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1715927134295-6b1016e28414?auto=format&fit=crop&w=1600&q=80",
+    ],
+  },
+  {
     tag: "Most Requested", icon: Landmark,
     headline: "Special Resident ", highlight: "Retiree's Visa",
     subheading: "Retire where the tropics feel like home.",
     description: "Live in the Philippines permanently — unlimited travel, no annual reporting, and government discounts.",
     features: ["Lifetime Residency", "PRA-Accredited Process", "Trusted by Retirees"],
     cta: "Start Your SRRV Application",
-    image: "https://images.unsplash.com/photo-1509233725247-49e657c54213?auto=format&fit=crop&w=1600&q=80",
+    href: "#srrv",
+    images: [
+      "https://images.unsplash.com/photo-1710917554876-9e2ada25f7b4?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1749468373693-a857cdb4579e?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1546068996-8da61faeceaa?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1771533679889-fa1bf5df299a?auto=format&fit=crop&w=1600&q=80",
+    ],
   },
   {
-    tag: "Work Visa", icon: BriefcaseIcon,
-    headline: "9G Working ", highlight: "Visa",
-    subheading: "Build your career on Philippine soil.",
-    description: "Legally work for a Philippine-registered company, with full DOLE and Bureau of Immigration processing handled for you.",
-    features: ["Employer Coordination", "DOLE & BI Compliant", "Renewal Assistance"],
-    cta: "Start Your 9G Work Visa",
-    image: "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&w=1600&q=80",
+    tag: "Visa Assistance", icon: Plane,
+    headline: "International Tourist ", highlight: "Visa Assistance",
+    subheading: "Travel the world with confidence.",
+    description: "Schengen, US, UK, Canada, and Japan — we make the tourist visa application process clearer, from requirements to submission.",
+    features: ["Expert Application Support", "Multiple Destinations", "Clear Requirements Checklist"],
+    cta: "Get Visa Assistance",
+    href: "#visa-assistance",
+    images: [
+      "https://images.unsplash.com/photo-1765707886539-6d57024ddc2f?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1566800890932-e89159daf3dc?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1696283201322-04ef0aef3c54?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1549813069-a5f8c1dce35f?auto=format&fit=crop&w=1600&q=80",
+    ],
   },
   {
-    tag: "Family & Marriage", icon: Users,
-    headline: "13A ", highlight: "Spousal Visa",
-    subheading: "Build your future together in the Philippines.",
-    description: "Permanent residency for foreign spouses of Filipino citizens — from conditional status to permanent, with expert guidance every step of the way.",
-    features: ["Expert Guidance", "Hassle-Free Processing", "Trusted by Thousands"],
-    cta: "Start Your 13A Visa Process",
-    image: "https://images.unsplash.com/photo-1638548725690-af8d0fab0653?auto=format&fit=crop&w=1600&q=80",
-  },
-  {
-    tag: "Short-Term Stay", icon: Ticket,
-    headline: "Tourist Visa ", highlight: "Extension",
-    subheading: "Stay longer, stress less.",
-    description: "Extend your stay in the Philippines without leaving the country — we handle the Bureau of Immigration queue.",
-    features: ["No Need to Leave PH", "Fast BI Processing", "Flexible Extensions"],
-    cta: "Extend My Tourist Visa",
-    image: "https://images.unsplash.com/photo-1663271784319-ecc97ce8d4aa?auto=format&fit=crop&w=1600&q=80",
-  },
-  {
-    tag: "Required for Long-Stay", icon: IdCard,
-    headline: "ACR I-Card ", highlight: "Registration",
-    subheading: "Your legal stay, officially documented.",
-    description: "The biometric ID required for foreign nationals staying more than 59 days — application and renewal, handled.",
-    features: ["Biometric ID Handled", "Required Compliance", "Renewal Reminders"],
-    cta: "Apply for ACR I-Card",
-    image: "https://images.unsplash.com/photo-1581553673739-c4906b5d0de8?auto=format&fit=crop&w=1600&q=80",
+    tag: "Travel & Tours", icon: Globe,
+    headline: "Travel & ", highlight: "Tours",
+    subheading: "Discover amazing destinations, hassle-free.",
+    description: "Curated travel packages across Asia — from Kuala Lumpur to Jeju Island, with everything handled for you.",
+    features: ["Curated Packages", "Hassle-Free Travel", "Unforgettable Experiences"],
+    cta: "Explore Travel Packages",
+    href: "#travel-tours",
+    images: [
+      "https://images.unsplash.com/photo-1529510021255-4a1179e99095?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1761141954476-2921e2e43e99?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1746872269585-d85a03ef2ad2?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1744705221117-9c726f9497b0?auto=format&fit=crop&w=1600&q=80",
+    ],
   },
 ];
 
@@ -90,31 +105,65 @@ const heroTrustStrip = [
 ];
 
 const accreditations = [
-  { icon: Landmark, label: "Philippine Retirement Authority" },
-  { icon: ShieldCheck, label: "Bureau of Immigration" },
-  { icon: Award, label: "Dept. of Labor and Employment" },
+  { logo: "/dole-logo-v2.png", label: "National Labor and Deployment" },
+  { logo: "/bi-logo-v2.png", label: "Bureau of Immigration" },
+  { logo: "/pra-logo-v2.png", label: "Philippine Retirement Authority" },
 ];
 
-const serviceShowcase = [
-  { name: "Special Resident Retiree's Visa", tag: "Most Requested", description: "Permanent residency for retirees, with unlimited travel and no annual reporting.", icon: Landmark, image: "https://images.unsplash.com/photo-1509233725247-49e657c54213?auto=format&fit=crop&w=800&q=80", slug: "srrv" },
-  { name: "Pre-Arranged Working Visa (9G)", tag: "Work Visa", description: "Full DOLE and Bureau of Immigration processing for foreign employees.", icon: BriefcaseIcon, image: "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&w=800&q=80", slug: "9g-working-visa" },
-  { name: "13A Spousal Visa", tag: "Family & Marriage", description: "Permanent residency for foreign spouses of Filipino citizens.", icon: Users, image: "https://images.unsplash.com/photo-1591604466107-ec97de577aff?auto=format&fit=crop&w=800&q=80", slug: "13a-spousal-visa" },
-  { name: "Tourist Visa Extension", tag: "Short-Term Stay", description: "Extend your stay in the Philippines without leaving the country.", icon: Ticket, image: "https://images.unsplash.com/photo-1663271784319-ecc97ce8d4aa?auto=format&fit=crop&w=800&q=80", slug: "tourist-visa-extension" },
-  { name: "ACR I-Card Registration", tag: "Required for Long-Stay", description: "Biometric ID application and renewal for foreign nationals staying 59+ days.", icon: IdCard, image: "https://images.unsplash.com/photo-1581553673739-c4906b5d0de8?auto=format&fit=crop&w=800&q=80", slug: "acr-i-card" },
-  { name: "In-House Legal Counsel", tag: "Expert Guidance", description: "One-on-one consultation with our in-house immigration lawyer on your case.", icon: Scale, image: "https://images.unsplash.com/photo-1780733064275-d1ade9b83a3d?auto=format&fit=crop&w=800&q=80", slug: "legal-consultation" },
+const serviceCategories = [
+  { title: "Philippine Immigration Services", desc: "Visa, residency, citizenship, documentation, and immigration compliance services.", icon: Stamp, href: "#our-services", theme: "green" },
+  { title: "Special Resident Retiree's Visa (SRRV)", desc: "Live, retire, and enjoy long-term residency in the Philippines.", icon: Landmark, href: "#srrv", theme: "amber" },
+  { title: "International Tourist Visa Assistance", desc: "Travel with confidence. Aitfair helps make the tourist visa application process clearer.", icon: Plane, href: "#visa-assistance", theme: "blue" },
+  { title: "Travel & Tours", desc: "Discover amazing destinations with our carefully curated travel packages.", icon: Globe, href: "#travel-tours", theme: "teal" },
 ];
 
-const additionalServices = [
-  { icon: Globe, code: "Dual Citizenship (RA 9225)", text: "Guided re-acquisition of Filipino citizenship for former natural-born citizens.", color: "green", badge: "Popular" },
-  { icon: LogOut, code: "Emigration Clearance (ECC)", text: "Fast-tracked ECC processing for foreign nationals who have stayed 6 months or longer.", color: "blue" },
-  { icon: AlertTriangle, code: "Overstay Resolution", text: "Fine computation and Motion for Reconsideration filing for visa violations.", color: "amber" },
-  { icon: RefreshCw, code: "SRRV ID Renewal", text: "Annual Philippine Retirement Authority renewal handled on your behalf.", color: "green" },
-  { icon: MessageCircle, code: "Free Visa Consultation", text: "A one-on-one review of your documents and eligibility before you apply.", color: "green" },
-  { icon: ShieldCheck, code: "Immigration Processing", text: "End-to-end assistance for any immigrant visa or permanent residence application.", color: "blue" },
+const immigrationServices = [
+  { title: "13A Immigrant Visa by Marriage", desc: "For foreign spouses of Filipino citizens.", icon: Heart },
+  { title: "Pre-Arranged Working Visa (9G)", desc: "For foreign nationals with a job offer in the Philippines.", icon: BriefcaseIcon },
+  { title: "Tourist Visa Extension", desc: "Extend your stay in the Philippines.", icon: Ticket },
+  { title: "ACR I-Card", desc: "Obtain or renew your Alien Certificate of Registration.", icon: IdCard },
+  { title: "Dual Citizenship / Reacquisition", desc: "Retain your Filipino heritage.", icon: FileCheck },
+  { title: "Naturalization", desc: "Become a Filipino citizen.", icon: Landmark },
+  { title: "Derogatory", desc: "Assistance with immigration records and derogatory issues.", icon: ShieldCheck },
+  { title: "Overstay & Motion for Reconsideration", desc: "Get help with overstays and file for reconsideration.", icon: Gavel },
+  { title: "In-House Legal Counsel & Others", desc: "Other immigration-related services.", icon: MessageCircle },
 ];
 
-function BriefcaseIcon(props) {
-  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" {...props}><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18M10 12v2h4v-2" /></svg>;
+const internationalVisas = [
+  { name: "Schengen Visa", flagCode: "eu", desc: "Explore 27 European countries with one visa.", cta: "Apply Now", image: "https://images.unsplash.com/photo-1499856871958-5b9627545d1a?auto=format&fit=crop&w=800&q=80" },
+  { name: "US Visa", flagCode: "us", desc: "Visit the USA for business, study or leisure.", cta: "View Requirements", image: "https://images.unsplash.com/photo-1485738422979-f5c462d49f74?auto=format&fit=crop&w=800&q=80" },
+  { name: "UK Visa", flagCode: "gb", desc: "Discover new opportunities in the United Kingdom.", cta: "Apply Now", image: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&w=800&q=80" },
+  { name: "Canadian Visa", flagCode: "ca", desc: "Experience the best of Canada.", cta: "View Requirements", image: "https://images.unsplash.com/photo-1517935706615-2717063c2225?auto=format&fit=crop&w=800&q=80" },
+  { name: "Japan Visa", flagCode: "jp", desc: "Explore Japan for tourism, culture, or business.", cta: "Apply Now", image: "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?auto=format&fit=crop&w=800&q=80" },
+];
+
+const travelPackages = [
+  { name: "BTS Airang Package", place: "Kuala Lumpur", flagCode: "my", price: "Starts at ₱45,288", image: "https://images.unsplash.com/photo-1596422846543-75c6fc197f07?auto=format&fit=crop&w=600&q=80" },
+  { name: "Hong Kong Saver Getaway", place: "Hong Kong", flagCode: "hk", price: "Starts at ₱30,876", image: "https://images.unsplash.com/photo-1536599018102-9f803c140fc1?auto=format&fit=crop&w=600&q=80" },
+  { name: "Singapore Saver Getaway", place: "Singapore", flagCode: "sg", price: "Starts at ₱32,788", image: "https://images.unsplash.com/photo-1525625293386-3f8f99389edd?auto=format&fit=crop&w=600&q=80" },
+  { name: "Danang Package Tour", place: "Vietnam", flagCode: "vn", price: "Starts at $799", image: "https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?auto=format&fit=crop&w=600&q=80" },
+  { name: "Jeju Island Discovery", place: "South Korea", flagCode: "kr", price: "Starts at $959", image: "https://images.unsplash.com/photo-1517154421773-0529f29ea451?auto=format&fit=crop&w=600&q=80" },
+];
+
+const trustBarItems = [
+  { icon: ShieldCheck, title: "Government Accredited", text: "PRA, BI & DOLE accredited" },
+  { icon: Users, title: "Experienced Consultants", text: "Specialists you can trust" },
+  { icon: Heart, title: "Personalized Guidance", text: "Tailored to your unique goals" },
+  { icon: Zap, title: "Fast & Reliable Support", text: "We're here whenever you need us" },
+];
+
+function BriefcaseIcon({ size = 24, ...props }) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" {...props}><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18M10 12v2h4v-2" /></svg>;
+}
+
+function ServiceCard({ icon: Icon, title, desc }) {
+  return <a className="immigration-card" href="#contact">
+    <div className="immigration-card-icon-tile"><Icon size={42} strokeWidth={1.8} /></div>
+    <div className="immigration-card-content">
+      <h3>{title}</h3>
+      <p>{desc}</p>
+    </div>
+  </a>;
 }
 
 function SectionTitle({ eyebrow, title, description, light = false }) {
@@ -142,7 +191,7 @@ function TopBars({ settings }) {
       <div className="nav-inner">
         <a href="#top"><Logo /></a>
         <nav className={menuOpen ? "nav-links open" : "nav-links"}>
-          <a href="#top" onClick={() => setMenuOpen(false)}>Home</a><a href="#our-services" onClick={() => setMenuOpen(false)}>Our Services</a><a href="#assessment" onClick={() => setMenuOpen(false)}>Free Assessment</a><a href="#services" onClick={() => setMenuOpen(false)} className="nav-green">Visa &amp; Immigration</a><a href="#about" onClick={() => setMenuOpen(false)}>About Us</a><a href="#contact" onClick={() => setMenuOpen(false)}>Contact</a>
+          <a href="#top" onClick={() => setMenuOpen(false)}>Home</a><a href="#our-services" onClick={() => setMenuOpen(false)}>Our Services</a><a href="#assessment" onClick={() => setMenuOpen(false)}>Free Assessment</a><a href="#our-services" onClick={() => setMenuOpen(false)} className="nav-green">Visa &amp; Immigration</a><a href="#about" onClick={() => setMenuOpen(false)}>About Us</a><a href="#contact" onClick={() => setMenuOpen(false)}>Contact</a>
         </nav>
         <div className="nav-actions"><button aria-label="Search" onClick={() => setSearchOpen(v => !v)}><Search size={15} /></button><a className="book-button" href="#contact">Book Now <ArrowRight size={14} /></a><button className="mobile-menu" aria-label="Menu" onClick={() => setMenuOpen(v => !v)}>{menuOpen ? <X size={20} /> : <Menu size={20} />}</button></div>
       </div>
@@ -151,21 +200,39 @@ function TopBars({ settings }) {
   </>;
 }
 
+const HERO_IMAGE_MS = 2000;
+const HERO_IMAGES_PER_SLIDE = 4;
+
 function Hero() {
   const [active, setActive] = useState(0);
+  const [imageIndex, setImageIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   useEffect(() => {
     if (paused) return undefined;
-    const timer = setInterval(() => setActive(v => (v + 1) % heroSlides.length), 6500);
+    const timer = setInterval(() => {
+      setImageIndex(prev => {
+        const nextIndex = prev + 1;
+        if (nextIndex >= HERO_IMAGES_PER_SLIDE) {
+          setActive(a => (a + 1) % heroSlides.length);
+          return 0;
+        }
+        return nextIndex;
+      });
+    }, HERO_IMAGE_MS);
     return () => clearInterval(timer);
   }, [paused]);
-  const next = () => setActive(v => (v + 1) % heroSlides.length);
-  const prev = () => setActive(v => (v - 1 + heroSlides.length) % heroSlides.length);
+  const goToSlide = i => { setActive(i); setImageIndex(0); };
+  const next = () => goToSlide((active + 1) % heroSlides.length);
+  const prev = () => goToSlide((active - 1 + heroSlides.length) % heroSlides.length);
   const slide = heroSlides[active];
   const Icon = slide.icon;
   return <section id="top" className="hero" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
     <div className="hero-bg">
-      {heroSlides.map((s, i) => <div key={s.headline + s.highlight} className={i === active ? "hero-bg-img active" : "hero-bg-img"} style={{ backgroundImage: `url(${s.image})` }} />)}
+      {heroSlides.map((s, i) => (
+        <div key={s.headline + s.highlight} className={i === active ? "hero-bg-slide active" : "hero-bg-slide"}>
+          {s.images.map((img, imgI) => <div key={img} className={i === active && imgI === imageIndex ? "hero-bg-img active" : "hero-bg-img"} style={{ backgroundImage: `url(${img})` }} />)}
+        </div>
+      ))}
       <div className="hero-bg-overlay" />
     </div>
     <button className="hero-edge-arrow left" onClick={prev} aria-label="Previous service"><ChevronLeft size={20} /></button>
@@ -184,7 +251,7 @@ function Hero() {
           {slide.features.map((f, i) => { const FIcon = heroFeatureIcons[i]; return <div className="hero-trust-item" key={f}><FIcon size={15} /><span>{f}</span></div>; })}
         </div>
         <div className="hero-cta-row">
-          <a href="#contact" className="hero-cta">{slide.cta} <ArrowRight size={15} /></a>
+          <a href={slide.href || "#contact"} className="hero-cta">{slide.cta} <ArrowRight size={15} /></a>
           <a href="#about" className="hero-story-btn">
             <span className="hero-story-icon"><PlayCircle size={16} /></span>
             <span className="hero-story-text"><strong>Watch Our Story</strong><small>Real people. Real journeys.</small></span>
@@ -193,7 +260,7 @@ function Hero() {
       </div>
       <div className="hero-progress-track">
         {heroSlides.map((s, i) => (
-          <button key={s.headline + s.highlight} onClick={() => setActive(i)} className={i === active ? "hero-progress-dot active" : "hero-progress-dot"} aria-label={`Show ${s.headline}${s.highlight}`}>
+          <button key={s.headline + s.highlight} onClick={() => goToSlide(i)} className={i === active ? "hero-progress-dot active" : "hero-progress-dot"} aria-label={`Show ${s.headline}${s.highlight}`}>
             {i === active && <span className="hero-progress-fill" style={{ animationPlayState: paused ? "paused" : "running" }} />}
           </button>
         ))}
@@ -213,29 +280,135 @@ function AccreditationBar() {
     <div className="section-shell accreditation-inner">
       <span className="accreditation-label">Officially Accredited By</span>
       <div className="accreditation-items">
-        {accreditations.map(a => { const Icon = a.icon; return <div className="accreditation-item" key={a.label}><Icon size={18} /><span>{a.label}</span></div>; })}
+        {accreditations.map(a => <div className="accreditation-item" key={a.label}><img className="accreditation-logo" src={a.logo} alt={a.label} /><div className="accreditation-item-text"><span className="accreditation-item-sub">Republic of the Philippines</span><span className="accreditation-item-label">{a.label}</span></div></div>)}
       </div>
     </div>
   </div>;
 }
 
-function ServiceShowcaseCard({ item }) {
-  const Icon = item.icon;
-  return <a className="showcase-card" href="#contact">
-    <img src={item.image} alt={item.name} />
-    <div className="showcase-shade" />
-    <div className="showcase-icon"><Icon size={18} /></div>
-    <div className="showcase-overlay">
-      <span className="showcase-tag">{item.tag}</span>
-      <h3>{item.name}</h3>
-      <p>{item.description}</p>
-      <span className="showcase-link">Learn More <ArrowRight size={13} /></span>
+function ServiceCategories() {
+  return <section className="category-cards section-shell">
+    <div className="category-grid">
+      {serviceCategories.map(item => {
+        const Icon = item.icon;
+        return <a className={`category-card category-card--${item.theme}`} href={item.href} key={item.title}>
+          <div className="category-card-icon"><Icon size={26} strokeWidth={1.8} /></div>
+          <h3>{item.title}</h3>
+          <p>{item.desc}</p>
+          <span className="category-card-link">View Services <ArrowRight size={14} /></span>
+        </a>;
+      })}
     </div>
-  </a>;
+  </section>;
 }
 
-function OurServices() {
-  return <section id="our-services" className="showcase section-shell"><div className="section-heading-row"><SectionTitle title="Our Visa & Immigration Services" description="Government-accredited processing, handled by certified immigration consultants" /><a className="view-all" href="#services">View All →</a></div><div className="showcase-grid">{serviceShowcase.map(item => <ServiceShowcaseCard key={item.slug} item={item} />)}</div></section>;
+function ImmigrationServices() {
+  return <section id="our-services" className="immigration-v2">
+    <div className="immigration-banner">
+      <div className="section-shell immigration-header">
+        <div className="immigration-header-copy">
+          <h2>Philippine Immigration Services</h2>
+          <p>Reliable end-to-end immigration assistance in the Philippines. Our experienced team helps you navigate the process with clarity, compliance, and confidence.</p>
+        </div>
+      </div>
+    </div>
+    <div className="section-shell">
+      <div className="immigration-grid">
+        {immigrationServices.map(item => <ServiceCard key={item.title} icon={item.icon} title={item.title} desc={item.desc} />)}
+      </div>
+    </div>
+  </section>;
+}
+
+const srrvBenefits = [
+  { icon: Home, text: "Long-term residency privileges" },
+  { icon: Plane, text: "Multiple-entry travel benefits" },
+  { icon: ArrowRight, text: "Easy re-entry to the Philippines" },
+  { icon: FileCheck2, text: "Reduced documentation requirements" },
+  { icon: Users, text: "Access to certain benefits and privileges" },
+];
+
+function SRRVBanner() {
+  return <section id="srrv" className="srrv-banner-wrap">
+    <div className="section-shell">
+      <div className="srrv-card">
+        <div className="srrv-card-image">
+          <img src="/srrv-retire-paradise-2.png" alt="Retire in Paradise — SRRV Assistance" />
+        </div>
+        <div className="srrv-card-content">
+          <h2>Special Resident Retiree's Visa (SRRV)</h2>
+          <p className="srrv-card-subhead">Retire and enjoy long-term residency in the Philippines with expert guidance.</p>
+          <p className="srrv-card-desc">We help qualified foreign nationals and former Filipino citizens process their SRRV application with a smooth, hassle-free experience — from document preparation and requirements checklists to filing with the Philippine Retirement Authority and post-approval support.</p>
+          <ul className="srrv-card-benefits">
+            {srrvBenefits.map(b => { const Icon = b.icon; return <li key={b.text}><span className="srrv-card-benefit-icon"><Icon size={16} /></span>{b.text}</li>; })}
+          </ul>
+          <div className="srrv-card-actions">
+            <a className="green-button" href="#contact">Free Consultation <ArrowRight size={15} /></a>
+            <a className="outline-green-button" href="#contact">Learn More</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>;
+}
+
+function InternationalVisaAssistance() {
+  return <section id="visa-assistance" className="visa-assist section-shell">
+    <div className="section-heading-row">
+      <SectionTitle title="International Tourist Visa Assistance" description="Explore the world with confidence. We'll help you with the application process, requirements, and guidance." />
+      <a className="view-all" href="#contact">View All Destinations →</a>
+    </div>
+    <div className="visa-assist-grid">
+      {internationalVisas.map(item => <a className="visa-assist-card" href="#contact" key={item.name}>
+        <img className="visa-assist-photo" src={item.image} alt={item.name} />
+        <div className="visa-assist-shade" />
+        <img className="visa-assist-icon" src="/visa-icon.png" alt="" />
+        <span className="card-flag-badge"><img src={`https://flagcdn.com/w80/${item.flagCode}.png`} alt="" /></span>
+        <div className="visa-assist-overlay">
+          <h3>{item.name}</h3>
+          <p>{item.desc}</p>
+          <span className="visa-assist-link">{item.cta} <ArrowRight size={13} /></span>
+        </div>
+      </a>)}
+    </div>
+  </section>;
+}
+
+function TravelTours() {
+  return <section id="travel-tours" className="travel-tours section-shell">
+    <div className="section-heading-row">
+      <SectionTitle title="Travel & Tours" description="Discover amazing destinations with our carefully curated travel packages. Unforgettable experiences, hassle-free travel." />
+      <a className="view-all" href="#contact">View All Travel Packages →</a>
+    </div>
+    <div className="tours-grid">
+      {travelPackages.map(item => <a className="tour-card" href="#contact" key={item.name}>
+        <img className="tour-card-photo" src={item.image} alt={item.name} />
+        <div className="tour-card-shade" />
+        <img className="tour-card-icon" src="/travel-tours-icon.png" alt="" />
+        <span className="card-flag-badge"><img src={`https://flagcdn.com/w80/${item.flagCode}.png`} alt="" /></span>
+        <div className="tour-card-overlay">
+          <span className="tour-card-tag">{item.place}</span>
+          <h3>{item.name}</h3>
+          <p>{item.price}</p>
+          <span className="tour-card-cta">View Package <ArrowRight size={13} /></span>
+        </div>
+      </a>)}
+    </div>
+  </section>;
+}
+
+function TrustBar() {
+  return <section className="trust-bar">
+    <div className="section-shell trust-bar-inner">
+      {trustBarItems.map((item, i) => {
+        const Icon = item.icon;
+        return <React.Fragment key={item.title}>
+          {i > 0 && <span className="trust-bar-divider" />}
+          <div className="trust-bar-item"><Icon size={18} /><div><strong>{item.title}</strong><span>{item.text}</span></div></div>
+        </React.Fragment>;
+      })}
+    </div>
+  </section>;
 }
 
 function FreeAssessment({ settings }) {
@@ -267,32 +440,6 @@ function FreeAssessment({ settings }) {
   </section>;
 }
 
-function Services({ content, settings }) {
-  const heading = content?.blocks?.heading || "Every step of your journey, covered.";
-  const commaIndex = heading.lastIndexOf(",");
-  return <section id="services" className="services services-redesign section-shell">
-    <div className="services-copy">
-      <span className="services-eyebrow">EXPERT VISA CONSULTANTS</span>
-      <h2>{commaIndex > -1 ? <>{heading.slice(0, commaIndex + 1)} <span className="services-heading-accent">{heading.slice(commaIndex + 1).trim()}</span></> : heading}</h2>
-      <p>Planning to study, work, retire, or settle in the Philippines — or heading abroad? Our certified immigration consultants guide you through every step of the process.</p>
-      <div className="services-callout"><ShieldCheck size={18} /><span>At Air Fair, we are driven to pursue your VISA success.</span></div>
-      <div className="service-buttons"><a className="green-button" href="#contact">Apply Now →</a><a className="phone-button" href={`tel:${settings.contact_phone || fallbackSettings.contact_phone}`}><Phone size={14} /> {settings.contact_phone || fallbackSettings.contact_phone}</a></div>
-    </div>
-    <div className="service-grid">{additionalServices.map(item => { const Icon = item.icon; return <div className="service-tile" key={item.code}>{item.badge && <span className="service-tile-badge">{item.badge}</span>}<div className={`service-tile-icon ${item.color}`}><Icon size={20} /></div><h3>{item.code}</h3><p>{item.text}</p></div>; })}</div>
-  </section>;
-}
-
-
-function Benefits() {
-  const benefits = [
-    { icon: ShieldCheck, title: "Government Accredited", text: "PRA, BI & DOLE accredited" },
-    { icon: Award, title: "Certified Consultants", text: "Experienced immigration specialists" },
-    { icon: Lock, title: "Confidential & Secure", text: "Your case handled discreetly" },
-    { icon: Headphones, title: "24/7 Support", text: "We're here whenever you need us" },
-    { icon: FileCheck, title: "Transparent Process", text: "Simple steps, no hidden fees" },
-  ];
-  return <section className="benefits"><div className="section-shell benefits-grid">{benefits.map(b => { const Icon = b.icon; return <div key={b.title}><div className="benefit-icon"><Icon size={20} /></div><h3>{b.title}</h3><p>{b.text}</p></div>; })}</div></section>;
-}
 
 function Testimonials({ content, testimonials }) {
   const fallback = [{ client_name: "Maria Santos", quote: "Air Fair helped me get my Japan visa in just 2 weeks! Their preparation and support were professional and honest.", service_category: "Tourist Visa" }, { client_name: "James Reyes", quote: "They handled my 9G work visa from the employer paperwork to the BI interview. Smooth from start to finish.", service_category: "9G Work Visa" }, { client_name: "Ana Cruz", quote: "They processed my 13A marriage visa without any hassle. The team is knowledgeable, patient, and kept me updated throughout.", service_category: "13A Visa" }];
@@ -330,7 +477,8 @@ function Contact({ settings }) {
 
 function Footer({ settings }) {
   const socials = [[Facebook, settings.facebook_url], [Instagram, settings.instagram_url], [Linkedin, settings.linkedin_url]];
-  return <footer><div className="section-shell footer-grid"><div className="footer-brand"><Logo light /><p>Your trusted travel partner and visa consultant for unforgettable journeys and hassle-free immigration services.</p><div className="socials">{socials.map(([Icon, url], index) => <a key={index} href={url || "#"} aria-label="Social link"><Icon size={13} /></a>)}</div></div><div><h4>COMPANY</h4><a href="#about">About Us</a><a href="#about">Our Team</a><a href="#services">Careers</a><a href="#about">Blog</a><a href="#contact">Contact Us</a></div><div><h4>VISA SERVICES</h4><a href="#services">Tourist Visa</a><a href="#services">9G Work Visa</a><a href="#services">13A Marriage Visa</a><a href="#our-services">SRRV / Retirement</a><a href="#services">ACR-I Card</a><a href="#services">Other Services</a></div><div><h4>CONTACT US</h4><a href={`tel:${settings.contact_phone}`}>☎ {settings.contact_phone || fallbackSettings.contact_phone}</a><a href={`mailto:${settings.contact_email}`}>✉ {settings.contact_email || fallbackSettings.contact_email}</a><a href="#contact">▣ {settings.address || fallbackSettings.address}</a></div></div><div className="footer-bottom section-shell"><span>© 2025 Air Fair Travel and Tours OPC. All rights reserved.</span><span>Privacy Policy　 Terms &amp; Conditions</span></div></footer>;
+  const [subscribed, setSubscribed] = useState(false);
+  return <footer><div className="section-shell footer-grid"><div className="footer-brand"><Logo light /><p>Your trusted travel partner and visa consultant for unforgettable journeys and hassle-free immigration services.</p><div className="socials">{socials.map(([Icon, url], index) => <a key={index} href={url || "#"} aria-label="Social link"><Icon size={13} /></a>)}</div></div><div><h4>COMPANY</h4><a href="#about">About Us</a><a href="#about">Our Team</a><a href="#our-services">Careers</a><a href="#about">Blog</a><a href="#contact">Contact Us</a></div><div><h4>VISA SERVICES</h4><a href="#our-services">Tourist Visa</a><a href="#our-services">9G Work Visa</a><a href="#our-services">13A Marriage Visa</a><a href="#our-services">SRRV / Retirement</a><a href="#our-services">ACR-I Card</a><a href="#our-services">Other Services</a></div><div><h4>CONTACT US</h4><a href={`tel:${settings.contact_phone}`}>☎ {settings.contact_phone || fallbackSettings.contact_phone}</a><a href={`mailto:${settings.contact_email}`}>✉ {settings.contact_email || fallbackSettings.contact_email}</a><a href="#contact">▣ {settings.address || fallbackSettings.address}</a></div><div className="footer-newsletter"><h4>SUBSCRIBE TO OUR NEWSLETTER</h4><p>Get the latest updates and travel deals.</p>{subscribed ? <span className="newsletter-thanks"><Check size={14} /> Thanks for subscribing!</span> : <form className="newsletter-form" onSubmit={e => { e.preventDefault(); setSubscribed(true); }}><input required type="email" placeholder="Your email address" /><button type="submit" aria-label="Subscribe"><ArrowRight size={14} /></button></form>}</div></div><div className="footer-bottom section-shell"><span>© 2025 Air Fair Travel and Tours OPC. All rights reserved.</span><span>Privacy Policy　 Terms &amp; Conditions</span></div></footer>;
 }
 
 function ChatWidget({ code }) {
@@ -446,7 +594,6 @@ export default function Website() {
   useEffect(() => { document.title = settings.seo_title || fallbackSettings.seo_title; }, [settings.seo_title]);
   const homePage = pages.find(page => page.slug === "home");
   const section = type => homePage?.sections.find(item => item.template_type === type);
-  const servicesContent = section("services_preview");
   const testimonialsContent = section("testimonials");
-  return <div className="travel-site"><TopBars settings={settings} /><Hero /><AccreditationBar /><OurServices /><FreeAssessment settings={settings} /><Services content={servicesContent} settings={settings} /><Benefits /><Testimonials content={testimonialsContent} testimonials={testimonials} /><Contact settings={settings} /><Footer settings={settings} /><ChatWidget code={settings.chat_widget_code} /></div>;
+  return <div className="travel-site"><TopBars settings={settings} /><Hero /><AccreditationBar /><ServiceCategories /><ImmigrationServices /><SRRVBanner /><InternationalVisaAssistance /><TravelTours /><TrustBar /><FreeAssessment settings={settings} /><Testimonials content={testimonialsContent} testimonials={testimonials} /><Contact settings={settings} /><Footer settings={settings} /><ChatWidget code={settings.chat_widget_code} /></div>;
 }
