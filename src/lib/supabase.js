@@ -16,3 +16,14 @@ export async function uploadCatalogImage(file) {
   const { data } = supabase.storage.from('catalog-images').getPublicUrl(filePath)
   return data.publicUrl
 }
+
+export async function uploadFormAttachment(file) {
+  const ext = file.name.split('.').pop()?.toLowerCase() || 'dat'
+  const filePath = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}.${ext}`
+  const { error } = await supabase.storage
+    .from('form-attachments')
+    .upload(filePath, file, { contentType: file.type, upsert: false })
+  if (error) throw error
+  const { data } = supabase.storage.from('form-attachments').getPublicUrl(filePath)
+  return data.publicUrl
+}

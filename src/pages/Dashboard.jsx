@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { LayoutDashboard, File as FileEdit, Inbox, CalendarDays, Image as ImageIcon, Settings as SettingsIcon, ExternalLink, ChevronRight, ChevronLeft, Bell, Plus, X, Upload, Clock, Search, Check, MoveHorizontal as MoreHorizontal, Briefcase, Trash2, GripVertical, Mail, CalendarPlus, Wallet, Users, Plane, Globe, ArrowUp, UserPlus, FileText, Contact as Contact2, UserCog, ListChecks, LayoutTemplate, User, Calendar, Phone, MapPin, Building2, Landmark, TextCursorInput, AlignLeft, List, ChevronDown, SquareCheck as CheckSquare, Circle, Star, Hash, PenLine, Send, CreditCard, Monitor, Smartphone, ArrowLeft, Pencil, Package, Lock, LogOut, Eye, EyeOff, Loader as Loader2, Menu as MenuIcon, Chrome as Home } from "lucide-react";
 import { supabase, uploadCatalogImage } from "../lib/supabase.js";
 import { dbRowToService, serviceToDbRow, getPriceLabel } from "../lib/catalog.js";
+import TravelPosterEditor from "../components/travel/TravelPosterEditor.jsx";
 import { fetchAllPagesForEditor, saveContentBlock, fetchSiteSettings, saveSiteSettings } from "../lib/content.js";
 
 const T = {
@@ -442,6 +443,7 @@ function EditWebsite() {
       <div className="flex gap-1 border-b" style={{ borderColor: T.border }}>
         {dbPages.map((p, i) => (<button key={p.id} onClick={() => { setPageIdx(i); setSectionId(null); setLocalBlocks({}); }} className="px-4 py-2 text-sm -mb-px" style={{ ...fontBody, color: pageIdx === i ? T.ink : T.muted, borderBottom: pageIdx === i ? `2px solid ${T.accent}` : "2px solid transparent", fontWeight: pageIdx === i ? 500 : 400 }}>{p.title}</button>))}
       </div>
+      <TravelPosterEditor />
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 dash-grid-5">
         <div className="lg:col-span-3 rounded-xl overflow-hidden" style={{ backgroundColor: T.surface, border: `1px solid ${T.border}` }}>
           <div className="px-5 py-4" style={{ borderBottom: `1px solid ${T.border}` }}><span className="text-sm font-medium" style={{ color: T.ink, ...fontBody }}>{page.title} — Sections</span></div>
