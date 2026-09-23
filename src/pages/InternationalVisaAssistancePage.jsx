@@ -19,7 +19,7 @@ function Hero() {
             <span>/</span>
             <span className="pis-breadcrumb-current">International Tourist Visa</span>
           </nav>
-          <span className="eyebrow">VISA ASSISTANCE</span>
+
           <h1>International Tourist Visa Assistance</h1>
           <p className="pis-hero-desc">
             Explore the world with confidence. We'll help you with the application process, requirements, and guidance for your chosen destination.

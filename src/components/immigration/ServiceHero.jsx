@@ -28,7 +28,7 @@ export default function ServiceHero({ service }) {
             <span>/</span>
             <span className="pis-breadcrumb-current">{service.title}</span>
           </nav>
-          <span className="eyebrow">{service.eyebrow || "PHILIPPINE IMMIGRATION SERVICES"}</span>
+
           <h1>{renderTitle(service.title, service.titleHighlight)}</h1>
           {service.shortDescription && <p className="pis-hero-sub">{service.shortDescription}</p>}
           {service.heroDescription && <p className="pis-hero-desc">{service.heroDescription}</p>}

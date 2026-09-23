@@ -7,6 +7,7 @@ import { fetchPublishedPages, fetchPublishedTestimonials, fetchSiteSettings } fr
 import { homepageTravelPackages as travelPackages } from "../lib/travelDestinations.js";
 import { featuredVisaDestinations } from "../lib/visaDestinations.js";
 import VisaDestinationCard from "../components/visa/VisaDestinationCard.jsx";
+import NewsEvents from "../components/NewsEvents.jsx";
 
 export const colors = {
   green: "#4B9B13",
@@ -157,7 +158,7 @@ function ServiceCard({ icon: Icon, title, desc, slug }) {
 
 export function SectionTitle({ eyebrow, title, description, light = false }) {
   return <div className="section-title" style={{ color: light ? colors.white : colors.ink }}>
-    {eyebrow && <span className="eyebrow">{eyebrow}</span>}
+
     <h2>{title}</h2>
     {description && <p>{description}</p>}
   </div>;
@@ -230,7 +231,7 @@ function Hero() {
     <div className="hero-inner">
       <div className="hero-card" key={active} aria-live="polite">
         <div className="hero-card-top">
-          <div className="hero-card-badge"><div className="hero-card-icon"><Icon size={22} /></div><span className="hero-card-tag">{slide.tag}</span></div>
+
           <span className="hero-card-flag">PHILIPPINES 🇵🇭</span>
         </div>
         <h1>{slide.headline}<span className="hero-card-highlight">{slide.highlight}</span></h1>
@@ -398,7 +399,7 @@ function FreeAssessment({ settings }) {
     </div>
     <div className="section-shell assessment-layout">
       <div className="assessment-intro">
-        <span className="assessment-badge"><Users size={14} /> FREE CONSULTATION</span>
+
         <h2>Not Sure Which Visa<br /><span className="assessment-accent">You Need?<svg className="assessment-underline" viewBox="0 0 210 14" fill="none" preserveAspectRatio="none"><path d="M2 10 Q 52 2 105 8 T 208 6" stroke="#FFCB19" strokeWidth="3" strokeLinecap="round" /></svg></span></h2>
         <p>Tell us your situation and our certified consultants will recommend the right visa pathway for you — no obligation.</p>
         <div className="assessment-actions"><a className="assessment-cta" href="#contact">Get a Free Assessment →</a><a className="phone-button-dark" href={`tel:${settings.contact_phone || fallbackSettings.contact_phone}`}><Phone size={14} /> {settings.contact_phone || fallbackSettings.contact_phone}</a></div>
@@ -426,7 +427,7 @@ function Testimonials({ content, testimonials }) {
       <svg className="testimonials-flight-path" viewBox="0 0 220 90" fill="none"><path d="M6 78 Q 90 6 214 24" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4 6" strokeLinecap="round" /></svg>
       <Plane className="testimonials-flight-icon" size={20} />
     </div>
-    <div className="testimonials-eyebrow"><span /> CLIENT STORIES <span /></div>
+
     <div className="section-title" style={{ textAlign: "center" }}>
       <h2>{heading.replace(/\.$/, "")}<span className="testimonials-dot">.</span></h2>
       <p>Real stories from clients we've guided through their visa and immigration journey.</p>
@@ -447,7 +448,7 @@ function Contact({ settings }) {
   const [sent, setSent] = useState(false);
   const update = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
   const submit = async event => { event.preventDefault(); const { error } = await supabase.from("form_submissions").insert({ form_type: "website_inquiry", name: form.name, email: form.email, phone: form.phone, raw_data: { message: form.message } }); if (!error) setSent(true); };
-  return <section id="contact" className="contact-section"><div className="section-shell contact-layout"><div><span className="eyebrow yellow">LET'S PLAN YOUR JOURNEY</span><h2>Ready to make your travel dreams a reality?</h2><p>Tell us what you need and our travel experts will get back to you with the best next step.</p><div className="contact-detail"><Phone size={16} /> {settings.contact_phone || fallbackSettings.contact_phone}</div><div className="contact-detail"><Mail size={16} /> {settings.contact_email || fallbackSettings.contact_email}</div><div className="contact-detail"><MapPin size={16} /> {settings.address || fallbackSettings.address}</div></div>{sent ? <div className="sent-card"><ShieldCheck size={38} /><h3>Thank you for reaching out.</h3><p>We've received your inquiry and will contact you soon.</p></div> : <form className="contact-form" onSubmit={submit}><input required placeholder="Full name" value={form.name} onChange={e => update("name", e.target.value)} /><input required type="email" placeholder="Email address" value={form.email} onChange={e => update("email", e.target.value)} /><input placeholder="Phone number" value={form.phone} onChange={e => update("phone", e.target.value)} /><textarea rows="4" placeholder="How can we help?" value={form.message} onChange={e => update("message", e.target.value)} /><button className="yellow-button" type="submit">Send Inquiry <ArrowRight size={14} /></button></form>}</div></section>;
+  return <section id="contact" className="contact-section"><div className="section-shell contact-layout"><div><h2>Ready to make your travel dreams a reality?</h2><p>Tell us what you need and our travel experts will get back to you with the best next step.</p><div className="contact-detail"><Phone size={16} /> {settings.contact_phone || fallbackSettings.contact_phone}</div><div className="contact-detail"><Mail size={16} /> {settings.contact_email || fallbackSettings.contact_email}</div><div className="contact-detail"><MapPin size={16} /> {settings.address || fallbackSettings.address}</div></div>{sent ? <div className="sent-card"><ShieldCheck size={38} /><h3>Thank you for reaching out.</h3><p>We've received your inquiry and will contact you soon.</p></div> : <form className="contact-form" onSubmit={submit}><input required placeholder="Full name" value={form.name} onChange={e => update("name", e.target.value)} /><input required type="email" placeholder="Email address" value={form.email} onChange={e => update("email", e.target.value)} /><input placeholder="Phone number" value={form.phone} onChange={e => update("phone", e.target.value)} /><textarea rows="4" placeholder="How can we help?" value={form.message} onChange={e => update("message", e.target.value)} /><button className="yellow-button" type="submit">Send Inquiry <ArrowRight size={14} /></button></form>}</div></section>;
 }
 
 export function Footer({ settings }) {
@@ -570,5 +571,5 @@ export default function Website() {
   const homePage = pages.find(page => page.slug === "home");
   const section = type => homePage?.sections.find(item => item.template_type === type);
   const testimonialsContent = section("testimonials");
-  return <div className="travel-site"><TopBars settings={settings} /><Hero /><AccreditationBar /><ServiceCategories /><ImmigrationServices /><SRRVBanner /><InternationalVisaAssistance /><TravelTours /><TrustBar /><FreeAssessment settings={settings} /><Testimonials content={testimonialsContent} testimonials={testimonials} /><Contact settings={settings} /><Footer settings={settings} /><ChatWidget code={settings.chat_widget_code} /></div>;
+  return <div className="travel-site"><TopBars settings={settings} /><Hero /><AccreditationBar /><ServiceCategories /><ImmigrationServices /><SRRVBanner /><InternationalVisaAssistance /><TravelTours /><TrustBar /><FreeAssessment settings={settings} /><Testimonials content={testimonialsContent} testimonials={testimonials} /><NewsEvents /><Contact settings={settings} /><Footer settings={settings} /><ChatWidget code={settings.chat_widget_code} /></div>;
 }

@@ -9,6 +9,8 @@ import InternationalVisaAssistancePage from './pages/InternationalVisaAssistance
 import VisaCountryPage from './pages/VisaCountryPage.jsx'
 import TravelToursPage from './pages/TravelToursPage.jsx'
 import TravelPackageDetailPage from './pages/TravelPackageDetailPage.jsx'
+import NewsArticlePage from './pages/NewsArticlePage.jsx'
+import NewsPage from './pages/NewsPage.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -16,6 +18,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Website />} />
+        <Route path="/news" element={<NewsPage />} />
+        <Route path="/news/:slug" element={<NewsArticlePage />} />
         <Route path="/package/:slug" element={<PackageDetailPage />} />
         <Route path="/philippine-immigration-services" element={<PhilippineImmigrationServices />} />
         <Route path="/philippine-immigration-services/:serviceSlug" element={<ImmigrationServicePage />} />

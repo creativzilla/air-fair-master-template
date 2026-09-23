@@ -20,7 +20,7 @@ export default function TravelToursHeader() {
             <span className="pis-breadcrumb-current">Travel and Tours</span>
           </nav>
 
-          <span className="eyebrow">TRAVEL &amp; TOURS</span>
+
           <h1>Travel &amp; Tours Packages</h1>
 
           <p className="pis-hero-desc">

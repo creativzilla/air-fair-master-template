@@ -121,7 +121,7 @@ function Hero() {
             <span>/</span>
             <span className="pis-breadcrumb-current">Philippine Immigration Services</span>
           </nav>
-          <span className="eyebrow">IMMIGRATION SERVICES</span>
+
           <h1>Philippine Immigration Services</h1>
           <p className="pis-hero-sub">Clear guidance and professional assistance for your Philippine immigration needs.</p>
           <p className="pis-hero-desc">
@@ -159,7 +159,7 @@ function About() {
           />
         </div>
         <div className="pis-about-content">
-          <span className="eyebrow">ABOUT OUR SERVICES</span>
+
           <h2>Philippine Immigration Services</h2>
           <p>
             Navigating immigration requirements can involve multiple documents, processes, and government procedures.

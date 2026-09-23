@@ -15,7 +15,7 @@ export default function ServiceAbout({ service }) {
 
   return (
     <section className="svc-about">
-      <span className="eyebrow">{service.aboutEyebrow || "ABOUT THIS SERVICE"}</span>
+
       {hasImage ? (
         <div className="svc-about-grid">
           <div className="svc-about-media">

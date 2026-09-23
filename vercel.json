@@ -1,5 +1,6 @@
 {
   "rewrites": [
+    { "source": "/news/:path*", "destination": "/index.html" },
     { "source": "/travel-tours/:path*", "destination": "/index.html" },
     { "source": "/visa-assistance/:path*", "destination": "/index.html" },
     { "source": "/philippine-immigration-services/:path*", "destination": "/index.html" },
