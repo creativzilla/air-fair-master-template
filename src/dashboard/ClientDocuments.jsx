@@ -3,7 +3,8 @@
 // URLs. Also lists files the client attached to website forms.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Download, Eye, FileText, FolderOpen, Image as ImageIcon, Paperclip, Search, Trash2, Upload } from "lucide-react";
-import { T, fontBody, Badge, Button, EmptyState, FieldLabel, Notice, PageTitle, Panel, Spinner, formatDateTime, inputStyle } from "./ui.jsx";
+import { T, fontBody, Badge, Button, EmptyState, FieldLabel, Notice, PageTitle, Panel, Spinner, Tabs, formatDateTime, inputStyle } from "./ui.jsx";
+import TeamResources, { SETUP_MESSAGE, isMissingTableError } from "./TeamResources.jsx";
 import { supabase } from "../lib/supabase.js";
 
 const BUCKET = "client-documents";
@@ -68,11 +69,11 @@ function UploadZone({ contactId, onUploaded }) {
       const { data, error } = await supabase.from("client_documents").insert({
         contact_id: contactId, file_name: file.name.slice(0, 255), storage_path: path, mime_type: mime, size_bytes: file.size, category, note: note.trim() || null,
       }).select().single();
-      if (error) { problems.push(`${file.name}: ${error.message}`); await supabase.storage.from(BUCKET).remove([path]); continue; }
+      if (error) { problems.push(isMissingTableError(error) ? SETUP_MESSAGE : `${file.name}: ${error.message}`); await supabase.storage.from(BUCKET).remove([path]); continue; }
       uploaded.push(data);
     }
     setProgress(null);
-    setErrors(problems);
+    setErrors([...new Set(problems)]);
     if (uploaded.length) { setNote(""); onUploaded(uploaded); }
   };
 
@@ -116,7 +117,7 @@ function ClientFiles({ contact, role, onCountChanged }) {
   const load = useCallback(async () => {
     setError("");
     const { data, error: err } = await supabase.from("client_documents").select("*").eq("contact_id", contact.id).order("created_at", { ascending: false });
-    if (err) { setError(err.message); setDocs([]); } else setDocs(data || []);
+    if (err) { setError(isMissingTableError(err) ? SETUP_MESSAGE : err.message); setDocs([]); } else setDocs(data || []);
     // Files the client attached to website forms (linked submission, or same email).
     const ors = [contact.submissionId && `id.eq.${contact.submissionId}`, contact.email && `email.eq."${contact.email.replace(/"/g, "")}"`].filter(Boolean);
     if (ors.length) {
@@ -212,6 +213,7 @@ function ClientFiles({ contact, role, onCountChanged }) {
 }
 
 export default function ClientDocuments({ contacts, role, selectedContactId, onSelectContact }) {
+  const [tab, setTab] = useState("clients");
   const { counts, reload } = useDocumentCounts();
   const [query, setQuery] = useState("");
   const [onlyWithFiles, setOnlyWithFiles] = useState(false);
@@ -227,8 +229,9 @@ export default function ClientDocuments({ contacts, role, selectedContactId, onS
 
   return (
     <div className="flex flex-col gap-6">
-      <PageTitle title="Documents" subtitle="Upload, keep and download each client's files. Files are private to your team." />
-      {contacts.length === 0 ? <Panel><EmptyState>No clients yet. Clients appear here once they are in the Pipeline.</EmptyState></Panel> : (
+      <PageTitle title="Documents" subtitle="Client files and your team's internal resources. Everything here is private to your team." />
+      <Tabs tabs={[{ id: "clients", label: "Client files" }, { id: "resources", label: "Team resources" }]} active={tab} onChange={setTab} />
+      {tab === "resources" ? <TeamResources role={role} /> : contacts.length === 0 ? <Panel><EmptyState>No clients yet. Clients appear here once they are in the Pipeline.</EmptyState></Panel> : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 dash-grid-3">
           <div className={`flex flex-col gap-3 ${selected ? "hidden lg:flex" : ""}`}>
             <div className="relative"><Search size={14} style={{ color: T.muted, position: "absolute", left: 10, top: 10 }} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search clients" className="w-full rounded-lg pl-8 pr-3 py-2 text-sm outline-none" style={inputStyle} /></div>
