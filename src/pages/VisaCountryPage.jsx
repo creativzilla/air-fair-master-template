@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Navigate, useParams } from "react-router-dom";
-import { TopBars, Footer, ChatWidget, fallbackSettings } from "./Website.jsx";
+import { TopBars, Footer, ChatWidget, PageLoading, fallbackSettings, useSeo } from "./Website.jsx";
 import { fetchSiteSettings } from "../lib/content.js";
-import { getVisaCountry } from "../lib/visaCountries.js";
+import { useVisaCountry } from "../lib/cms.js";
 import VisaBreadcrumb from "../components/visa/VisaBreadcrumb.jsx";
 import VisaIntro from "../components/visa/VisaIntro.jsx";
 import VisaFeaturedImage from "../components/visa/VisaFeaturedImage.jsx";
@@ -15,14 +15,12 @@ import VisaSupportCard from "../components/visa/VisaSupportCard.jsx";
 import RelatedServicesCard from "../components/visa/RelatedServicesCard.jsx";
 import PackageSidebarPoster from "../components/travel/PackageSidebarPoster.jsx";
 
-// Single reusable template for every visa country detail page. All content —
-// intro copy, the featured image, the about text, highlight cards,
-// requirements, FAQs, related services, and the inquiry form schema — comes
-// from the matched entry in lib/visaCountries.js. This component itself
-// never changes per country/visa type.
+// Single reusable template for every visa country detail page. All content
+// comes from the destination's published CMS document (falling back to
+// lib/visaCountries.js); this component itself never changes per country.
 export default function VisaCountryPage() {
   const { countrySlug } = useParams();
-  const country = getVisaCountry(countrySlug);
+  const { country, loading, notFound } = useVisaCountry(countrySlug);
   const [settings, setSettings] = useState(fallbackSettings);
 
   useEffect(() => {
@@ -32,13 +30,20 @@ export default function VisaCountryPage() {
     })();
   }, []);
 
-  useEffect(() => {
-    if (!country) return;
-    document.title = country.seo?.title || `${country.title} | ${settings.business_name || fallbackSettings.business_name}`;
-  }, [country, settings.business_name]);
+  useSeo({ title: country ? country.seo?.title || `${country.title} | {businessName}` : "", description: country?.seo?.description }, settings);
+
+  if (notFound) {
+    return <Navigate to="/visa-assistance/international-tourist-visa" replace />;
+  }
 
   if (!country) {
-    return <Navigate to="/visa-assistance/international-tourist-visa" replace />;
+    return (
+      <div className="travel-site pis-page" aria-busy={loading || undefined}>
+        <TopBars settings={settings} />
+        <PageLoading />
+        <Footer settings={settings} />
+      </div>
+    );
   }
 
   return (

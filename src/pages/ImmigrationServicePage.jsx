@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Navigate, useParams } from "react-router-dom";
-import { TopBars, Footer, ChatWidget, fallbackSettings } from "./Website.jsx";
+import { TopBars, Footer, ChatWidget, PageLoading, fallbackSettings, useSeo } from "./Website.jsx";
 import { fetchSiteSettings } from "../lib/content.js";
-import { getImmigrationService } from "../lib/immigrationServices.js";
+import { useImmigrationService } from "../lib/cms.js";
 import ServiceHero from "../components/immigration/ServiceHero.jsx";
 import ServiceAbout from "../components/immigration/ServiceAbout.jsx";
 import EligibilityGrid from "../components/immigration/EligibilityGrid.jsx";
@@ -12,12 +12,12 @@ import ServiceAssessmentForm from "../components/immigration/ServiceAssessmentFo
 import ServiceHelpCTA from "../components/immigration/ServiceHelpCTA.jsx";
 
 // Single reusable template for every Philippine Immigration Services detail
-// page. All content, images, eligibility, assistance items, and the form
-// schema come from the matched entry in lib/immigrationServices.js — this
-// component itself never changes per service.
+// page. Content, images and the form come from the service's published CMS
+// document (falling back to lib/immigrationServices.js); this component
+// itself never changes per service.
 export default function ImmigrationServicePage() {
   const { serviceSlug } = useParams();
-  const service = getImmigrationService(serviceSlug);
+  const { service, loading, notFound } = useImmigrationService(serviceSlug);
   const [settings, setSettings] = useState(fallbackSettings);
 
   useEffect(() => {
@@ -27,13 +27,20 @@ export default function ImmigrationServicePage() {
     })();
   }, []);
 
-  useEffect(() => {
-    if (!service) return;
-    document.title = service.seo?.title || `${service.title} | ${settings.business_name || fallbackSettings.business_name}`;
-  }, [service, settings.business_name]);
+  useSeo({ title: service ? service.seo?.title || `${service.title} | {businessName}` : "", description: service?.seo?.description }, settings);
+
+  if (notFound) {
+    return <Navigate to="/philippine-immigration-services" replace />;
+  }
 
   if (!service) {
-    return <Navigate to="/philippine-immigration-services" replace />;
+    return (
+      <div className="travel-site pis-page" aria-busy={loading || undefined}>
+        <TopBars settings={settings} />
+        <PageLoading />
+        <Footer settings={settings} />
+      </div>
+    );
   }
 
   return (
@@ -47,7 +54,7 @@ export default function ImmigrationServicePage() {
           <AssistanceGrid service={service} />
           <WhyChooseSection service={service} />
         </div>
-        <ServiceAssessmentForm service={service} />
+        {service.form && <ServiceAssessmentForm service={service} />}
       </div>
       {!service.hideHelpCta && <ServiceHelpCTA />}
       <Footer settings={settings} />

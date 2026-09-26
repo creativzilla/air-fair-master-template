@@ -1,13 +1,15 @@
 import React from "react";
 import { Check } from "lucide-react";
+import { useLabels } from "../../lib/cms.js";
 
 export default function PackageIncluded({ items }) {
+  const labels = useLabels();
   if (!items || items.length === 0) return null;
 
   return (
     <section className="vcp2-section">
       <div className="svc-section-heading">
-        <h2>What's Included</h2>
+        <h2>{labels.whatsIncludedHeading}</h2>
       </div>
       <div className="vcp2-req-list">
         {items.map((item, index) => (

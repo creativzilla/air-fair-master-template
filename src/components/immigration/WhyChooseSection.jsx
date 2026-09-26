@@ -1,7 +1,9 @@
 import React from "react";
 import { getIcon } from "./icons.js";
+import { useLabels } from "../../lib/cms.js";
 
 export default function WhyChooseSection({ service }) {
+  const labels = useLabels();
   const data = service.whyChooseAirfair;
   if (!data) return null;
   const points = data.points || [];
@@ -9,7 +11,7 @@ export default function WhyChooseSection({ service }) {
   return (
     <section className="svc-why">
       <div className="svc-section-heading">
-        <h2>{data.title || "Why Choose Airfair?"}</h2>
+        <h2>{data.title || labels.whyChooseHeading}</h2>
       </div>
       <p className="svc-why-paragraph">{data.paragraph}</p>
       {points.length > 0 && (

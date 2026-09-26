@@ -1,5 +1,6 @@
 import React from "react";
 import { getIcon } from "./icons.js";
+import { useLabels } from "../../lib/cms.js";
 
 function AssistanceCard({ icon, title, description }) {
   const Icon = getIcon(icon);
@@ -15,13 +16,14 @@ function AssistanceCard({ icon, title, description }) {
 }
 
 export default function AssistanceGrid({ service }) {
+  const labels = useLabels();
   const items = service.assistanceItems || [];
   if (items.length === 0) return null;
   return (
     <section className="svc-assistance">
       <div className="svc-section-heading">
-        <h2>How Airfair Can Help</h2>
-        <p>{service.assistanceSubtext || "We provide end-to-end assistance to make the process smoother for you."}</p>
+        <h2>{labels.assistanceHeading}</h2>
+        <p>{service.assistanceSubtext || labels.assistanceSubtext}</p>
       </div>
       <div className="svc-assistance-grid">
         {items.map((item, index) => (

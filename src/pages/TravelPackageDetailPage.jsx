@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Navigate, useParams } from "react-router-dom";
-import { TopBars, Footer, ChatWidget, fallbackSettings } from "./Website.jsx";
+import { TopBars, Footer, ChatWidget, PageLoading, fallbackSettings, useSeo } from "./Website.jsx";
 import { fetchSiteSettings } from "../lib/content.js";
-import { getTravelPackage } from "../lib/travelDestinations.js";
+import { useTravelPackage } from "../lib/cms.js";
 import PackageBreadcrumb from "../components/travel/PackageBreadcrumb.jsx";
 import PackageIntro from "../components/travel/PackageIntro.jsx";
 import PackageFeaturedImage from "../components/travel/PackageFeaturedImage.jsx";
@@ -15,14 +15,12 @@ import VisaSupportCard from "../components/visa/VisaSupportCard.jsx";
 import PackageRelatedCard from "../components/travel/PackageRelatedCard.jsx";
 import PackageSidebarPoster from "../components/travel/PackageSidebarPoster.jsx";
 
-// Single reusable template for every travel package detail page. All
-// content — intro copy, the featured image, highlights, inclusions, FAQs,
-// the related-destinations card, and the inquiry form schema — comes from
-// the matched entry in lib/travelDestinations.js. This component itself
-// never changes per package.
+// Single reusable template for every travel package detail page. All content
+// comes from the package's published CMS document (falling back to
+// lib/travelDestinations.js); this component itself never changes per package.
 export default function TravelPackageDetailPage() {
   const { packageSlug } = useParams();
-  const pkg = getTravelPackage(packageSlug);
+  const { pkg, loading, notFound } = useTravelPackage(packageSlug);
   const [settings, setSettings] = useState(fallbackSettings);
 
   useEffect(() => {
@@ -32,13 +30,20 @@ export default function TravelPackageDetailPage() {
     })();
   }, []);
 
-  useEffect(() => {
-    if (!pkg) return;
-    document.title = pkg.seo?.title || `${pkg.title} | ${settings.business_name || fallbackSettings.business_name}`;
-  }, [pkg, settings.business_name]);
+  useSeo({ title: pkg ? pkg.seo?.title || `${pkg.title} | {businessName}` : "", description: pkg?.seo?.description }, settings);
+
+  if (notFound) {
+    return <Navigate to="/travel-tours" replace />;
+  }
 
   if (!pkg) {
-    return <Navigate to="/travel-tours" replace />;
+    return (
+      <div className="travel-site pis-page" aria-busy={loading || undefined}>
+        <TopBars settings={settings} />
+        <PageLoading />
+        <Footer settings={settings} />
+      </div>
+    );
   }
 
   return (
@@ -60,7 +65,7 @@ export default function TravelPackageDetailPage() {
         <aside className="vcp2-sidebar tt-package-sidebar">
           <PackageSidebarPoster pkg={pkg} />
           <PackageInquiryForm pkg={pkg} formConfig={pkg.inquiryForm} />
-          <VisaSupportCard description="Talk to our travel specialists for personalized assistance." />
+          <VisaSupportCard variant="travel" />
           <PackageRelatedCard related={pkg.relatedCard} />
         </aside>
       </div>

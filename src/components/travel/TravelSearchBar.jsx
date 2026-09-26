@@ -1,9 +1,7 @@
 import React from "react";
 import { ArrowRight, Calendar, ChevronDown, Search, Users } from "lucide-react";
 
-const TRAVELER_OPTIONS = ["1 Traveler", "2 Travelers", "3 Travelers", "4 Travelers", "5+ Travelers"];
-
-export default function TravelSearchBar({ value, onChange, travelDate, onTravelDateChange, travelers, onTravelersChange }) {
+export default function TravelSearchBar({ fields = {}, value, onChange, travelDate, onTravelDateChange, travelers, onTravelersChange }) {
   const goToDestinations = () => {
     document.getElementById("destinations")?.scrollIntoView({ behavior: "smooth" });
   };
@@ -14,7 +12,7 @@ export default function TravelSearchBar({ value, onChange, travelDate, onTravelD
         <div className="tt-search-seg tt-search-seg--dest">
           <Search size={18} />
           <input
-            placeholder="Search destination (e.g. Japan, Bali, Singapore)"
+            placeholder={fields.destinationPlaceholder}
             value={value}
             onChange={e => onChange(e.target.value)}
           />
@@ -23,7 +21,7 @@ export default function TravelSearchBar({ value, onChange, travelDate, onTravelD
         <div className="tt-search-seg tt-search-seg--date">
           <Calendar size={18} />
           <div className="tt-search-seg-text">
-            <span className="tt-search-seg-label">Travel Date</span>
+            <span className="tt-search-seg-label">{fields.dateLabel}</span>
             <input
               type="date"
               className="tt-search-seg-input"
@@ -36,9 +34,9 @@ export default function TravelSearchBar({ value, onChange, travelDate, onTravelD
         <div className="tt-search-seg tt-search-seg--travelers">
           <Users size={18} />
           <div className="tt-search-seg-text">
-            <span className="tt-search-seg-label">Travelers</span>
+            <span className="tt-search-seg-label">{fields.travelersLabel}</span>
             <select className="tt-search-seg-select" value={travelers} onChange={e => onTravelersChange(e.target.value)}>
-              {TRAVELER_OPTIONS.map(option => (
+              {(fields.travelerOptions || []).map(option => (
                 <option key={option} value={option}>
                   {option}
                 </option>
@@ -49,7 +47,7 @@ export default function TravelSearchBar({ value, onChange, travelDate, onTravelD
         </div>
 
         <button type="button" className="green-button tt-search-btn" onClick={goToDestinations}>
-          Search Packages <ArrowRight size={15} />
+          {fields.buttonLabel} <ArrowRight size={15} />
         </button>
       </div>
     </div>

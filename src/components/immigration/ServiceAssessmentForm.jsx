@@ -1,16 +1,15 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Briefcase, Lock, ShieldCheck } from "lucide-react";
-import { supabase, uploadFormAttachment } from "../../lib/supabase.js";
+import { submitWebsiteForm } from "../../lib/formSubmit.js";
 import { isFieldVisible, validateFieldValue } from "./DynamicFormField.jsx";
 import FormSection from "./FormSection.jsx";
 
-function getAllFields(sections) {
-  return sections.flatMap(section => section.fields);
-}
-
+// Renders the service's form from its published form document
+// (service.form = formView(...)): sections, fields, labels and messages.
 export default function ServiceAssessmentForm({ service }) {
   const config = service.form;
+  const sections = config.sections || [];
   const [values, setValues] = useState({});
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -26,8 +25,7 @@ export default function ServiceAssessmentForm({ service }) {
     event.preventDefault();
     setSubmitError("");
 
-    const allFields = getAllFields(config.sections);
-    const visibleFields = allFields.filter(field => isFieldVisible(field, values));
+    const visibleFields = sections.flatMap(section => section.fields).filter(field => isFieldVisible(field, values));
     const nextErrors = {};
     visibleFields.forEach(field => {
       const message = validateFieldValue(field, values[field.name]);
@@ -41,45 +39,19 @@ export default function ServiceAssessmentForm({ service }) {
 
     setSubmitting(true);
     try {
-      const visibleNames = new Set(visibleFields.map(field => field.name));
-      const fileFields = visibleFields.filter(field => field.type === "file");
-      const payload = {};
-
-      for (const field of allFields) {
-        if (!visibleNames.has(field.name)) continue;
-        const value = values[field.name];
-        if (field.type === "file") continue;
-        if (value !== undefined && value !== "" && value !== null) payload[field.name] = value;
-      }
-
-      for (const field of fileFields) {
-        const file = values[field.name];
-        if (!file) continue;
-        try {
-          payload[field.name] = await uploadFormAttachment(file);
-        } catch {
-          payload[field.name] = file.name;
-        }
-      }
-
-      const metadata = {
-        service_id: service.slug,
-        service_slug: service.slug,
-        service_name: service.title,
-        service_category: service.category || "Philippine Immigration Services",
-        source_page: typeof window !== "undefined" ? window.location.pathname : "",
-        submitted_at: new Date().toISOString(),
-      };
-
-      const { error } = await supabase.from("form_submissions").insert({
-        form_type: `immigration_${service.slug}`,
-        name: payload.fullName || "",
-        email: payload.email || "",
-        phone: payload.phone || "",
-        raw_data: { ...payload, ...metadata },
+      await submitWebsiteForm({
+        form: config,
+        formType: `immigration_${service.slug}`,
+        source: service._doc,
+        fields: visibleFields,
+        values,
+        metadata: {
+          service_id: service.slug,
+          service_slug: service.slug,
+          service_name: service.title,
+          service_category: service.category || "Philippine Immigration Services",
+        },
       });
-
-      if (error) throw error;
       setSubmitted(true);
     } catch {
       setSubmitError("Something went wrong submitting your assessment. Please try again or contact us directly.");
@@ -88,21 +60,27 @@ export default function ServiceAssessmentForm({ service }) {
     }
   };
 
+  const [primaryAction, secondaryAction] = config.successActions || [];
+
   return (
     <div className="svc-form-col" id="assessment-form">
       <div className="svc-form-card">
         {submitted ? (
           <div className="svc-success">
             <ShieldCheck size={40} />
-            <h3>Assessment Submitted</h3>
-            <p>Thank you for providing your information. Our team will review your inquiry and contact you regarding the next steps.</p>
+            <h3>{config.successTitle}</h3>
+            <p>{config.successMessage}</p>
             <div className="svc-success-actions">
-              <Link className="green-button" to="/philippine-immigration-services">
-                Return to Immigration Services
-              </Link>
-              <a className="outline-green-button" href="/#contact">
-                Contact Airfair
-              </a>
+              {primaryAction && (
+                <Link className="green-button" to={primaryAction.href}>
+                  {primaryAction.label}
+                </Link>
+              )}
+              {secondaryAction && (
+                <a className="outline-green-button" href={secondaryAction.href}>
+                  {secondaryAction.label}
+                </a>
+              )}
             </div>
           </div>
         ) : (
@@ -117,7 +95,7 @@ export default function ServiceAssessmentForm({ service }) {
               {config.description && <p>{config.description}</p>}
             </div>
 
-            {config.sections.map((section, index) => (
+            {sections.map((section, index) => (
               <FormSection
                 key={section.id}
                 section={section}

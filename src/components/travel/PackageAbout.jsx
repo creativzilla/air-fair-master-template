@@ -1,13 +1,15 @@
 import React from "react";
+import { useLabels } from "../../lib/cms.js";
 
 export default function PackageAbout({ pkg }) {
+  const labels = useLabels();
   const paragraphs = pkg.aboutParagraphs || [];
   const place = pkg.title.split(",")[0];
 
   return (
     <section className="vcp2-about vcp2-section">
       <div>
-      <h2>About {place}</h2>
+      <h2>{labels.packageAboutPrefix} {place}</h2>
       {paragraphs.map((paragraph, index) => (
         <p key={index}>{paragraph}</p>
       ))}

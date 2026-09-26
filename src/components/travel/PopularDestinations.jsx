@@ -1,16 +1,16 @@
 import React from "react";
 import DestinationCard from "./DestinationCard.jsx";
 
-export default function PopularDestinations({ destinations }) {
+export default function PopularDestinations({ fields = {}, destinations }) {
   return (
     <section id="destinations" className="section-shell tt-section">
       <div className="section-heading-row">
         <div className="section-title">
-          <h2>Popular Destinations</h2>
-          <p>Explore our most in-demand travel destinations.</p>
+          <h2>{fields.heading}</h2>
+          <p>{fields.description}</p>
         </div>
-        <a className="view-all" href="/travel-tours">
-          View All Destinations →
+        <a className="view-all" href={fields.viewAll?.href}>
+          {fields.viewAll?.label}
         </a>
       </div>
 
@@ -21,7 +21,7 @@ export default function PopularDestinations({ destinations }) {
           ))}
         </div>
       ) : (
-        <p className="visa-empty-state">No destinations found. Try another search.</p>
+        <p className="visa-empty-state">{fields.emptyText}</p>
       )}
     </section>
   );

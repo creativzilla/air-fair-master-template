@@ -1,16 +1,18 @@
 import React from "react";
+import { useLabels } from "../../lib/cms.js";
 
 export default function PackageHighlightsGrid({ items }) {
+  const labels = useLabels();
   if (!items || items.length === 0) return null;
 
   return (
     <section className="vcp2-section">
       <div className="section-heading-row">
         <div className="section-title">
-          <h2>Package Highlights</h2>
+          <h2>{labels.packageHighlightsHeading}</h2>
         </div>
         <a className="view-all" href="#package-highlights">
-          View All Highlights →
+          {labels.packageHighlightsViewAll}
         </a>
       </div>
       <div className="tt-pkg-highlight-grid" id="package-highlights">

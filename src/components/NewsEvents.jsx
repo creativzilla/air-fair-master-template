@@ -1,19 +1,20 @@
 import { ArrowRight } from "lucide-react";
 import "./NewsEvents.css";
 
-import { stories } from "../lib/news.js";
+import { useNews } from "../lib/cms.js";
 
-export default function NewsEvents() {
+export default function NewsEvents({ fields = {} }) {
+  const { stories } = useNews();
   return (
     <section id="news" className="af-news" aria-labelledby="af-news-title">
       <div className="section-shell">
         <header className="af-news-heading">
           <div className="section-title">
 
-            <h2 id="af-news-title">News &amp; Current Events</h2>
-            <p>Fresh perspectives on travel, tourism, and immigration to keep you connected.</p>
+            <h2 id="af-news-title">{fields.heading}</h2>
+            <p>{fields.body}</p>
           </div>
-          <a className="af-news-read" href="/news">View all news <ArrowRight size={16} aria-hidden="true" /></a>
+          <a className="af-news-read" href={fields.viewAll?.href}>{fields.viewAll?.label} <ArrowRight size={16} aria-hidden="true" /></a>
         </header>
         <div className="af-news-grid">
           {stories.map(story => (
@@ -24,13 +25,13 @@ export default function NewsEvents() {
                   <span className="af-news-category">{story.category}</span>
                   <h3>{story.title}</h3>
                   <p>{story.description}</p>
-                  <span className="af-news-read">Learn more <ArrowRight size={14} aria-hidden="true" /></span>
+                  <span className="af-news-read">{fields.cardCtaLabel} <ArrowRight size={14} aria-hidden="true" /></span>
                 </div>
               </a>
             </article>
           ))}
         </div>
-        <p className="af-news-note">Curated news and travel resources. Read each article for details and source links.</p>
+        <p className="af-news-note">{fields.note}</p>
       </div>
     </section>
   );

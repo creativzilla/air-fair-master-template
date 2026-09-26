@@ -263,7 +263,7 @@ Unpublish (admin) ──▶ rpc cms_unpublish(id) → row removed from cms_publi
 | W6 | Supabase must be on Postgres 15+ for the `security_invoker` view | Projects created since 2023 are | Verified during Phase 3 |
 
 ### Decisions confirmed (2026-09-26)
-- **W1:** Migrations are applied by you in the **Supabase SQL Editor**, in filename order. Old seed migrations are never re-run.
+- **W1:** Applied by you with `npx supabase@2.118.0 db push` on 2026-09-26. Beforehand, the missing base-schema migration `20260827075214` was fetched from the remote history, so the push ran **only the 5 new files**; the old seeds were never re-run. Roles were then assigned: 2 admins and 1 staff.
 - **W2:** User management uses a **secure Edge Function** (`admin-users`: invite + deactivate/reactivate). The service-role key lives only in the function's secrets; the function verifies the caller's JWT and `profiles.role = 'admin'` before acting. Built in Phase 5.
 - **W3:** The form builder supports **all 12 field types**: `text, email, tel, date, number, textarea, select, radio, yesno, checkbox, country, file`.
 
@@ -286,3 +286,24 @@ Then it publishes everything. INSERT-only and idempotent. Images stay at their c
 - `docs/cms-inventory.md` (Phase 1 audit, committed now)
 
 No application code, website files or existing migrations were changed.
+
+---
+
+## Phase 4 — Website connected (2026-09-26)
+
+**How the site reads content** (`src/lib/cms.js`):
+- One request loads every row of `cms_published`, and the last good response is cached in `localStorage`.
+- First-time visitors see the code fallback (`src/lib/cmsFallback.js`, the same content as the seed) until the request finishes. Returning visitors see their cached copy. If Supabase is unreachable, the fallback or cache stays on screen, so no section is ever blank.
+- A successful response is authoritative: unpublished items disappear even though they still exist in the fallback.
+- Documents are deep-merged over their fallback, so keys the CMS has never stored (such as newly editable labels) still render.
+- `src/lib/cmsAdapters.js` turns documents back into the exact props the components already used, so markup and CSS are unchanged.
+- **Preview:** `?preview=1` with a signed-in editor or admin loads drafts from `cms_documents` and shows a small "Preview" pill. `?preview=0` exits. Anonymous visitors get published content only (RLS).
+
+**Forms:** all forms render from their form documents and save through `src/lib/formSubmit.js`. Each submission records `form_key`, `document_id` and `form_version_id`, which triggers the automatic CRM lead. Attachments upload to the private bucket, and only the storage path is stored. Newsletter sign-ups are now saved.
+
+**Verification**
+- Every public route (42 pages) was rendered to HTML before and after. **41 are byte-identical; the homepage differs only in testimonials**, which now match what the live site already showed from the database.
+- The same 42 pages rendered from the fallback alone are identical apart from an `aria-busy` loading marker.
+- Headless Chrome against the live project: content loads; with Supabase blocked, fresh visitors get the fallback and returning visitors their cache.
+- The production build adds no CSS. Tailwind's `blocklist: ["visible"]` prevents a stray utility generated from the content key `visible`.
+- An anonymous form insert passes the security rules and creates a CRM lead. This was tested in a rolled-back transaction, so nothing was saved.

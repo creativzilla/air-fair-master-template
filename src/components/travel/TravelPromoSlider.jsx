@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
-import { travelPackages } from "../../lib/travelDestinations.js";
+import { useTravelPackages } from "../../lib/cms.js";
 import TravelPromoPoster from "./TravelPromoPoster.jsx";
 
 export default function TravelPromoSlider() {
+  const allPackages = useTravelPackages();
+  const travelPackages = useMemo(() => allPackages.filter(pkg => pkg.variant === "package"), [allPackages]);
   const [active, setActive] = useState(() => Math.max(0, travelPackages.findIndex(pkg => pkg.slug === "tokyo-japan")));
   const [playing, setPlaying] = useState(true);
   const [hovered, setHovered] = useState(false);
@@ -22,7 +24,7 @@ export default function TravelPromoSlider() {
     if (!playing || hovered || focused || reducedMotion || travelPackages.length < 2) return undefined;
     const timer = setTimeout(() => setActive(index => (index + 1) % travelPackages.length), 5000);
     return () => clearTimeout(timer);
-  }, [active, playing, hovered, focused, reducedMotion]);
+  }, [active, playing, hovered, focused, reducedMotion, travelPackages.length]);
 
   if (!travelPackages.length) return null;
   const current = travelPackages[active];

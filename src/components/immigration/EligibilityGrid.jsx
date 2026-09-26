@@ -1,6 +1,7 @@
 import React from "react";
 import { Check } from "lucide-react";
 import { getIcon } from "./icons.js";
+import { useLabels } from "../../lib/cms.js";
 
 function EligibilityCard({ icon, text }) {
   const Icon = getIcon(icon);
@@ -15,6 +16,7 @@ function EligibilityCard({ icon, text }) {
 }
 
 export default function EligibilityGrid({ service }) {
+  const labels = useLabels();
   const items = service.eligibility || [];
   if (items.length === 0) return null;
   const isChecklist = service.eligibilityStyle === "checklist";
@@ -22,8 +24,8 @@ export default function EligibilityGrid({ service }) {
   return (
     <section className="svc-eligibility">
       <div className="svc-section-heading">
-        <h2>{service.eligibilityHeading || "Who Is This For?"}</h2>
-        <p>{service.eligibilitySubtext || "This service is for foreign nationals who:"}</p>
+        <h2>{service.eligibilityHeading || labels.eligibilityHeading}</h2>
+        <p>{service.eligibilitySubtext || labels.eligibilitySubtext}</p>
       </div>
       {isChecklist ? (
         <ul className="svc-eligibility-checklist">

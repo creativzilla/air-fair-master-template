@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, MessageCircle } from "lucide-react";
+import { useLabels } from "../../lib/cms.js";
 
 function renderTitle(title, highlight) {
   if (!highlight || !title.includes(highlight)) return title;
@@ -15,16 +16,17 @@ function renderTitle(title, highlight) {
 }
 
 export default function ServiceHero({ service }) {
+  const labels = useLabels();
   return (
     <section className="pis-hero">
       <div className="section-shell pis-hero-inner">
         <div className="pis-hero-content">
           <nav className="pis-breadcrumb" aria-label="Breadcrumb">
-            <Link to="/">Home</Link>
+            <Link to="/">{labels.breadcrumbHome}</Link>
             <span>/</span>
-            <Link to="/#our-services">Services</Link>
+            <Link to="/#our-services">{labels.breadcrumbServices}</Link>
             <span>/</span>
-            <Link to="/philippine-immigration-services">Philippine Immigration Services</Link>
+            <Link to="/philippine-immigration-services">{labels.breadcrumbImmigration}</Link>
             <span>/</span>
             <span className="pis-breadcrumb-current">{service.title}</span>
           </nav>

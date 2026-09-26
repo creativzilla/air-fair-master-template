@@ -12,6 +12,7 @@ import TravelPackageDetailPage from './pages/TravelPackageDetailPage.jsx'
 import NewsArticlePage from './pages/NewsArticlePage.jsx'
 import NewsPage from './pages/NewsPage.jsx'
 import Dashboard from './pages/Dashboard.jsx'
+import PreviewBanner from './components/PreviewBanner.jsx'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
@@ -30,6 +31,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      <PreviewBanner />
     </BrowserRouter>
   </React.StrictMode>,
 )

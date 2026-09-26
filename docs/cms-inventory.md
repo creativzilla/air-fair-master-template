@@ -145,7 +145,7 @@ Shared: `STANDARD_ASSISTANCE` (4 items reused by 8 services), "Need More Help?" 
 
 ### 2.7 News
 
-- `lib/news.js`: 4 `stories` {slug, category, date, dateTime, title, description, source, initials, logo?, image, href} + 3 `guides` (external-resource cards). `lib/newsArticleContent.js`: per-slug body {intro, heading, body, takeaway, points[], outlook}. **Guides have no `articleContent`, so their `/news/<slug>` pages show "Article not found".**
+- `lib/news.js`: 4 `stories` {slug, category, date, dateTime, title, description, source, initials, logo?, image, href} + 3 `guides` (external-resource cards). `lib/newsArticleContent.js`: per-slug body {intro, heading, body, takeaway, points[], outlook}. All 7 slugs (stories and guides) have article bodies. *(Corrected in Phase 4: an earlier version of this audit wrongly said the guide pages 404.)*
 - `NewsPage.jsx`: H1 "Stories worth exploring.", sub-copy, category filters (hardcoded, "Policy Updates" folded into Immigration), contact CTA block.
 - `NewsArticlePage.jsx`: fixed section headings ("What this means for travelers", "Key takeaways", "Looking ahead"), figcaption, sidebar CTA.
 → `news[slug].*` + `page[news].*`.
@@ -387,7 +387,7 @@ Website form → `form_submissions` (status `New`) → staff clicks **Add to Pip
 | R10 | 🟡 Medium | Two field vocabularies (dashboard builder vs website `DynamicFormField`) | Standardise on the website's (C7) |
 | R11 | 🟡 Decision | `services` table / Catalog: keep as the CRM "price list" and retire `/package/:slug`? Or merge travel packages into it? Six picsum-image placeholder products are currently Published | **Your call.** Recommendation: keep Catalog for pricing/CRM categories, move page content to `site_entries`, and retire `/package/:slug` (redirect to `/travel-tours`) |
 | R12 | 🟡 Decision | How much should be editable? Icons, theme colours, hero timing, section order/visibility? | Recommendation: text, images, links, list items, visibility, order of list items. Keep layout, colours and section order locked (matches "Layout and design stay locked" copy already in the dashboard) |
-| R13 | 🟡 Low | Content correctness: typo "Aitfair" (`Website.jsx:120`); mixed ₱/$ prices; copyright "© 2025"; footer links all go to the same anchors; guides' article pages 404; "Privacy Policy" links to `/#contact`; mock "browser bar" strip visible on the live site | Fix during content migration (content-only changes, with your OK) |
+| R13 | 🟡 Low | Content correctness: typo "Aitfair" (`Website.jsx:120`); mixed ₱/$ prices; copyright "© 2025"; footer links all go to the same anchors; "Privacy Policy" links to `/#contact`; mock "browser bar" strip visible on the live site | Fix during content migration (content-only changes, with your OK) |
 | R14 | 🟡 Low | Hot-linked Unsplash images and flagcdn: availability/licensing outside your control | Move to Storage via Media library over time |
 | R15 | 🟡 Low | Uncommitted working-tree edits (`Website.jsx`: TrustBar removed, assessment redesign) and committed `dist/` build | Commit/confirm before Phase 2 so the CMS work builds on the intended design |
 | R16 | 🟡 Low | `Dashboard.jsx` is one 1,320-line file | Phase 2 new modules go in `src/dashboard/*` files, reusing extracted shared primitives (tokens, inputs, pickers) without changing their look |

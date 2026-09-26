@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { ChevronDown } from "lucide-react";
+import { useLabels } from "../../lib/cms.js";
 
 function FAQItem({ faq, isOpen, onToggle }) {
   return (
@@ -14,13 +15,14 @@ function FAQItem({ faq, isOpen, onToggle }) {
 }
 
 export default function VisaFAQ({ faqs }) {
+  const labels = useLabels();
   const [openIndex, setOpenIndex] = useState(null);
   if (!faqs || faqs.length === 0) return null;
 
   return (
     <section className="vcp2-section" id="faq">
       <div className="svc-section-heading">
-        <h2>Frequently Asked Questions</h2>
+        <h2>{labels.faqHeading}</h2>
       </div>
       <div className="vcp-faq-grid">
         {faqs.map((faq, index) => (

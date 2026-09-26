@@ -1,7 +1,9 @@
 import React from "react";
 import { ArrowRight } from "lucide-react";
+import { useLabels } from "../../lib/cms.js";
 
 export default function PackageRelatedCard({ related }) {
+  const labels = useLabels();
   if (!related) return null;
 
   return (
@@ -12,7 +14,7 @@ export default function PackageRelatedCard({ related }) {
         <h4>{related.title}</h4>
         <p>{related.description}</p>
         <span className="tt-related-cta">
-          {related.ctaLabel || "Learn More"} <ArrowRight size={13} />
+          {related.ctaLabel || labels.relatedCtaFallback} <ArrowRight size={13} />
         </span>
       </div>
     </a>

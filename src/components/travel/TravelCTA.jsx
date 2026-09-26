@@ -1,10 +1,11 @@
 import React from "react";
+import { imageSrc } from "../../lib/cmsAdapters.js";
 
-export default function TravelCTA() {
+export default function TravelCTA({ fields = {} }) {
   return (
     <section className="section-shell tt-cta">
-      <a className="tt-promo-banner" href="/#contact">
-        <img src="/travel-promo-leaderboard.jpg" alt="Exclusive travel promo — up to 30% off. Book your trip." />
+      <a className="tt-promo-banner" href={fields.href}>
+        <img src={imageSrc(fields.image)} alt={fields.image?.alt} />
       </a>
     </section>
   );

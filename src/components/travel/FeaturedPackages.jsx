@@ -1,16 +1,16 @@
 import React from "react";
 import TravelPackageCard from "./TravelPackageCard.jsx";
 
-export default function FeaturedPackages({ packages }) {
+export default function FeaturedPackages({ fields = {}, packages }) {
   return (
     <section className="section-shell tt-section">
       <div className="section-heading-row">
         <div className="section-title">
-          <h2>Featured Travel Packages</h2>
-          <p>Handpicked packages for your next adventure.</p>
+          <h2>{fields.heading}</h2>
+          <p>{fields.description}</p>
         </div>
-        <a className="view-all" href="/travel-tours">
-          View All Packages →
+        <a className="view-all" href={fields.viewAll?.href}>
+          {fields.viewAll?.label}
         </a>
       </div>
       <div className="tt-dest-grid">
