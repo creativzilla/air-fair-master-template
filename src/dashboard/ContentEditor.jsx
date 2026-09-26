@@ -2,8 +2,8 @@
 // by looking at the shape of its content. Field order follows the content
 // (which mirrors the page order), and list items can be added, removed and
 // reordered using the shape of existing items as a template.
-import React, { useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, ImageOff, Plus, Trash2 } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, ImageOff, Plus, Search, Trash2 } from "lucide-react";
 import { T, fontBody, FieldLabel, ImagePickerButton, inputStyle } from "./ui.jsx";
 import { ICONS, getIcon } from "../components/immigration/icons.js";
 
@@ -86,15 +86,59 @@ function TextField({ name, value, onChange }) {
   return <input value={value ?? ""} onChange={e => onChange(e.target.value)} className={textInputClass} style={inputStyle} placeholder={/(href|url|link)$/i.test(name) ? "/page, #section or https://…" : undefined} />;
 }
 
+const iconLabel = key => (key ? key.replace(/-/g, " ") : "");
+
+// Visual icon picker: shows the icons themselves (name on hover), with search.
 function IconField({ value, onChange }) {
-  const Icon = getIcon(value);
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const wrapRef = useRef(null);
+  const Current = getIcon(value);
+  const keys = useMemo(() => Object.keys(ICONS).sort(), []);
+  const filtered = keys.filter(key => !query.trim() || key.includes(query.trim().toLowerCase().replace(/\s+/g, "-")));
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDown = e => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false); };
+    const onKey = e => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); };
+  }, [open]);
+
+  const pick = key => { onChange(key); setOpen(false); setQuery(""); };
+
   return (
-    <div className="flex items-center gap-2">
-      <span className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: T.accentSoft, color: T.accent }}><Icon size={16} /></span>
-      <select value={value || ""} onChange={e => onChange(e.target.value)} className={textInputClass} style={{ ...inputStyle, backgroundColor: "#fff" }}>
-        {!ICONS[value] && <option value={value || ""}>{value || "Choose an icon"}</option>}
-        {Object.keys(ICONS).sort().map(key => <option key={key} value={key}>{key}</option>)}
-      </select>
+    <div className="relative" ref={wrapRef}>
+      <button type="button" onClick={() => setOpen(o => !o)} aria-haspopup="dialog" aria-expanded={open}
+        className="flex items-center gap-2.5 rounded-lg pl-1.5 pr-3 py-1.5 text-sm" style={{ ...inputStyle, backgroundColor: "#fff" }}>
+        <span className="w-8 h-8 rounded-md flex items-center justify-center shrink-0" style={{ backgroundColor: T.accentSoft, color: T.accent }}><Current size={17} /></span>
+        <span className="capitalize" style={{ color: ICONS[value] ? T.ink : T.muted, ...fontBody }}>{ICONS[value] ? iconLabel(value) : "Choose an icon"}</span>
+        <ChevronDown size={14} style={{ color: T.muted }} />
+      </button>
+      {open && (
+        <div role="dialog" aria-label="Choose an icon" className="absolute z-30 mt-1.5 rounded-xl p-3 flex flex-col gap-2.5"
+          style={{ backgroundColor: T.surface, border: `1px solid ${T.border}`, boxShadow: "0 12px 32px rgba(21,26,34,0.16)", width: "min(360px, calc(100vw - 48px))" }}>
+          <div className="relative">
+            <Search size={14} style={{ color: T.muted, position: "absolute", left: 10, top: 9 }} />
+            <input autoFocus value={query} onChange={e => setQuery(e.target.value)} placeholder="Search icons" className="w-full rounded-lg pl-8 pr-3 py-1.5 text-sm outline-none" style={inputStyle} />
+          </div>
+          <div className="grid grid-cols-6 gap-1.5 overflow-y-auto" style={{ maxHeight: 240 }}>
+            {filtered.map(key => {
+              const Icon = ICONS[key];
+              const selected = key === value;
+              return (
+                <button key={key} type="button" onClick={() => pick(key)} title={iconLabel(key)} aria-label={iconLabel(key)} aria-pressed={selected}
+                  className="aspect-square rounded-lg flex items-center justify-center"
+                  style={{ backgroundColor: selected ? T.accentSoft : T.bg, color: selected ? T.accent : T.ink, border: `1.5px solid ${selected ? T.accent : "transparent"}` }}>
+                  <Icon size={20} />
+                </button>
+              );
+            })}
+          </div>
+          {filtered.length === 0 && <p className="text-xs text-center py-2" style={{ color: T.muted, ...fontBody }}>No icons match.</p>}
+        </div>
+      )}
     </div>
   );
 }
