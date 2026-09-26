@@ -23,7 +23,7 @@ function SectionCard({ section, onChange, samples, defaultOpen }) {
           Show on website
         </label>
       </div>
-      {open && <div className="px-4 pb-4 pt-3" style={{ borderTop: `1px solid ${T.border}` }}>
+      {open && <div className="px-6 pb-6 pt-5" style={{ borderTop: `1px solid ${T.border}` }}>
         <ContentEditor value={section.fields || {}} samples={samples} onChange={fields => onChange({ ...section, fields })} />
       </div>}
     </Panel>
@@ -47,7 +47,7 @@ function PageDocumentEditor({ docId, role, onChanged }) {
   const updateSection = (index, next) => setDraft({ ...draft, sections: sections.map((s, i) => (i === index ? next : s)) });
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="min-w-0">
           <h2 className="text-lg" style={{ color: T.ink, ...fontBody, fontWeight: 600 }}>{doc.title}</h2>
@@ -59,8 +59,8 @@ function PageDocumentEditor({ docId, role, onChanged }) {
 
       {isPage ? (<>
         {draft.seo && (
-          <Panel className="p-4">
-            <h3 className="text-sm font-medium mb-3" style={{ color: T.ink, ...fontBody }}>SEO</h3>
+          <Panel className="p-6">
+            <h3 className="text-base font-semibold mb-5" style={{ color: T.ink, ...fontBody }}>SEO</h3>
             <ContentEditor value={draft.seo} onChange={seo => setDraft({ ...draft, seo })} hiddenKeys={["note"]} />
             {draft.seo.note && <p className="text-xs mt-2" style={{ color: T.muted, ...fontBody }}>{draft.seo.note}</p>}
           </Panel>
@@ -69,7 +69,7 @@ function PageDocumentEditor({ docId, role, onChanged }) {
           <SectionCard key={section.key} section={section} defaultOpen={index === 0} samples={[fallbackSections[section.key]].filter(Boolean)} onChange={next => updateSection(index, next)} />
         ))}
       </>) : (
-        <Panel className="p-4"><ContentEditor value={draft} onChange={setDraft} samples={FALLBACK_DOCS.filter(d => d.kind === "global").map(d => d.content)} /></Panel>
+        <Panel className="p-6"><ContentEditor value={draft} onChange={setDraft} samples={FALLBACK_DOCS.filter(d => d.kind === "global").map(d => d.content)} /></Panel>
       )}
     </div>
   );

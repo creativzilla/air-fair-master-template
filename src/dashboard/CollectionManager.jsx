@@ -154,7 +154,7 @@ function ItemEditor({ docId, kind, role, forms, samples, onBack, onChanged, relo
   const hidden = ["slug", "seo", "formKey", "_doc"];
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
       <div className="flex items-center gap-3 flex-wrap">
         <button type="button" onClick={onBack} className="flex items-center gap-1 text-sm" style={{ color: T.muted, ...fontBody }}><ArrowLeft size={15} /> {cfg.label}</button>
         <h2 className="text-lg flex-1 min-w-0 truncate" style={{ color: T.ink, ...fontBody, fontWeight: 600 }}>{doc.title}</h2>
@@ -165,20 +165,20 @@ function ItemEditor({ docId, kind, role, forms, samples, onBack, onChanged, relo
       </div>
       {notice && <Notice tone="info">{notice}</Notice>}
 
-      <Panel className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <Panel className="p-6 grid grid-cols-1 sm:grid-cols-3 gap-5">
         <LabeledInput label="Name in dashboard lists" value={meta.title} onChange={title => setMeta({ ...meta, title })} />
         <LabeledInput label="URL slug" hint={doc.published_version_id && !isAdmin ? "Only admins can change the URL of a published item." : previewUrlFor({ kind, slug: meta.slug })} disabled={!!doc.published_version_id && !isAdmin} value={meta.slug} onChange={slug => setMeta({ ...meta, slug: slugify(slug) })} />
         <LabeledInput label="Order in lists" type="number" value={meta.sort_order} onChange={v => setMeta({ ...meta, sort_order: v })} />
       </Panel>
 
-      <Panel className="p-4">
-        <h3 className="text-sm font-medium mb-3" style={{ color: T.ink, ...fontBody }}>Content</h3>
+      <Panel className="p-6">
+        <h3 className="text-base font-semibold mb-5" style={{ color: T.ink, ...fontBody }}>Content</h3>
         <ContentEditor value={draft} onChange={setDraft} samples={samples.byKind[kind] || []} hiddenKeys={hidden} />
       </Panel>
 
       {draft.seo && (
-        <Panel className="p-4">
-          <h3 className="text-sm font-medium mb-3" style={{ color: T.ink, ...fontBody }}>SEO</h3>
+        <Panel className="p-6">
+          <h3 className="text-base font-semibold mb-5" style={{ color: T.ink, ...fontBody }}>SEO</h3>
           <ContentEditor value={draft.seo} onChange={seo => setDraft({ ...draft, seo })} />
         </Panel>
       )}

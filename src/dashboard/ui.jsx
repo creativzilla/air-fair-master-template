@@ -66,7 +66,7 @@ export const inputStyle = { border: `1px solid ${T.border}`, color: T.ink, ...fo
 export const catalogInputStyle = inputStyle;
 
 export function FieldLabel({ children, hint }) {
-  return <label className="text-xs block mb-1.5" style={{ color: T.muted, ...fontBody }}>{children}{hint && <span className="block text-[11px] mt-0.5" style={{ color: T.muted, opacity: 0.8 }}>{hint}</span>}</label>;
+  return <label className="text-[13px] font-semibold block mb-2" style={{ color: T.ink, ...fontBody }}>{children}{hint && <span className="block text-[11px] font-normal mt-0.5" style={{ color: T.muted }}>{hint}</span>}</label>;
 }
 
 export function LabeledInput({ label, value, onChange, placeholder, type = "text", hint, disabled }) {

@@ -195,7 +195,7 @@ function ArrayField({ name, value, onChange, path, ctx }) {
   const simple = sample === undefined || typeof sample === "string";
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-3">
       {items.map((item, index) => simple ? (
         <div key={index} className="flex items-start gap-2">
           <div className="flex-1 min-w-0"><TextField name={name} value={item} onChange={v => onChange(items.map((it, i) => (i === index ? v : it)))} /></div>
@@ -210,7 +210,7 @@ function ArrayField({ name, value, onChange, path, ctx }) {
             </button>
             <ItemControls index={index} count={items.length} onMove={move} onRemove={remove} />
           </div>
-          {open[index] && <div className="px-3 pb-3 pt-1" style={{ borderTop: `1px solid ${T.border}` }}>
+          {open[index] && <div className="px-4 pb-5 pt-4" style={{ borderTop: `1px solid ${T.border}` }}>
             <ValueField name={name} value={item} onChange={v => onChange(items.map((it, i) => (i === index ? v : it)))} path={path} ctx={ctx} inList />
           </div>}
         </div>
@@ -224,7 +224,7 @@ function ObjectFields({ value, onChange, path, ctx }) {
   const entries = Object.entries(value).filter(([key]) => !ctx.hidden.has(key));
   const hint = typeof value.note === "string" ? value.note : null;
   return (
-    <div className="flex flex-col gap-3.5">
+    <div className="flex flex-col gap-6">
       {hint && <p className="text-xs" style={{ color: T.muted, ...fontBody }}>{hint}</p>}
       {entries.filter(([key]) => key !== "note").map(([key, v]) => (
         <Field key={key} name={key} value={v} path={[...path, key]} ctx={ctx} onChange={next => onChange({ ...value, [key]: next })} />
@@ -238,7 +238,7 @@ function ValueField({ name, value, onChange, path, ctx, inList }) {
   if (isLink(value)) return <LinkField value={value} onChange={onChange} />;
   if (Array.isArray(value)) return <ArrayField name={name} value={value} onChange={onChange} path={path} ctx={ctx} />;
   if (isPlainObject(value)) return inList ? <ObjectFields value={value} onChange={onChange} path={path} ctx={ctx} /> : (
-    <div className="rounded-lg px-3 py-3" style={{ backgroundColor: T.bg, border: `1px solid ${T.border}` }}><ObjectFields value={value} onChange={onChange} path={path} ctx={ctx} /></div>
+    <div className="rounded-lg px-4 py-4" style={{ backgroundColor: T.bg, border: `1px solid ${T.border}` }}><ObjectFields value={value} onChange={onChange} path={path} ctx={ctx} /></div>
   );
   if (typeof value === "boolean") return <label className="flex items-center gap-2 text-sm" style={{ color: T.ink, ...fontBody }}><input type="checkbox" checked={value} onChange={e => onChange(e.target.checked)} style={{ accentColor: T.accent }} /> {value ? "Yes" : "No"}</label>;
   if (typeof value === "number") return <input type="number" value={value} onChange={e => onChange(Number(e.target.value))} className={textInputClass} style={inputStyle} />;
@@ -251,7 +251,7 @@ function ValueField({ name, value, onChange, path, ctx, inList }) {
 
 function Field({ name, value, onChange, path, ctx }) {
   if (typeof value === "boolean") {
-    return <label className="flex items-center gap-2.5 text-sm" style={{ color: T.ink, ...fontBody }}><input type="checkbox" checked={value} onChange={e => onChange(e.target.checked)} style={{ accentColor: T.accent }} />{humanize(name)}</label>;
+    return <label className="flex items-center gap-2.5 text-[13px] font-semibold" style={{ color: T.ink, ...fontBody }}><input type="checkbox" checked={value} onChange={e => onChange(e.target.checked)} style={{ accentColor: T.accent }} />{humanize(name)}</label>;
   }
   return (
     <div>
