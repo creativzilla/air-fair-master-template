@@ -6,6 +6,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Archive, ArchiveRestore, ArrowLeft, Copy, Plus, Search } from "lucide-react";
 import { T, fontBody, Badge, Button, EmptyState, FieldLabel, FilterPills, LabeledInput, LabeledSelect, Modal, Notice, PageTitle, Panel, Spinner, Tabs, inputStyle } from "./ui.jsx";
 import ContentEditor from "./ContentEditor.jsx";
+import NewsArticleForm from "./NewsArticleForm.jsx";
 import { FormBuilder, FormPreview } from "./FormBuilder.jsx";
 import { PublishBar, friendlyError, previewUrlFor, useDocumentEditor, useDocumentList } from "./DocumentWorkflow.jsx";
 import { archiveDocument, createDocument, docStatus, getDocument, listDocuments, saveDraft } from "./api.js";
@@ -154,6 +155,7 @@ function ItemEditor({ docId, kind, role, forms, samples, onBack, onChanged, relo
   // Publish the form together with the item only when it has changes.
   const companions = formDoc && formEditor.doc && (formEditor.dirty || docStatus(formEditor.doc) !== "Published") ? [formEditor.doc] : [];
   const hidden = ["slug", "seo", "formKey", "_doc"];
+  const slugInput = <LabeledInput label="URL slug" hint={doc.published_version_id && !isAdmin ? "Only admins can change the URL of a published item." : previewUrlFor({ kind, slug: meta.slug })} disabled={!!doc.published_version_id && !isAdmin} value={meta.slug} onChange={slug => setMeta({ ...meta, slug: slugify(slug) })} />;
 
   return (
     <div className="flex flex-col gap-6">
@@ -167,16 +169,20 @@ function ItemEditor({ docId, kind, role, forms, samples, onBack, onChanged, relo
       </div>
       {notice && <Notice tone="info">{notice}</Notice>}
 
-      <Panel className="p-6 grid grid-cols-1 sm:grid-cols-3 gap-5">
-        <LabeledInput label="Name in dashboard lists" value={meta.title} onChange={title => setMeta({ ...meta, title })} />
-        <LabeledInput label="URL slug" hint={doc.published_version_id && !isAdmin ? "Only admins can change the URL of a published item." : previewUrlFor({ kind, slug: meta.slug })} disabled={!!doc.published_version_id && !isAdmin} value={meta.slug} onChange={slug => setMeta({ ...meta, slug: slugify(slug) })} />
-        <LabeledInput label="Order in lists" type="number" value={meta.sort_order} onChange={v => setMeta({ ...meta, sort_order: v })} />
-      </Panel>
+      {kind === "news_article" ? (
+        <NewsArticleForm draft={draft} setDraft={setDraft} meta={meta} setMeta={setMeta} slugInput={slugInput} samples={samples.byKind[kind] || []} />
+      ) : (<>
+        <Panel className="p-6 grid grid-cols-1 sm:grid-cols-3 gap-5">
+          <LabeledInput label="Name in dashboard lists" value={meta.title} onChange={title => setMeta({ ...meta, title })} />
+          {slugInput}
+          <LabeledInput label="Order in lists" type="number" value={meta.sort_order} onChange={v => setMeta({ ...meta, sort_order: v })} />
+        </Panel>
 
-      <Panel className="p-6">
-        <h3 className="text-base font-semibold mb-5" style={{ color: T.ink, ...fontBody }}>Content</h3>
-        <ContentEditor value={draft} onChange={setDraft} samples={samples.byKind[kind] || []} hiddenKeys={hidden} />
-      </Panel>
+        <Panel className="p-6">
+          <h3 className="text-base font-semibold mb-5" style={{ color: T.ink, ...fontBody }}>Content</h3>
+          <ContentEditor value={draft} onChange={setDraft} samples={samples.byKind[kind] || []} hiddenKeys={hidden} />
+        </Panel>
+      </>)}
 
       {draft.seo && (
         <Panel className="p-6">

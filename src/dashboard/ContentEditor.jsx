@@ -263,6 +263,18 @@ function Field({ name, value, onChange, path, ctx }) {
   );
 }
 
+// Renders one field (label + control) so custom layouts can place fields
+// individually. `label` overrides the automatic label; `path` is the key
+// path used to find templates for new list items.
+export function ContentField({ name, value, onChange, samples = [], path, label }) {
+  const ctx = useMemo(() => ({ samples, hidden: new Set(["mediaId"]) }), [samples]);
+  const fieldPath = path || [name];
+  if (label && typeof value !== "boolean") {
+    return <div><FieldLabel>{label}</FieldLabel><ValueField name={name} value={value} onChange={onChange} path={fieldPath} ctx={ctx} /></div>;
+  }
+  return <Field name={name} value={value} onChange={onChange} path={fieldPath} ctx={ctx} />;
+}
+
 // value: the object to edit; samples: other documents' content of the same
 // kind (templates for new list items); hiddenKeys: keys not to show.
 export default function ContentEditor({ value, onChange, samples = [], hiddenKeys = [], path = [] }) {
