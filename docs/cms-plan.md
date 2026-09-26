@@ -262,6 +262,20 @@ Unpublish (admin) ──▶ rpc cms_unpublish(id) → row removed from cms_publi
 | W5 | Applying 1/3 immediately locks the **current** dashboard for everyone but the promoted admin; the Editors/Employees UI changes come in Phase 5 | Expected | Promote yourself right after applying |
 | W6 | Supabase must be on Postgres 15+ for the `security_invoker` view | Projects created since 2023 are | Verified during Phase 3 |
 
+### Decisions confirmed (2026-09-26)
+- **W1:** Migrations are applied by you in the **Supabase SQL Editor**, in filename order. Old seed migrations are never re-run.
+- **W2:** User management uses a **secure Edge Function** (`admin-users`: invite + deactivate/reactivate). The service-role key lives only in the function's secrets; the function verifies the caller's JWT and `profiles.role = 'admin'` before acting. Built in Phase 5.
+- **W3:** The form builder supports **all 12 field types**: `text, email, tel, date, number, textarea, select, radio, yesno, checkbox, country, file`.
+
+### Phase 3 seed: `20260926130000_cms_seed_content.sql`
+Generated from the live source files, not retyped:
+- 61 documents: 1 global, 5 pages, 13 forms, 10 immigration services, 8 visa destinations, 12 travel packages, 5 destinations, 7 news items
+- testimonials copied from the live table
+- 108 image references registered in `media`
+- 13 CRM routing rows
+
+Then it publishes everything. INSERT-only and idempotent. Images stay at their current URLs; the copy into Storage happens from the dashboard in Phase 5 (no service-role key needed on your machine).
+
 ## 10. Files in this phase
 
 - `docs/cms-plan.md` (this file)
