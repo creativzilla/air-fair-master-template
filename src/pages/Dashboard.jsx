@@ -1024,7 +1024,7 @@ export default function Dashboard() {
     overview: <Overview goTo={setPage} submissions={submissions} bookings={bookings} contacts={contacts} stages={pipelineStages} currency={currency} role={role} />,
     "edit-website": <EditWebsite role={role} />,
     "cms-services": <CollectionManager kinds={["immigration_service", "visa_destination", "travel_package", "travel_destination"]} title="Services" subtitle="Everything on each service page — text, images, SEO and its form — on one screen." role={role} />,
-    news: <CollectionManager kinds={["news_article"]} title="News" subtitle="Stories and travel guides shown on the News page and the homepage." role={role} />,
+    news: <CollectionManager kinds={["news_article"]} title="News" subtitle="Stories (badge “Homepage”) appear in the homepage “News & Current Events” section in list order; guides appear on the News page. The section's heading is edited in Pages → Home." role={role} />,
     testimonials: <CollectionManager kinds={["testimonial"]} title="Testimonials" subtitle="Client quotes shown on the homepage (the first three are displayed)." role={role} />,
     services: <Catalog services={services} onSaveService={handleSaveService} onDeleteService={handleDeleteService} categories={categories} currency={currency} role={role} />,
     forms: <Forms role={role} stages={pipelineStages} goTo={setPage} onConvertToCase={handleConvertToCase} />,

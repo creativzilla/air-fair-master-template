@@ -48,6 +48,8 @@ function Flags({ content }) {
     {content?.featured && <Badge status="Qualified" label="Featured" />}
     {content?.showOnHome && <Badge status="Pending" label="Homepage" />}
     {content?.card?.showOnHome && <Badge status="Pending" label="Homepage" />}
+    {content?.type === "story" && <Badge status="Pending" label="Homepage" />}
+    {content?.type === "guide" && <Badge status="Draft" label="Guide" />}
   </>;
 }
 

@@ -27,6 +27,7 @@ const LABELS = {
   initials: "Source initials", serviceCategory: "Service", clientName: "Client name", photo: "Photo",
   successTitle: "Success heading", successMessage: "Success message", submitLabel: "Submit button text",
   privacyNote: "Privacy note", featured: "Featured", title: "Title", description: "Description",
+  type: "Where it appears", source: "Source name",
 };
 
 const LONG_TEXT = /(description|body|paragraph|answer|quote|intro|takeaway|outlook|message|blurb|subtext|paragraphs|note)$/i;
@@ -244,6 +245,7 @@ function ValueField({ name, value, onChange, path, ctx, inList }) {
   if (typeof value === "number") return <input type="number" value={value} onChange={e => onChange(Number(e.target.value))} className={textInputClass} style={inputStyle} />;
   if (ICON_KEY.test(name)) return <IconField value={value} onChange={onChange} />;
   if (name === "theme") return <select value={value || ""} onChange={e => onChange(e.target.value)} className={textInputClass} style={{ ...inputStyle, backgroundColor: "#fff" }}>{THEMES.map(t => <option key={t} value={t}>{t}</option>)}</select>;
+  if (name === "type" && (value === "story" || value === "guide")) return <select value={value} onChange={e => onChange(e.target.value)} className={textInputClass} style={{ ...inputStyle, backgroundColor: "#fff" }}><option value="story">Story — shown on the homepage and at the top of the News page</option><option value="guide">Guide — shown under "More stories & travel resources" on the News page</option></select>;
   if (name === "eligibilityStyle") return <select value={value || ""} onChange={e => onChange(e.target.value)} className={textInputClass} style={{ ...inputStyle, backgroundColor: "#fff" }}><option value="">Cards with icons</option><option value="checklist">Checklist</option></select>;
   if (value === null) return <span className="text-xs" style={{ color: T.muted, ...fontBody }}>Not set</span>;
   return <TextField name={name} value={value} onChange={onChange} />;
