@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { LayoutDashboard, File as FileEdit, Inbox, CalendarDays, Image as ImageIcon, Settings as SettingsIcon, ChevronRight, ChevronLeft, Bell, Plus, X, Clock, Search, Check, Briefcase, Trash2, GripVertical, Mail, CalendarPlus, Wallet, Users, Globe, UserPlus, FileText, Contact as Contact2, UserCog, ListChecks, Package, Lock, LogOut, Eye, EyeOff, Loader as Loader2, Menu as MenuIcon, Stamp, Newspaper, MessageSquareQuote, ShieldCheck, KeyRound } from "lucide-react";
+import { LayoutDashboard, File as FileEdit, Inbox, CalendarDays, Image as ImageIcon, Settings as SettingsIcon, ChevronRight, ChevronLeft, Bell, Plus, X, Clock, Search, Check, Briefcase, Trash2, GripVertical, Mail, CalendarPlus, Wallet, Users, Globe, UserPlus, FileText, Contact as Contact2, UserCog, ListChecks, Package, Lock, LogOut, Eye, EyeOff, Loader as Loader2, Menu as MenuIcon, Stamp, Newspaper, MessageSquareQuote, ShieldCheck, KeyRound, FolderOpen } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { dbRowToService, serviceToDbRow, getPriceLabel } from "../lib/catalog.js";
 import { fetchSiteSettings, saveSiteSettings } from "../lib/content.js";
@@ -10,6 +10,7 @@ import CollectionManager from "../dashboard/CollectionManager.jsx";
 import FormsModule from "../dashboard/FormsModule.jsx";
 import MediaLibrary from "../dashboard/MediaLibrary.jsx";
 import UsersAdmin from "../dashboard/UsersAdmin.jsx";
+import ClientDocuments from "../dashboard/ClientDocuments.jsx";
 
 // Sidebar. `roles` = who may open it; `moduleKey` = can be switched off in
 // Settings → Modules; `staffKey` = staff access follows the employee's
@@ -28,6 +29,7 @@ const NAV = [
   { id: "forms", label: "Forms", icon: Inbox, roles: ALL_ROLES, staffKey: "forms" },
   { id: "pipeline", label: "Pipeline", icon: Users, moduleKey: "pipeline", roles: ALL_ROLES, staffKey: "pipeline" },
   { id: "clients", label: "Clients", icon: Contact2, roles: ALL_ROLES, staffKey: "clients" },
+  { id: "documents", label: "Documents", icon: FolderOpen, roles: ALL_ROLES, staffKey: "documents" },
   { id: "bookings", label: "Calendar", icon: CalendarDays, moduleKey: "bookings", roles: ALL_ROLES, staffKey: "bookings" },
   { group: "Business" },
   { id: "services", label: "Catalog", icon: Briefcase, moduleKey: "services", roles: CONTENT_ROLES, staffKey: "services" },
@@ -38,13 +40,13 @@ const NAV = [
 
 const ALL_MODULES = [
   { key: "pipeline", label: "Pipeline" }, { key: "bookings", label: "Calendar" },
-  { key: "clients", label: "Clients" }, { key: "forms", label: "Forms" },
+  { key: "clients", label: "Clients" }, { key: "documents", label: "Documents" }, { key: "forms", label: "Forms" },
   { key: "services", label: "Catalog" }, { key: "media", label: "Media" },
   { key: "edit-website", label: "Edit Website" }, { key: "employees", label: "Employees" },
   { key: "settings", label: "Settings" },
 ];
 
-const DEFAULT_EMPLOYEE_ACCESS = { pipeline: true, bookings: true, clients: true, forms: true, services: false, media: false, "edit-website": false, employees: false, settings: false };
+const DEFAULT_EMPLOYEE_ACCESS = { pipeline: true, bookings: true, clients: true, documents: true, forms: true, services: false, media: false, "edit-website": false, employees: false, settings: false };
 
 const PRICING_TYPE_OPTIONS = [
   { value: "fixed", label: "Fixed Price" }, { value: "starting", label: "Starting Price" },
@@ -407,7 +409,7 @@ function Contacts({ contacts, setContacts, bookings, employees, onStageChange, o
   );
 }
 
-function ClientsDirectory({ contacts, bookings, goTo, categories, stages, currency }) {
+function ClientsDirectory({ contacts, bookings, goTo, categories, stages, currency, onOpenDocuments }) {
   const [query, setQuery] = useState("");
   const linkedBooking = (contactId) => bookings.find(b => b.contactId === contactId);
   const rows = contacts.filter(c => c.name.toLowerCase().includes(query.toLowerCase()) || c.email.toLowerCase().includes(query.toLowerCase()));
@@ -415,7 +417,7 @@ function ClientsDirectory({ contacts, bookings, goTo, categories, stages, curren
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between flex-wrap gap-3"><div><h1 className="text-2xl mb-1" style={{ ...fontDisplay, color: T.ink }}>Clients</h1><p className="text-sm" style={{ color: T.muted, ...fontBody }}>Every client on file. Open Pipeline to move their case forward.</p></div><button onClick={() => goTo("pipeline")} className="text-sm px-4 py-2 rounded-lg flex items-center gap-1.5" style={{ backgroundColor: T.accentSoft, color: T.accent, ...fontBody }}><Users size={15} /> Open Pipeline</button></div>
       <div className="relative max-w-sm"><Search size={15} style={{ color: T.muted, position: "absolute", left: 12, top: 11 }} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search by name or email" className="w-full rounded-lg pl-9 pr-3 py-2 text-sm outline-none" style={{ border: `1px solid ${T.border}`, backgroundColor: T.surface, color: T.ink, ...fontBody }} /></div>
-      <div className="rounded-xl overflow-hidden" style={{ backgroundColor: T.surface, border: `1px solid ${T.border}` }}><table className="w-full text-sm"><thead><tr style={{ borderBottom: `1px solid ${T.border}` }}>{["Name", "Email", "Category", "Stage", "Amount", "Next Meeting"].map(h => <th key={h} className="text-left px-5 py-3 text-xs uppercase tracking-wide" style={{ color: T.muted, ...fontBody, letterSpacing: "0.05em" }}>{h}</th>)}</tr></thead><tbody>{rows.map((c, i) => { const booking = linkedBooking(c.id); return (<tr key={c.id} style={{ borderBottom: i < rows.length - 1 ? `1px solid ${T.border}` : "none" }}><td className="px-5 py-3" style={{ color: T.ink, ...fontBody }}>{c.name}</td><td className="px-5 py-3" style={{ color: T.muted, ...fontBody }}>{c.email}</td><td className="px-5 py-3"><CategoryTag category={c.category} categories={categories} /></td><td className="px-5 py-3"><StageBadge stage={c.status} stages={stages} /></td><td className="px-5 py-3" style={{ ...fontMono, color: c.amount ? T.ink : T.muted }}>{c.amount ? `${currency}${c.amount.toLocaleString()}` : "—"}</td><td className="px-5 py-3" style={{ color: T.muted, ...fontBody }}>{booking ? `${booking.date} · ${booking.time}` : "—"}</td></tr>); })}{rows.length === 0 && <tr><td colSpan={6} className="px-5 py-8 text-center text-sm" style={{ color: T.muted, ...fontBody }}>No contacts match "{query}".</td></tr>}</tbody></table></div>
+      <div className="rounded-xl overflow-hidden" style={{ backgroundColor: T.surface, border: `1px solid ${T.border}` }}><table className="w-full text-sm"><thead><tr style={{ borderBottom: `1px solid ${T.border}` }}>{["Name", "Email", "Category", "Stage", "Amount", "Next Meeting", ""].map(h => <th key={h} className="text-left px-5 py-3 text-xs uppercase tracking-wide" style={{ color: T.muted, ...fontBody, letterSpacing: "0.05em" }}>{h}</th>)}</tr></thead><tbody>{rows.map((c, i) => { const booking = linkedBooking(c.id); return (<tr key={c.id} style={{ borderBottom: i < rows.length - 1 ? `1px solid ${T.border}` : "none" }}><td className="px-5 py-3" style={{ color: T.ink, ...fontBody }}>{c.name}</td><td className="px-5 py-3" style={{ color: T.muted, ...fontBody }}>{c.email}</td><td className="px-5 py-3"><CategoryTag category={c.category} categories={categories} /></td><td className="px-5 py-3"><StageBadge stage={c.status} stages={stages} /></td><td className="px-5 py-3" style={{ ...fontMono, color: c.amount ? T.ink : T.muted }}>{c.amount ? `${currency}${c.amount.toLocaleString()}` : "—"}</td><td className="px-5 py-3" style={{ color: T.muted, ...fontBody }}>{booking ? `${booking.date} · ${booking.time}` : "—"}</td><td className="px-5 py-3 text-right"><button type="button" onClick={() => onOpenDocuments(c.id)} className="text-xs px-2.5 py-1 rounded-md inline-flex items-center gap-1" style={{ backgroundColor: T.accentSoft, color: T.accent, ...fontBody }}><FolderOpen size={12} /> Documents</button></td></tr>); })}{rows.length === 0 && <tr><td colSpan={7} className="px-5 py-8 text-center text-sm" style={{ color: T.muted, ...fontBody }}>No contacts match "{query}".</td></tr>}</tbody></table></div>
     </div>
   );
 }
@@ -865,6 +867,7 @@ export default function Dashboard() {
   const [chatWidgetCode, setChatWidgetCode] = useState("");
   const [siteSettings, setSiteSettings] = useState(null);
   const [profiles, setProfiles] = useState([]);
+  const [documentsContactId, setDocumentsContactId] = useState(null);
   const [loaded, setLoaded] = useState(false);
 
   const role = profile && profile.is_active ? profile.role : "none";
@@ -1029,7 +1032,8 @@ export default function Dashboard() {
     services: <Catalog services={services} onSaveService={handleSaveService} onDeleteService={handleDeleteService} categories={categories} currency={currency} role={role} />,
     forms: <Forms role={role} stages={pipelineStages} goTo={setPage} onConvertToCase={handleConvertToCase} />,
     pipeline: <Contacts contacts={contacts} setContacts={setContacts} bookings={bookings} employees={employees} onStageChange={handleStageChange} onUpdateContact={handleUpdateContact} stages={pipelineStages} categories={categories} currency={currency} />,
-    clients: <ClientsDirectory contacts={contacts} bookings={bookings} goTo={setPage} categories={categories} stages={pipelineStages} currency={currency} />,
+    clients: <ClientsDirectory contacts={contacts} bookings={bookings} goTo={setPage} categories={categories} stages={pipelineStages} currency={currency} onOpenDocuments={id => { setDocumentsContactId(id); setPage("documents"); }} />,
+    documents: <ClientDocuments contacts={contacts} role={role} selectedContactId={documentsContactId} onSelectContact={setDocumentsContactId} />,
     employees: <Employees employees={employees} setEmployees={setEmployees} tasks={employeeTasks} setTasks={setEmployeeTasks} stageTasks={stageTasks} setStageTasks={setStageTasks} stages={pipelineStages} profiles={profiles} />,
     bookings: <Bookings bookings={bookings} contacts={contacts} role={role} onSaveBooking={handleSaveBooking} onDeleteBooking={handleDeleteBooking} />,
     media: <Media role={role} />,
