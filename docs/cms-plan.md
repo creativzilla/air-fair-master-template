@@ -307,3 +307,50 @@ No application code, website files or existing migrations were changed.
 - Headless Chrome against the live project: content loads; with Supabase blocked, fresh visitors get the fallback and returning visitors their cache.
 - The production build adds no CSS. Tailwind's `blocklist: ["visible"]` prevents a stray utility generated from the content key `visible`.
 - An anonymous form insert passes the security rules and creates a CRM lead. This was tested in a rolled-back transaction, so nothing was saved.
+
+---
+
+## Phase 5 — Dashboard (2026-09-26)
+
+**Sidebar**: grouped and filtered by role (Settings → Modules toggles still apply).
+
+| Group | Items | Visible to |
+|---|---|---|
+| — | Dashboard | everyone |
+| Website | Pages, Services, News, Testimonials, Media | admin, editor |
+| Clients | Forms, Pipeline, Clients, Calendar | everyone. Staff also follow their employee record's "Dashboard Access" boxes (Employees → Sign-in account links a login to an employee). |
+| Business | Catalog | admin, editor |
+| Business | Employees, Users, Settings | admin |
+
+**Shared modules** in `src/dashboard/`:
+
+| File | What it does |
+|---|---|
+| `ui.jsx` | Existing tokens and inputs, moved out of `Dashboard.jsx` unchanged, plus new layout primitives |
+| `ContentEditor.jsx` | Builds the editing form from each document's content: text and long text, image picker with alt text, links, icons, on/off switches, and lists you can add to, remove and reorder. New list items copy the shape of existing ones, even from another document of the same kind. |
+| `DocumentWorkflow.jsx` | Loads drafts merged with their fallback, saves with conflict detection (`draft_revision`). **Publish bar**: status, Save draft, Preview (opens the page with `?preview=1`), Publish/Unpublish (admin only), History (every save and publish, Restore copies a version into the draft). |
+| `PagesEditor.jsx` | "Edit Website": pick a page (or Site-wide header/footer), edit each section in page order, show/hide sections, SEO. |
+| `CollectionManager.jsx` | Services (immigration, visa destinations, travel packages, popular destinations), News, Testimonials. One screen per item: name, URL, order, all content and images, SEO, **its form** (builder plus live preview) and sidebar poster. The item and its form publish together. Shared visa/travel forms show a warning and can be split into a separate form for one item. New items start as a copy of an existing one. Admins can archive and restore. |
+| `FormBuilder.jsx` | Sections and fields with add, remove and reorder (also across sections). All 12 field types, required, placeholder, options, width, and "show only when an earlier answer is…". The live preview uses the website's own field components. |
+| `FormsModule.jsx` | **Submissions inbox**: open/status/form-family filters, search, CSV export. The detail drawer shows every answer labelled from the exact form version submitted, attachments via 10-minute signed URLs, status, internal notes, and the linked CRM lead (or "Add to pipeline"). Plus the form builder for all forms. |
+| `MediaLibrary.jsx` | Upload (5 MB, jpg/png/webp/gif), alt text, where-used, copy URL, admin-only delete of unused images. **Import to Storage** copies the 108 images still loading from their original addresses and repoints drafts to the copies; publishing then switches the site. |
+| `UsersAdmin.jsx` + `supabase/functions/admin-users` | Change roles (direct, admin-only RLS). Invite, deactivate and reactivate via the Edge Function, which verifies the caller is an active admin. Guards: can't change your own role or deactivate yourself; at least one active admin is kept. |
+
+**Fixes to existing modules**
+- **Pipeline**: stage changes always save. Amount and assignee now save (the assignee dropdown was converting UUIDs to `NaN`). Stage tasks come only from the database trigger, so there are no more duplicates.
+- **Calendar**: add, edit and delete bookings (delete is admin only). Dates display correctly.
+- **Overview**: real numbers throughout (no fake "20% vs last week"), live published count, current-month calendar with booking markers, and a real notification count.
+- **Settings**: module toggles are saved. The logo moved to Pages → Site-wide, so it goes through draft and publish.
+- **Employees**: real date picker for task due dates; employees can be linked to a sign-in account.
+- **Catalog**: shows save errors (e.g. missing category); delete is admin only and confirmed.
+- **Login**: no public sign-up; "Forgot password"; invite and reset links lead to a set-password screen; change password from the header. Accounts with role `none` or deactivated see a no-access screen.
+
+**Removed mock code** (all inside `Dashboard.jsx`; no files deleted): hardcoded `FORM_TEMPLATES`, the placeholder `MEDIA` grid, the old section-field editor and form-builder palette (replaced by the modules above), and the "Analytics — coming soon" tab.
+
+**Verification**
+- ESLint over `src/`: 0 errors.
+- Production build passes. The dashboard's new Tailwind utilities (43 rules) are used by no public-site element.
+- The public site's 42 pages are still byte-identical.
+- Headless Chrome: dashboard login and public pages load with no errors.
+- Permissions for editor, staff, admin and anonymous visitors were tested against the live database in a rolled-back transaction: 23/23 as intended.
+

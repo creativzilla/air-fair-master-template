@@ -226,7 +226,7 @@ export function travelDestination(doc) {
 export function newsCollections(index) {
   const articles = index.list("news_article").map(doc => {
     const c = doc.content || {};
-    const { article, type, featured, ...rest } = c;
+    const { article, type, featured: _featured, ...rest } = c;
     return {
       type,
       article,
