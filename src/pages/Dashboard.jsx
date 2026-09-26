@@ -11,6 +11,7 @@ import FormsModule from "../dashboard/FormsModule.jsx";
 import MediaLibrary from "../dashboard/MediaLibrary.jsx";
 import UsersAdmin from "../dashboard/UsersAdmin.jsx";
 import ClientDocuments from "../dashboard/ClientDocuments.jsx";
+import LeadDrawer, { mapContactRow } from "../dashboard/LeadEditor.jsx";
 
 // Sidebar. `roles` = who may open it; `moduleKey` = can be switched off in
 // Settings → Modules; `staffKey` = staff access follows the employee's
@@ -361,7 +362,7 @@ function Forms(props) {
   return <FormsModule {...props} />;
 }
 
-function Contacts({ contacts, setContacts, bookings, employees, onStageChange, onUpdateContact, stages, categories, currency }) {
+function Contacts({ contacts, setContacts, bookings, employees, onStageChange, onUpdateContact, onOpenLead, onNewLead, stages, categories, currency }) {
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [editingAmountId, setEditingAmountId] = useState(null);
   const [draftAmount, setDraftAmount] = useState("");
@@ -382,7 +383,7 @@ function Contacts({ contacts, setContacts, bookings, employees, onStageChange, o
   const columnTotals = stages.map(status => { const items = rows.filter(c => c.status === status); return { status, count: items.length, amount: items.reduce((sum, c) => sum + (c.amount || 0), 0) }; });
   return (
     <div className="flex flex-col gap-6">
-      <div><h1 className="text-2xl mb-1" style={{ ...fontDisplay, color: T.ink }}>Pipeline</h1><p className="text-sm" style={{ color: T.muted, ...fontBody }}>Drag a card to move a client through the pipeline. Moving stages auto-assigns tasks to whoever's handling the case.</p></div>
+      <div className="flex items-start justify-between flex-wrap gap-3"><div><h1 className="text-2xl mb-1" style={{ ...fontDisplay, color: T.ink }}>Pipeline</h1><p className="text-sm" style={{ color: T.muted, ...fontBody }}>Drag a card to move a client through the pipeline. Moving stages auto-assigns tasks to whoever's handling the case. Click a name to edit.</p></div><button onClick={onNewLead} className="px-4 py-2 rounded-lg text-sm flex items-center gap-1.5" style={{ backgroundColor: T.accent, color: "#fff", ...fontBody }}><Plus size={14} /> New lead</button></div>
       <div className="flex gap-2 flex-wrap">{["All", ...categories].map(c => <button key={c} onClick={() => setCategoryFilter(c)} className="px-3 py-1.5 rounded-full text-xs" style={{ ...fontBody, backgroundColor: categoryFilter === c ? T.ink : T.surface, color: categoryFilter === c ? "#fff" : T.muted, border: `1px solid ${categoryFilter === c ? T.ink : T.border}` }}>{c}</button>)}</div>
       <div className="flex gap-4 overflow-x-auto pb-2">
         {stages.map(status => { const items = rows.filter(c => c.status === status); const totals = columnTotals.find(t => t.status === status); const isOver = dragOverStatus === status; return (
@@ -391,7 +392,7 @@ function Contacts({ contacts, setContacts, bookings, employees, onStageChange, o
             <div className="flex flex-col gap-2 px-3 pb-3 min-h-[80px]">
               {items.map(c => { const booking = linkedBooking(c.id); const idx = stages.indexOf(c.status); const assignee = employeeById(c.assignedEmployeeId); return (
                 <div key={c.id} draggable onDragStart={(e) => handleDragStart(e, c.id)} onDragEnd={handleDragEnd} className="rounded-xl p-3 cursor-grab active:cursor-grabbing" style={{ backgroundColor: T.surface, border: `1px solid ${T.border}`, opacity: draggingId === c.id ? 0.4 : 1 }}>
-                  <div className="flex items-start justify-between gap-2 mb-1.5"><div className="text-sm" style={{ color: T.ink, ...fontBody }}>{c.name}</div><GripVertical size={13} style={{ color: T.border }} className="shrink-0 mt-0.5" /></div>
+                  <div className="flex items-start justify-between gap-2 mb-1.5"><button type="button" onClick={() => onOpenLead(c.id)} className="text-sm text-left hover:underline" style={{ color: T.ink, ...fontBody }}>{c.name}</button><GripVertical size={13} style={{ color: T.border }} className="shrink-0 mt-0.5" /></div>
                   <div className="text-xs mb-2" style={{ color: T.muted, ...fontBody }}>{c.email}</div>
                   <div className="mb-2"><CategoryTag category={c.category} categories={categories} /></div>
                   <div className="text-xs mb-2" style={{ color: T.muted, ...fontBody }}>{booking ? <>{booking.date} · {booking.time}</> : "No meeting scheduled"}</div>
@@ -409,20 +410,20 @@ function Contacts({ contacts, setContacts, bookings, employees, onStageChange, o
   );
 }
 
-function ClientsDirectory({ contacts, bookings, goTo, categories, stages, currency, onOpenDocuments }) {
+function ClientsDirectory({ contacts, bookings, goTo, categories, stages, currency, onOpenDocuments, onOpenLead, onNewLead }) {
   const [query, setQuery] = useState("");
   const linkedBooking = (contactId) => bookings.find(b => b.contactId === contactId);
   const rows = contacts.filter(c => c.name.toLowerCase().includes(query.toLowerCase()) || c.email.toLowerCase().includes(query.toLowerCase()));
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between flex-wrap gap-3"><div><h1 className="text-2xl mb-1" style={{ ...fontDisplay, color: T.ink }}>Clients</h1><p className="text-sm" style={{ color: T.muted, ...fontBody }}>Every client on file. Open Pipeline to move their case forward.</p></div><button onClick={() => goTo("pipeline")} className="text-sm px-4 py-2 rounded-lg flex items-center gap-1.5" style={{ backgroundColor: T.accentSoft, color: T.accent, ...fontBody }}><Users size={15} /> Open Pipeline</button></div>
+      <div className="flex items-center justify-between flex-wrap gap-3"><div><h1 className="text-2xl mb-1" style={{ ...fontDisplay, color: T.ink }}>Clients</h1><p className="text-sm" style={{ color: T.muted, ...fontBody }}>Every client on file. Click a name to edit, or open Pipeline to move their case forward.</p></div><div className="flex gap-2 flex-wrap"><button onClick={() => goTo("pipeline")} className="text-sm px-4 py-2 rounded-lg flex items-center gap-1.5" style={{ backgroundColor: T.accentSoft, color: T.accent, ...fontBody }}><Users size={15} /> Open Pipeline</button><button onClick={onNewLead} className="px-4 py-2 rounded-lg text-sm flex items-center gap-1.5" style={{ backgroundColor: T.accent, color: "#fff", ...fontBody }}><Plus size={14} /> New lead</button></div></div>
       <div className="relative max-w-sm"><Search size={15} style={{ color: T.muted, position: "absolute", left: 12, top: 11 }} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search by name or email" className="w-full rounded-lg pl-9 pr-3 py-2 text-sm outline-none" style={{ border: `1px solid ${T.border}`, backgroundColor: T.surface, color: T.ink, ...fontBody }} /></div>
-      <div className="rounded-xl overflow-hidden" style={{ backgroundColor: T.surface, border: `1px solid ${T.border}` }}><table className="w-full text-sm"><thead><tr style={{ borderBottom: `1px solid ${T.border}` }}>{["Name", "Email", "Category", "Stage", "Amount", "Next Meeting", ""].map(h => <th key={h} className="text-left px-5 py-3 text-xs uppercase tracking-wide" style={{ color: T.muted, ...fontBody, letterSpacing: "0.05em" }}>{h}</th>)}</tr></thead><tbody>{rows.map((c, i) => { const booking = linkedBooking(c.id); return (<tr key={c.id} style={{ borderBottom: i < rows.length - 1 ? `1px solid ${T.border}` : "none" }}><td className="px-5 py-3" style={{ color: T.ink, ...fontBody }}>{c.name}</td><td className="px-5 py-3" style={{ color: T.muted, ...fontBody }}>{c.email}</td><td className="px-5 py-3"><CategoryTag category={c.category} categories={categories} /></td><td className="px-5 py-3"><StageBadge stage={c.status} stages={stages} /></td><td className="px-5 py-3" style={{ ...fontMono, color: c.amount ? T.ink : T.muted }}>{c.amount ? `${currency}${c.amount.toLocaleString()}` : "—"}</td><td className="px-5 py-3" style={{ color: T.muted, ...fontBody }}>{booking ? `${booking.date} · ${booking.time}` : "—"}</td><td className="px-5 py-3 text-right"><button type="button" onClick={() => onOpenDocuments(c.id)} className="text-xs px-2.5 py-1 rounded-md inline-flex items-center gap-1" style={{ backgroundColor: T.accentSoft, color: T.accent, ...fontBody }}><FolderOpen size={12} /> Documents</button></td></tr>); })}{rows.length === 0 && <tr><td colSpan={7} className="px-5 py-8 text-center text-sm" style={{ color: T.muted, ...fontBody }}>No contacts match "{query}".</td></tr>}</tbody></table></div>
+      <div className="rounded-xl overflow-hidden" style={{ backgroundColor: T.surface, border: `1px solid ${T.border}` }}><table className="w-full text-sm"><thead><tr style={{ borderBottom: `1px solid ${T.border}` }}>{["Name", "Email", "Category", "Stage", "Amount", "Next Meeting", ""].map(h => <th key={h} className="text-left px-5 py-3 text-xs uppercase tracking-wide" style={{ color: T.muted, ...fontBody, letterSpacing: "0.05em" }}>{h}</th>)}</tr></thead><tbody>{rows.map((c, i) => { const booking = linkedBooking(c.id); return (<tr key={c.id} style={{ borderBottom: i < rows.length - 1 ? `1px solid ${T.border}` : "none" }}><td className="px-5 py-3" style={{ color: T.ink, ...fontBody }}><button type="button" onClick={() => onOpenLead(c.id)} className="text-left hover:underline" style={{ color: T.ink, ...fontBody }}>{c.name}</button></td><td className="px-5 py-3" style={{ color: T.muted, ...fontBody }}>{c.email}</td><td className="px-5 py-3"><CategoryTag category={c.category} categories={categories} /></td><td className="px-5 py-3"><StageBadge stage={c.status} stages={stages} /></td><td className="px-5 py-3" style={{ ...fontMono, color: c.amount ? T.ink : T.muted }}>{c.amount ? `${currency}${c.amount.toLocaleString()}` : "—"}</td><td className="px-5 py-3" style={{ color: T.muted, ...fontBody }}>{booking ? `${booking.date} · ${booking.time}` : "—"}</td><td className="px-5 py-3 text-right"><button type="button" onClick={() => onOpenDocuments(c.id)} className="text-xs px-2.5 py-1 rounded-md inline-flex items-center gap-1" style={{ backgroundColor: T.accentSoft, color: T.accent, ...fontBody }}><FolderOpen size={12} /> Documents</button></td></tr>); })}{rows.length === 0 && <tr><td colSpan={7} className="px-5 py-8 text-center text-sm" style={{ color: T.muted, ...fontBody }}>No contacts match "{query}".</td></tr>}</tbody></table></div>
     </div>
   );
 }
 
-function Employees({ employees, setEmployees, tasks, setTasks, stageTasks, setStageTasks, stages, profiles = [] }) {
+function Employees({ employees, setEmployees, tasks, setTasks, stageTasks, setStageTasks, stages, profiles = [], role, onDeleteEmployee }) {
   const [activeId, setActiveId] = useState(employees[0]?.id ?? null);
   const [addingEmployee, setAddingEmployee] = useState(false);
   const [draft, setDraft] = useState({ name: "", email: "", role: "" });
@@ -509,7 +510,7 @@ function Employees({ employees, setEmployees, tasks, setTasks, stageTasks, setSt
             <div className="h-full flex items-center justify-center text-center px-8 py-16"><p className="text-sm" style={{ color: T.muted, ...fontBody }}>Select an employee to view their tasks.</p></div>
           ) : (
             <div className="p-5 flex flex-col gap-5">
-              <div><span className="text-sm font-medium" style={{ color: T.ink, ...fontBody }}>{active.name}'s Tasks</span><div className="text-xs mt-0.5" style={{ color: T.muted, ...fontBody }}>{active.email} · {active.role}</div></div>
+              <div className="flex items-start justify-between gap-3"><div><span className="text-sm font-medium" style={{ color: T.ink, ...fontBody }}>{active.name}'s Tasks</span><div className="text-xs mt-0.5" style={{ color: T.muted, ...fontBody }}>{active.email} · {active.role}</div></div>{role === "admin" && <button type="button" onClick={async () => { if (await onDeleteEmployee(active)) setActiveId(null); }} className="text-xs px-2.5 py-1.5 rounded-md flex items-center gap-1 shrink-0" style={{ backgroundColor: T.dangerSoft, color: T.danger, ...fontBody }}><Trash2 size={12} /> Delete employee</button>}</div>
               <div className="rounded-lg p-3" style={{ border: `1px solid ${T.border}`, backgroundColor: T.bg }}><div className="flex items-center gap-1.5 mb-0.5"><UserCog size={13} style={{ color: T.muted }} /><span className="text-xs font-medium" style={{ color: T.ink, ...fontBody }}>Dashboard Access</span></div><p className="text-[11px] mb-2.5" style={{ color: T.muted, ...fontBody }}>What {active.name.split(" ")[0]} can see once they log in (applies to the staff role). Only you can change this.</p><div className="flex items-center gap-2 mb-3"><span className="text-xs shrink-0" style={{ color: T.muted, ...fontBody }}>Sign-in account</span><select value={active.userId || ""} onChange={e => linkLogin(active.id, e.target.value || null)} className="text-xs flex-1 min-w-0 rounded-md px-1.5 py-1 outline-none" style={{ border: `1px solid ${T.border}`, color: T.ink, ...fontBody, backgroundColor: "#fff" }}><option value="">Not linked</option>{profiles.map(p => <option key={p.id} value={p.id}>{p.email}{p.role ? ` (${p.role})` : ""}</option>)}</select></div><div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">{ALL_MODULES.map(m => { const checked = !!(active.allowedModules || DEFAULT_EMPLOYEE_ACCESS)[m.key]; return (<label key={m.key} className="flex items-center gap-1.5 text-xs cursor-pointer" style={{ color: T.ink, ...fontBody }}><input type="checkbox" checked={checked} onChange={() => toggleAccess(active.id, m.key)} style={{ accentColor: T.accent }} />{m.label}</label>); })}</div></div>
               <div className="flex flex-col gap-2">{activeTasks.map(t => (<div key={t.id} className="flex items-start gap-3 px-3 py-2.5 rounded-lg" style={{ border: `1px solid ${T.border}` }}><button onClick={() => toggleTask(t.id)} className="mt-0.5 shrink-0"><div className="w-4 h-4 rounded flex items-center justify-center" style={{ border: `1.5px solid ${t.done ? T.accent : T.border}`, backgroundColor: t.done ? T.accent : "transparent" }}>{t.done && <Check size={11} color="#fff" />}</div></button><div className="flex-1 min-w-0"><div className="text-sm" style={{ color: t.done ? T.muted : T.ink, textDecoration: t.done ? "line-through" : "none", ...fontBody }}>{t.title}</div><div className="text-xs mt-0.5" style={{ color: T.muted, ...fontBody }}>Due {t.due}</div></div></div>))}{activeTasks.length === 0 && <div className="text-xs text-center py-6" style={{ color: T.muted, ...fontBody }}>No tasks assigned yet.</div>}</div>
               <div className="pt-4 flex flex-col gap-3" style={{ borderTop: `1px solid ${T.border}` }}><label className="text-xs font-medium" style={{ color: T.ink, ...fontBody }}>Add Pipeline Task</label><div className="flex gap-1.5 flex-wrap">{stages.map(stage => <button key={stage} onClick={() => { setPickerStage(stage); setCheckedTemplateIds([]); }} className="px-2.5 py-1 rounded-full text-xs" style={{ ...fontBody, backgroundColor: pickerStage === stage ? T.ink : T.bg, color: pickerStage === stage ? "#fff" : T.muted, border: `1px solid ${pickerStage === stage ? T.ink : T.border}` }}>{stage}</button>)}</div><div className="flex flex-col gap-1.5">{stageTemplates.map(t => <label key={t.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer" style={{ border: `1px solid ${T.border}`, backgroundColor: T.bg }}><input type="checkbox" checked={checkedTemplateIds.includes(t.id)} onChange={() => toggleTemplateChecked(t.id)} className="w-4 h-4 shrink-0" style={{ accentColor: T.accent }} /><span className="text-sm flex-1" style={{ color: T.ink, ...fontBody }}>{t.title}</span></label>)}{stageTemplates.length === 0 && <div className="text-xs px-3 py-2" style={{ color: T.muted, ...fontBody }}>No tasks defined for this stage yet — add one below.</div>}</div><div className="flex gap-2"><input value={newTemplateTitle} onChange={e => setNewTemplateTitle(e.target.value)} placeholder={`New task for "${pickerStage}"`} className="flex-1 rounded-lg px-3 py-2 text-sm outline-none" style={{ border: `1px solid ${T.border}`, color: T.ink, ...fontBody, backgroundColor: T.bg }} /><button onClick={addNewTemplate} className="px-3 py-2 rounded-lg text-sm" style={{ backgroundColor: T.surface, color: T.ink, border: `1px solid ${T.border}`, ...fontBody }}><Plus size={14} /></button></div><button onClick={addSelectedTemplateTasks} disabled={checkedTemplateIds.length === 0} className="px-4 py-2 rounded-lg text-sm flex items-center justify-center gap-1.5" style={{ backgroundColor: checkedTemplateIds.length === 0 ? T.border : T.accent, color: checkedTemplateIds.length === 0 ? T.muted : "#fff", ...fontBody }}><ListChecks size={14} /> Add {checkedTemplateIds.length > 0 ? `${checkedTemplateIds.length} Task${checkedTemplateIds.length > 1 ? "s" : ""}` : "Selected Tasks"}</button></div>
@@ -868,6 +869,7 @@ export default function Dashboard() {
   const [siteSettings, setSiteSettings] = useState(null);
   const [profiles, setProfiles] = useState([]);
   const [documentsContactId, setDocumentsContactId] = useState(null);
+  const [leadPanel, setLeadPanel] = useState(null); // null | "new" | contact id
   const [loaded, setLoaded] = useState(false);
 
   const role = profile && profile.is_active ? profile.role : "none";
@@ -890,7 +892,7 @@ export default function Dashboard() {
         .forEach(([name, res]) => { if (res.error) console.error(`Failed to load ${name}:`, res.error); });
 
       if (subsRes.data) setSubmissions(subsRes.data.map(r => ({ id: r.id, name: r.name, email: r.email, type: r.form_type, createdAt: r.created_at, date: r.created_at ? new Date(r.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "", status: r.status })));
-      if (contactsRes.data) setContacts(contactsRes.data.map(r => ({ id: r.id, submissionId: r.submission_id, name: r.name, email: r.email, phone: r.phone, category: r.category, status: r.status, amount: r.amount ? Number(r.amount) : null, assignedEmployeeId: r.assigned_employee_id })));
+      if (contactsRes.data) setContacts(contactsRes.data.map(mapContactRow));
       if (bookingsRes.data) setBookings(bookingsRes.data.map(mapBooking));
       if (employeesRes.data) setEmployees(employeesRes.data.map(r => ({ id: r.id, userId: r.user_id, name: r.name, email: r.email, role: r.role, allowedModules: r.allowed_modules || { ...DEFAULT_EMPLOYEE_ACCESS } })));
       if (tasksRes.data) setEmployeeTasks(tasksRes.data.map(mapTask));
@@ -937,7 +939,8 @@ export default function Dashboard() {
     setPage("overview");
   };
 
-  const categories = Array.from(new Set(services.map(s => s.category).filter(Boolean)));
+  // Pipeline filter options: every category a lead actually uses, plus the Catalog's.
+  const categories = Array.from(new Set([...contacts.map(c => c.category), ...services.map(s => s.category)].filter(Boolean)));
 
   const handleSaveService = async (draft, existingId) => {
     const dbRow = serviceToDbRow(draft);
@@ -981,6 +984,28 @@ export default function Dashboard() {
       const { data } = await supabase.from("employee_tasks").select("*").eq("contact_id", contact.id);
       if (data) setEmployeeTasks(prev => [...prev.filter(t => t.contactId !== contact.id), ...data.map(mapTask)]);
     }
+  };
+
+  const handleLeadSaved = (saved, isNew) => {
+    setContacts(prev => (isNew ? [saved, ...prev] : prev.map(c => (c.id === saved.id ? saved : c))));
+    setLeadPanel(null);
+  };
+
+  const handleLeadDeleted = id => {
+    setContacts(prev => prev.filter(c => c.id !== id));
+    setBookings(prev => prev.map(b => (b.contactId === id ? { ...b, contactId: null } : b)));
+    setEmployeeTasks(prev => prev.map(t => (t.contactId === id ? { ...t, contactId: null } : t)));
+    setLeadPanel(null);
+  };
+
+  const handleDeleteEmployee = async employee => {
+    if (!window.confirm(`Delete ${employee.name}? Their tasks are deleted too and their leads become unassigned.`)) return false;
+    const { error } = await supabase.from("employees").delete().eq("id", employee.id);
+    if (error) { window.alert(error.code === "23503" ? "This employee still has leads assigned. Push the latest database update (npx supabase@2.118.0 db push) or reassign their leads first." : error.message); return false; }
+    setEmployees(prev => prev.filter(e => e.id !== employee.id));
+    setEmployeeTasks(prev => prev.filter(t => t.employeeId !== employee.id));
+    setContacts(prev => prev.map(c => (c.assignedEmployeeId === employee.id ? { ...c, assignedEmployeeId: null } : c)));
+    return true;
   };
 
   const handleUpdateContact = async (id, patch) => {
@@ -1031,10 +1056,10 @@ export default function Dashboard() {
     testimonials: <CollectionManager kinds={["testimonial"]} title="Testimonials" subtitle="Client quotes shown on the homepage (the first three are displayed)." role={role} />,
     services: <Catalog services={services} onSaveService={handleSaveService} onDeleteService={handleDeleteService} categories={categories} currency={currency} role={role} />,
     forms: <Forms role={role} stages={pipelineStages} goTo={setPage} onConvertToCase={handleConvertToCase} />,
-    pipeline: <Contacts contacts={contacts} setContacts={setContacts} bookings={bookings} employees={employees} onStageChange={handleStageChange} onUpdateContact={handleUpdateContact} stages={pipelineStages} categories={categories} currency={currency} />,
-    clients: <ClientsDirectory contacts={contacts} bookings={bookings} goTo={setPage} categories={categories} stages={pipelineStages} currency={currency} onOpenDocuments={id => { setDocumentsContactId(id); setPage("documents"); }} />,
+    pipeline: <Contacts contacts={contacts} setContacts={setContacts} bookings={bookings} employees={employees} onStageChange={handleStageChange} onUpdateContact={handleUpdateContact} onOpenLead={setLeadPanel} onNewLead={() => setLeadPanel("new")} stages={pipelineStages} categories={categories} currency={currency} />,
+    clients: <ClientsDirectory contacts={contacts} bookings={bookings} goTo={setPage} categories={categories} stages={pipelineStages} currency={currency} onOpenDocuments={id => { setDocumentsContactId(id); setPage("documents"); }} onOpenLead={setLeadPanel} onNewLead={() => setLeadPanel("new")} />,
     documents: <ClientDocuments contacts={contacts} role={role} selectedContactId={documentsContactId} onSelectContact={setDocumentsContactId} />,
-    employees: <Employees employees={employees} setEmployees={setEmployees} tasks={employeeTasks} setTasks={setEmployeeTasks} stageTasks={stageTasks} setStageTasks={setStageTasks} stages={pipelineStages} profiles={profiles} />,
+    employees: <Employees employees={employees} setEmployees={setEmployees} tasks={employeeTasks} setTasks={setEmployeeTasks} stageTasks={stageTasks} setStageTasks={setStageTasks} stages={pipelineStages} profiles={profiles} role={role} onDeleteEmployee={handleDeleteEmployee} />,
     bookings: <Bookings bookings={bookings} contacts={contacts} role={role} onSaveBooking={handleSaveBooking} onDeleteBooking={handleDeleteBooking} />,
     media: <Media role={role} />,
     users: profile ? <UsersAdmin me={profile} /> : null,
@@ -1129,6 +1154,9 @@ export default function Dashboard() {
         </div>
         <div className="flex-1 overflow-auto dash-content-pad px-8 py-8" style={{ paddingBottom: 80 }}>{!loaded ? <div className="flex items-center justify-center py-20"><Loader2 size={22} className="animate-spin" style={{ color: T.muted }} /></div> : pageComponents[currentPage]}</div>
       </div>
+      {leadPanel && <LeadDrawer key={leadPanel} lead={leadPanel === "new" ? null : contacts.find(c => c.id === leadPanel)} contacts={contacts} stages={pipelineStages} employees={employees} bookings={bookings} role={role}
+        onClose={() => setLeadPanel(null)} onSaved={handleLeadSaved} onDeleted={handleLeadDeleted}
+        goTo={id => { setLeadPanel(null); setPage(id); }} onOpenDocuments={id => { setLeadPanel(null); setDocumentsContactId(id); setPage("documents"); }} />}
       {/* Mobile bottom tab bar */}
       <nav className="dash-mobile-bar" style={{ position: "fixed", bottom: 0, left: 0, right: 0, height: 56, backgroundColor: T.surface, borderTop: `1px solid ${T.border}`, alignItems: "center", justifyContent: "space-around", zIndex: 90, paddingBottom: "env(safe-area-inset-bottom)" }}>
         {navItems.slice(0, 4).map(n => { const Icon = n.icon; const active = currentPage === n.id; return (<button key={n.id} onClick={() => setPage(n.id)} className="flex flex-col items-center gap-0.5" style={{ color: active ? T.accent : T.muted, flex: 1 }}><Icon size={20} /><span className="text-[9px]" style={{ ...fontBody, fontWeight: active ? 600 : 400 }}>{n.label.split(" ")[0]}</span></button>); })}
