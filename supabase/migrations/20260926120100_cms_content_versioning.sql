@@ -101,14 +101,19 @@ from public.cms_documents d;
 -- 2. Triggers: guard publish columns, bump revision, snapshot every save
 -- ============================================================================
 
--- True for the service-role key (seed script) or a direct SQL-editor session.
+-- True for the service-role key, or for a direct database connection
+-- (SQL Editor, `supabase db push`, which logs in via a temporary cli_login_*
+-- role, psql). Website/dashboard traffic always arrives through PostgREST,
+-- whose session user is `authenticator` with an anon/authenticated JWT role.
 -- Deliberately NOT based on current_user: inside SECURITY DEFINER functions
 -- current_user is the function owner (postgres) for every caller.
 create or replace function public.cms_is_service_caller()
 returns boolean language sql stable
 as $$
   select coalesce(auth.role(), '') = 'service_role'
-      or (auth.uid() is null and session_user in ('postgres', 'supabase_admin'));
+      or (session_user <> 'authenticator'
+          and auth.uid() is null
+          and coalesce(auth.role(), '') not in ('anon', 'authenticated'));
 $$;
 
 create or replace function public.cms_next_version_no(p_document_id uuid)

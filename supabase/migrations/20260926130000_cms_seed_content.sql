@@ -26,6 +26,9 @@ Then publishes every document that has never been published.
 READS (does not modify): testimonials, pages/sections/content_blocks
 (the live testimonials heading).
 
+ATOMIC: runs as one transaction (db push wraps each migration; the SQL Editor
+runs a multi-statement script atomically).
+
 SAFE TO RE-RUN: every insert is ON CONFLICT DO NOTHING / WHERE NOT EXISTS and
 only never-published documents are published, so editor changes made after
 the first run are never overwritten.
@@ -36,7 +39,6 @@ BEHAVIOUR CHANGE: once form_field_mappings has rows, every NEW form submission
 automatically creates a CRM lead (contacts row). Existing submissions are untouched.
 */
 
-begin;
 
 do $$
 begin
@@ -301,7 +303,6 @@ begin
 end;
 $$;
 
-commit;
 
 -- Verify (optional, read-only):
 -- select kind, count(*) from public.cms_published group by kind order by kind;
