@@ -6,7 +6,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Archive, ArchiveRestore, ArrowLeft, Copy, Plus, Search } from "lucide-react";
 import { T, fontBody, Badge, Button, EmptyState, FieldLabel, FilterPills, LabeledInput, LabeledSelect, Modal, Notice, PageTitle, Panel, Spinner, Tabs, inputStyle } from "./ui.jsx";
 import ContentEditor from "./ContentEditor.jsx";
-import NewsArticleForm from "./NewsArticleForm.jsx";
+import NewsArticleForm, { CategoryField, DEFAULT_NEWS_CATEGORIES, displayDateFor, todayISO, uniqueSlug } from "./NewsArticleForm.jsx";
 import { FormBuilder, FormPreview } from "./FormBuilder.jsx";
 import { PublishBar, friendlyError, previewUrlFor, useDocumentEditor, useDocumentList } from "./DocumentWorkflow.jsx";
 import { archiveDocument, createDocument, docStatus, getDocument, listDocuments, saveDraft } from "./api.js";
@@ -62,14 +62,22 @@ function NewItemModal({ kind, docs, forms, onClose, onCreated }) {
   const [fromId, setFromId] = useState(docs[0]?.id || "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const isNews = kind === "news_article";
+  const takenSlugs = useMemo(() => new Set(docs.map(d => d.slug)), [docs]);
+  const newsCategories = useMemo(() => [...new Set([...DEFAULT_NEWS_CATEGORIES, ...docs.map(d => d.draft?.category).filter(Boolean)])], [docs]);
+  const [category, setCategory] = useState(DEFAULT_NEWS_CATEGORIES[0]);
+  const [newsType, setNewsType] = useState("story");
 
   const create = async () => {
     setError("");
     if (!title.trim() || !slug) { setError("Enter a name and URL slug."); return; }
     setBusy(true);
     try {
-      const source = docs.find(d => d.id === fromId);
-      const draft = JSON.parse(JSON.stringify(source?.draft || {}));
+      const source = isNews ? null : docs.find(d => d.id === fromId);
+      const iso = todayISO();
+      const draft = isNews
+        ? { type: newsType, category, date: displayDateFor(iso), dateTime: iso, title: "", description: "", source: "", initials: "", href: "", image: { src: "", alt: "", mediaId: null }, logo: null, article: { intro: "", heading: "", body: "", takeaway: "", points: [], outlook: "" } }
+        : JSON.parse(JSON.stringify(source?.draft || {}));
       draft[cfg.titleKey] = title.trim();
       if ("slug" in draft) draft.slug = slug;
       if ("featured" in draft) draft.featured = false;
@@ -95,10 +103,13 @@ function NewItemModal({ kind, docs, forms, onClose, onCreated }) {
   return (
     <Modal title={`New ${cfg.singular}`} onClose={onClose} footer={<><Button tone="outline" onClick={onClose}>Cancel</Button><Button busy={busy} onClick={create}>Create draft</Button></>}>
       <div className="flex flex-col gap-4">
-        <LabeledInput label="Name" value={title} onChange={v => { setTitle(v); if (!slugTouched) setSlug(slugify(v)); }} />
+        <LabeledInput label={isNews ? "Title" : "Name"} value={title} onChange={v => { setTitle(v); if (!slugTouched) setSlug(uniqueSlug(slugify(v), takenSlugs)); }} />
         <LabeledInput label="URL slug" hint={previewUrlFor({ kind, slug: slug || "your-slug" })} value={slug} onChange={v => { setSlugTouched(true); setSlug(slugify(v)); }} />
-        {docs.length > 0 && <LabeledSelect label="Start from a copy of" value={fromId} onChange={setFromId} options={docs.map(d => ({ value: d.id, label: d.title }))} />}
-        <p className="text-xs" style={{ color: T.muted, ...fontBody }}>The new item is created as a draft with the copied content{cfg.form === "own" ? " and its own copy of the form" : ""}. Nothing appears on the website until an admin publishes it.</p>
+        {slug && takenSlugs.has(slug) && <p className="text-xs -mt-2" style={{ color: T.danger, ...fontBody }}>That URL is already used. Try {uniqueSlug(slug, takenSlugs)}.</p>}
+        {isNews && <CategoryField value={category} options={newsCategories} onChange={setCategory} />}
+        {isNews && <LabeledSelect label="Where it appears" value={newsType} onChange={setNewsType} options={[{ value: "story", label: "Story — homepage and top of the News page" }, { value: "guide", label: "Guide — News page resources" }]} />}
+        {!isNews && docs.length > 0 && <LabeledSelect label="Start from a copy of" value={fromId} onChange={setFromId} options={docs.map(d => ({ value: d.id, label: d.title }))} />}
+        <p className="text-xs" style={{ color: T.muted, ...fontBody }}>{isNews ? "The article is created as a draft dated today." : `The new item is created as a draft with the copied content${cfg.form === "own" ? " and its own copy of the form" : ""}.`} Nothing appears on the website until an admin publishes it.</p>
         {error && <Notice tone="danger">{error}</Notice>}
       </div>
     </Modal>
@@ -170,7 +181,7 @@ function ItemEditor({ docId, kind, role, forms, samples, onBack, onChanged, relo
       {notice && <Notice tone="info">{notice}</Notice>}
 
       {kind === "news_article" ? (
-        <NewsArticleForm draft={draft} setDraft={setDraft} meta={meta} setMeta={setMeta} slugInput={slugInput} samples={samples.byKind[kind] || []} />
+        <NewsArticleForm doc={doc} draft={draft} setDraft={setDraft} meta={meta} setMeta={setMeta} slugInput={slugInput} samples={samples.byKind[kind] || []} siblings={samples.docs} slugEditable={!doc.published_version_id || isAdmin} />
       ) : (<>
         <Panel className="p-6 grid grid-cols-1 sm:grid-cols-3 gap-5">
           <LabeledInput label="Name in dashboard lists" value={meta.title} onChange={title => setMeta({ ...meta, title })} />
