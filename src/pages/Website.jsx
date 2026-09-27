@@ -93,8 +93,10 @@ export function PageLoading() {
   return <div className="section-shell" style={{ padding: "120px 0", textAlign: "center", color: colors.text }} role="status"><p>Loading...</p></div>;
 }
 
+// light: the white version for dark backgrounds (footer).
 function Logo({ light = false }) {
-  const logo = useGlobalContent().logo || {};
+  const site = useGlobalContent();
+  const logo = (light && site.logoLight) || site.logo || {};
   return <div className="logo-lockup">
     <img src={imageSrc(logo)} alt={logo.alt} className="logo-img" width="1254" height="521" />
   </div>;

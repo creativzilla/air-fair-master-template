@@ -327,7 +327,7 @@ body{margin:0;font-family:'Poppins',sans-serif;color:#5B6C80;background:#fff}
 .sent-card h3{font-size:22px}
 .sent-card p{color:#5B6C80;font-size:17px}
 
-footer{background:#0d2456;color:#9fb2cc;border-top:1px solid rgba(255,255,255,.08)}
+footer{background:#051931;color:#9fb2cc;border-top:1px solid rgba(255,255,255,.08)}
 .footer-grid{display:grid;grid-template-columns:1.3fr .8fr .9fr .9fr 1.1fr;gap:36px;padding-top:42px;padding-bottom:36px}
 .footer-brand p{font-size:14px;line-height:1.7;max-width:260px}
 .footer-grid h2{font-size:13px;color:#4B9B13;letter-spacing:.07em;margin:4px 0 15px}

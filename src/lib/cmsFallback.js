@@ -23,6 +23,7 @@ const add = (kind, slug, title, sort, content, formSlug = null) => docs.push({ k
 add("global", "site", "Site-wide (header, footer, shared blocks)", 0, {
   promiseBar: { items: ["✦ Free Cancellation within 24 hrs", "Best Price Guarantee", "Secure Booking", "24/7 Customer Support"] },
   logo: img("/airfair-logo.png", "Air Fair Travel & Immigration"),
+  logoLight: img("/airfair-logo-white.png", "Air Fair Travel & Immigration"),
   nav: {
     items: [
       { label: "Home", href: "/#top", highlight: false },
