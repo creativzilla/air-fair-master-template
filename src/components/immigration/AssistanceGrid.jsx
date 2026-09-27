@@ -9,7 +9,7 @@ function AssistanceCard({ icon, title, description }) {
       <span className="svc-assistance-icon">
         <Icon size={20} strokeWidth={1.8} />
       </span>
-      <h4>{title}</h4>
+      <h3>{title}</h3>
       <p>{description}</p>
     </div>
   );

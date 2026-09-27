@@ -28,7 +28,7 @@ function FeatureCard({ icon: Icon, title, description }) {
       <div className="pis-feature-icon">
         <Icon size={20} strokeWidth={1.8} />
       </div>
-      <h4>{title}</h4>
+      <h3>{title}</h3>
       <p>{description}</p>
     </div>
   );

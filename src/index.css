@@ -81,7 +81,7 @@ body{margin:0;font-family:'Poppins',sans-serif;color:#5B6C80;background:#fff}
 .hero-card-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
 
 .hero-card-flag{flex-shrink:0;font-size:11px;font-weight:700;letter-spacing:.06em;color:#e7f0e4;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);padding:6px 11px;border-radius:8px}
-.hero-card h1{font-size:clamp(24px,2.8vw,32px);line-height:1.15;letter-spacing:.005em;margin:0 0 8px;font-weight:800;color:#fff}
+.hero-card h2{font-size:clamp(24px,2.8vw,32px);line-height:1.15;letter-spacing:.005em;margin:0 0 8px;font-weight:800;color:#fff}
 .hero-card-highlight{color:#FFCB19}
 .hero-card-subheading{font-size:16px;font-weight:600;color:#fff;margin:0 0 10px}
 .hero-card-desc{font-size:14px;line-height:1.6;color:#dbe6ee;margin:0 0 18px;max-width:460px}
@@ -94,7 +94,9 @@ body{margin:0;font-family:'Poppins',sans-serif;color:#5B6C80;background:#fff}
 @keyframes heroCardIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 
 .hero-progress-track{max-width:660px;display:flex;gap:7px;margin-top:22px}
-.hero-progress-dot{position:relative;flex:1;height:4px;border-radius:3px;background:rgba(255,255,255,.22);border:0;padding:0;cursor:pointer;overflow:hidden}
+.hero-progress-dot{position:relative;flex:1;height:4px;border-radius:3px;background:rgba(255,255,255,.22);border:0;padding:0;cursor:pointer;overflow:visible}
+/* 24px-tall invisible touch area around the 4px bar (WCAG 2.5.8). */
+.hero-progress-dot::before{content:"";position:absolute;left:0;right:0;top:-10px;bottom:-10px}
 .hero-progress-dot.active{background:rgba(255,255,255,.3)}
 .hero-progress-fill{position:absolute;left:0;top:0;bottom:0;width:0;background:#4B9B13;border-radius:3px;animation:heroProgress 8s linear forwards}
 @keyframes heroProgress{from{width:0}to{width:100%}}
@@ -332,7 +334,7 @@ body{margin:0;font-family:'Poppins',sans-serif;color:#5B6C80;background:#fff}
 footer{background:#0d2456;color:#9fb2cc;border-top:1px solid rgba(255,255,255,.08)}
 .footer-grid{display:grid;grid-template-columns:1.3fr .8fr .9fr .9fr 1.1fr;gap:36px;padding-top:42px;padding-bottom:36px}
 .footer-brand p{font-size:14px;line-height:1.7;max-width:260px}
-.footer-grid h4{font-size:13px;color:#4B9B13;letter-spacing:.07em;margin:4px 0 15px}
+.footer-grid h2{font-size:13px;color:#4B9B13;letter-spacing:.07em;margin:4px 0 15px}
 .footer-grid>div:not(.footer-brand){display:flex;flex-direction:column;gap:10px}
 .footer-grid a{font-size:14px;color:#afc0d6;text-decoration:none;transition:color .2s ease}
 .footer-grid a:hover{color:#fff}
@@ -372,7 +374,7 @@ footer{background:#0d2456;color:#9fb2cc;border-top:1px solid rgba(255,255,255,.0
   .hero{min-height:64vh}
   .hero-inner{padding:48px 24px}
   .hero-card{max-width:none;padding:28px 26px 24px}
-  .hero-card h1{font-size:28px}
+  .hero-card h2{font-size:28px}
   .hero-cta-row{gap:14px}
   .package-detail-grid{grid-template-columns:1fr!important;gap:24px!important}
 }
@@ -470,7 +472,7 @@ footer{background:#0d2456;color:#9fb2cc;border-top:1px solid rgba(255,255,255,.0
 
   .footer-grid{gap:44px;padding-top:56px;padding-bottom:48px}
   .footer-brand p{font-size:15px;max-width:320px}
-  .footer-grid h4{font-size:14px}
+  .footer-grid h2{font-size:14px}
   .footer-grid a{font-size:15px}
   .socials a{width:32px;height:32px}
   .footer-bottom{padding-top:20px;padding-bottom:20px;font-size:14px}
@@ -536,7 +538,7 @@ footer{background:#0d2456;color:#9fb2cc;border-top:1px solid rgba(255,255,255,.0
 .pis-feature-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px;margin-top:8px}
 .pis-feature-card{background:#fff;border:1px solid #E3E8ED;border-radius:14px;padding:22px 20px}
 .pis-feature-icon{width:42px;height:42px;border-radius:11px;background:#EAF7DF;color:#2F720E;display:flex;align-items:center;justify-content:center;margin-bottom:14px}
-.pis-feature-card h4{font-size:15px;font-weight:700;color:#102B57;margin:0 0 6px}
+.pis-feature-card h3{font-size:15px;font-weight:700;color:#102B57;margin:0 0 6px}
 .pis-feature-card p{font-size:13px;line-height:1.55;color:#718093;margin:0}
 
 .pis-cta{padding-bottom:96px}
@@ -605,7 +607,7 @@ footer{background:#0d2456;color:#9fb2cc;border-top:1px solid rgba(255,255,255,.0
 .svc-assistance-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
 .svc-assistance-card{background:#fff;border:1px solid #E3E8ED;border-radius:14px;padding:20px}
 .svc-assistance-icon{width:42px;height:42px;border-radius:11px;background:#EAF7DF;color:#2F720E;display:flex;align-items:center;justify-content:center;margin-bottom:14px}
-.svc-assistance-card h4{font-size:15px;font-weight:700;color:#102B57;margin:0 0 6px}
+.svc-assistance-card h3{font-size:15px;font-weight:700;color:#102B57;margin:0 0 6px}
 .svc-assistance-card p{font-size:13px;line-height:1.55;color:#718093;margin:0}
 
 /* Why Choose Airfair (plain text section) */
@@ -716,7 +718,7 @@ footer{background:#0d2456;color:#9fb2cc;border-top:1px solid rgba(255,255,255,.0
 .vcp2-highlights-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-top:20px}
 .vcp2-highlight-card{border-radius:14px;padding:16px}
 .vcp2-highlight-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:10px}
-.vcp2-highlight-card h4{font-size:13.5px;font-weight:700;margin:0 0 4px;color:#102B57}
+.vcp2-highlight-card h3{font-size:13.5px;font-weight:700;margin:0 0 4px;color:#102B57}
 .vcp2-highlight-card p{font-size:11.5px;color:#718093;margin:0;line-height:1.4}
 .vcp2-highlight-card--blue{background:#EFF6FE}
 .vcp2-highlight-card--blue .vcp2-highlight-icon{background:#DCEAFB;color:#1D4ED8}
@@ -877,7 +879,7 @@ footer{background:#0d2456;color:#9fb2cc;border-top:1px solid rgba(255,255,255,.0
 .tt-pkg-highlight-card{background:#fff;border:1px solid #E3E8ED;border-radius:14px;overflow:hidden}
 .tt-pkg-highlight-card img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block}
 .tt-pkg-highlight-body{padding:14px}
-.tt-pkg-highlight-body h4{font-size:13.5px;font-weight:700;color:#102B57;margin:0 0 4px}
+.tt-pkg-highlight-body h3{font-size:13.5px;font-weight:700;color:#102B57;margin:0 0 4px}
 .tt-pkg-highlight-body p{font-size:11.5px;color:#718093;margin:0;line-height:1.4}
 
 .tt-related-card{position:relative;display:block;text-decoration:none;border-radius:16px;overflow:hidden;aspect-ratio:4/5;box-shadow:0 8px 22px rgba(16,45,104,.08)}

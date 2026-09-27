@@ -20,7 +20,7 @@ export default function PackageHighlightsGrid({ items }) {
           <div className="tt-pkg-highlight-card" key={index}>
             <img src={item.image} alt={item.title} loading="lazy" decoding="async" />
             <div className="tt-pkg-highlight-body">
-              <h4>{item.title}</h4>
+              <h3>{item.title}</h3>
               <p>{item.description}</p>
             </div>
           </div>

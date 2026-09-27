@@ -124,6 +124,20 @@ export function useCms() {
   return useSyncExternalStore(subscribe, () => state, () => state);
 }
 
+// Resolves once the first content request settles (or after timeoutMs).
+// A prerendered page waits for this before the app takes over, so visitors
+// see the prerendered content followed by live content, never the built-in
+// defaults in between. Returning visitors with a cache don't wait.
+export function whenContentReady(timeoutMs) {
+  if (state.status !== "loading" || state.source === "cache") return Promise.resolve();
+  return new Promise(resolve => {
+    let unsubscribe = () => {};
+    const done = () => { clearTimeout(timer); unsubscribe(); resolve(); };
+    const timer = setTimeout(done, timeoutMs);
+    unsubscribe = subscribe(() => { if (state.status !== "loading") done(); });
+  });
+}
+
 export function isPreviewMode() {
   return state.source === "preview";
 }

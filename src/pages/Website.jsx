@@ -12,7 +12,7 @@ import { getIcon } from "../components/immigration/icons.js";
 import VisaDestinationCard from "../components/visa/VisaDestinationCard.jsx";
 import NewsEvents from "../components/NewsEvents.jsx";
 import { useAutoplay } from "../lib/useAutoplay.js";
-import { applyOrganizationJsonLd, applySeo } from "../lib/seo.js";
+import { applyOrganizationJsonLd, applySeo, collectSsrJsonLd, collectSsrSeo, organizationJsonLd } from "../lib/seo.js";
 
 export const colors = {
   green: "#4B9B13",
@@ -27,6 +27,18 @@ export const colors = {
   white: "#FFFFFF",
 };
 
+// Code defaults, overlaid with the Settings snapshot that prerendered pages
+// embed (<script type="application/json" id="af-settings">; set directly on
+// globalThis while prerendering), so the first paint shows the live values.
+function embeddedSettings() {
+  if (globalThis.__AF_SETTINGS__) return globalThis.__AF_SETTINGS__;
+  try {
+    const block = typeof document !== "undefined" && document.getElementById("af-settings");
+    return block ? JSON.parse(block.textContent) : {};
+  } catch {
+    return {};
+  }
+}
 export const fallbackSettings = {
   business_name: "Air Fair Travel & Immigration",
   contact_email: "airfairtravelandours@gmail.com",
@@ -39,6 +51,7 @@ export const fallbackSettings = {
   seo_description: "Expert visa, immigration, and travel services for Filipinos heading abroad.",
   currency_symbol: "₱",
   chat_widget_code: "",
+  ...embeddedSettings(),
 };
 
 // Applies a page's SEO title/description (plus Open Graph/Twitter tags,
@@ -49,6 +62,7 @@ export function useSeo({ title, description, image, type } = {}, settings) {
   const businessName = settings?.business_name || fallbackSettings.business_name;
   const resolvedTitle = title ? title.replace("{businessName}", businessName) : "";
   const resolvedDescription = description || settings?.seo_description || fallbackSettings.seo_description;
+  if (import.meta.env.SSR) collectSsrSeo({ title: resolvedTitle, description: resolvedDescription, image, type });
   useEffect(() => {
     applySeo({ title: resolvedTitle, description: resolvedDescription, image, type });
   }, [resolvedTitle, resolvedDescription, image, type]);
@@ -167,7 +181,7 @@ function Hero({ fields }) {
 
           <span className="hero-card-flag">{fields.flagLabel}</span>
         </div>
-        <h1>{slide.headline}<span className="hero-card-highlight">{slide.highlight}</span></h1>
+        <h2>{slide.headline}<span className="hero-card-highlight">{slide.highlight}</span></h2>
         <p className="hero-card-subheading">{slide.subheading}</p>
         <p className="hero-card-desc">{slide.description}</p>
         <div className="hero-trust-row">
@@ -206,7 +220,8 @@ function AccreditationBar({ fields }) {
 }
 
 function ServiceCategories({ fields }) {
-  return <section className="category-cards section-shell">
+  return <section className="category-cards section-shell" aria-labelledby="category-cards-title">
+    <h2 id="category-cards-title" className="sr-only">{fields.heading || "Our services"}</h2>
     <div className="category-grid">
       {(fields.items || []).map(item => {
         const Icon = getIcon(item.icon);
@@ -394,7 +409,7 @@ export function Footer({ settings }) {
       // Keep the form visible so the visitor can try again.
     }
   };
-  return <footer><div className="section-shell footer-grid"><div className="footer-brand"><Logo light /><p>{footer.blurb}</p><div className="socials">{socials.map(([Icon, url, name]) => <a key={name} href={url || "#"} aria-label={`${businessName} on ${name}`}><Icon size={13} aria-hidden="true" /></a>)}</div></div>{(footer.columns || []).map(column => <div key={column.heading}><h4>{column.heading}</h4>{(column.links || []).map(item => <a key={item.label + item.href} href={item.href}>{item.label}</a>)}</div>)}<div><h4>{footer.contactHeading}</h4><a href={`tel:${settings.contact_phone}`}>☎ {settings.contact_phone || fallbackSettings.contact_phone}</a><a href={`mailto:${settings.contact_email}`}>✉ {settings.contact_email || fallbackSettings.contact_email}</a><a href="#contact">▣ {settings.address || fallbackSettings.address}</a></div><div className="footer-newsletter"><h4>{footer.newsletter?.heading}</h4><p>{footer.newsletter?.body}</p>{subscribed ? <span className="newsletter-thanks"><Check size={14} /> {footer.newsletter?.thanks}</span> : <form className="newsletter-form" onSubmit={subscribe}><input required type="email" aria-label={footer.newsletter?.placeholder || "Email address"} placeholder={footer.newsletter?.placeholder} /><button type="submit" aria-label="Subscribe"><ArrowRight size={14} /></button></form>}</div></div><div className="footer-bottom section-shell"><span>{footer.copyright}</span><span>{footer.legalText}</span></div></footer>;
+  return <footer><div className="section-shell footer-grid"><div className="footer-brand"><Logo light /><p>{footer.blurb}</p><div className="socials">{socials.map(([Icon, url, name]) => <a key={name} href={url || "#"} aria-label={`${businessName} on ${name}`}><Icon size={13} aria-hidden="true" /></a>)}</div></div>{(footer.columns || []).map(column => <div key={column.heading}><h2>{column.heading}</h2>{(column.links || []).map(item => <a key={item.label + item.href} href={item.href}>{item.label}</a>)}</div>)}<div><h2>{footer.contactHeading}</h2><a href={`tel:${settings.contact_phone}`}>☎ {settings.contact_phone || fallbackSettings.contact_phone}</a><a href={`mailto:${settings.contact_email}`}>✉ {settings.contact_email || fallbackSettings.contact_email}</a><a href="#contact">▣ {settings.address || fallbackSettings.address}</a></div><div className="footer-newsletter"><h2>{footer.newsletter?.heading}</h2><p>{footer.newsletter?.body}</p>{subscribed ? <span className="newsletter-thanks"><Check size={14} /> {footer.newsletter?.thanks}</span> : <form className="newsletter-form" onSubmit={subscribe}><input required type="email" aria-label={footer.newsletter?.placeholder || "Email address"} placeholder={footer.newsletter?.placeholder} /><button type="submit" aria-label="Subscribe"><ArrowRight size={14} /></button></form>}</div></div><div className="footer-bottom section-shell"><span>{footer.copyright}</span><span>{footer.legalText}</span></div></footer>;
 }
 
 export function ChatWidget({ code }) {
@@ -509,7 +524,8 @@ export default function Website() {
   const page = usePage("home");
   useEffect(() => { (async () => { const settingsData = await fetchSiteSettings(); if (settingsData) setSettings({ ...fallbackSettings, ...settingsData }); })(); }, []);
   useSeo({ title: settings.seo_title || fallbackSettings.seo_title, description: settings.seo_description }, settings);
+  if (import.meta.env.SSR) collectSsrJsonLd(organizationJsonLd(settings));
   useEffect(() => applyOrganizationJsonLd(settings), [settings]);
   const show = (key, Section, extra = {}) => page.visible(key) && <Section fields={page.section(key)} {...extra} />;
-  return <div className="travel-site" aria-busy={page.loading || undefined}><TopBars settings={settings} /><main id="main-content">{show("hero", Hero)}{show("accreditations", AccreditationBar)}{show("categories", ServiceCategories)}{show("immigration", ImmigrationServices)}{show("srrv", SRRVBanner)}{show("visa", InternationalVisaAssistance)}{show("travel", TravelTours)}{show("trustBar", TrustBar)}{show("assessment", FreeAssessment)}{show("testimonials", Testimonials)}{show("news", NewsEvents)}{show("contact", Contact, { settings })}</main><Footer settings={settings} /><ChatWidget code={settings.chat_widget_code} /></div>;
+  return <div className="travel-site" aria-busy={page.loading || undefined}><TopBars settings={settings} /><main id="main-content"><h1 className="sr-only">{`${settings.business_name || fallbackSettings.business_name}: visa, immigration and travel services`}</h1>{show("hero", Hero)}{show("accreditations", AccreditationBar)}{show("categories", ServiceCategories)}{show("immigration", ImmigrationServices)}{show("srrv", SRRVBanner)}{show("visa", InternationalVisaAssistance)}{show("travel", TravelTours)}{show("trustBar", TrustBar)}{show("assessment", FreeAssessment)}{show("testimonials", Testimonials)}{show("news", NewsEvents)}{show("contact", Contact, { settings })}</main><Footer settings={settings} /><ChatWidget code={settings.chat_widget_code} /></div>;
 }

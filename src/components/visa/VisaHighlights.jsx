@@ -16,7 +16,7 @@ export default function VisaHighlights({ items }) {
             <span className="vcp2-highlight-icon">
               <Icon size={20} strokeWidth={1.8} />
             </span>
-            <h4>{item.title}</h4>
+            <h3>{item.title}</h3>
             <p>{item.description}</p>
           </div>
         );

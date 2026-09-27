@@ -1,6 +1,6 @@
 import React, { Suspense, lazy } from 'react'
 import ReactDOM from 'react-dom/client'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, matchRoutes } from 'react-router-dom'
 import './index.css'
 // Page stylesheets stay global (same order as before code splitting): some
 // shared components, like the homepage news block, rely on their rules.
@@ -9,6 +9,7 @@ import './pages/NewsPage.css'
 import './pages/NewsArticlePage.css'
 import Website, { PackageDetailPage } from './pages/Website.jsx'
 import PreviewBanner from './components/PreviewBanner.jsx'
+import { whenContentReady } from './lib/cms.js'
 
 // Every route except the homepage is its own chunk, so visitors only download
 // the page they open (the dashboard alone is most of the old single bundle).
@@ -17,7 +18,7 @@ const reloadFlag = {
   get: () => { try { return sessionStorage.getItem('af-chunk-reload') } catch { return '1' } },
   set: value => { try { value ? sessionStorage.setItem('af-chunk-reload', value) : sessionStorage.removeItem('af-chunk-reload') } catch { /* storage blocked */ } },
 }
-const page = load => lazy(() => load().then(
+const loadChunk = load => () => load().then(
   module => { reloadFlag.set(null); return module },
   error => {
     if (!reloadFlag.get()) {
@@ -27,38 +28,50 @@ const page = load => lazy(() => load().then(
     }
     throw error
   },
-))
-
-const PhilippineImmigrationServices = page(() => import('./pages/PhilippineImmigrationServices.jsx'))
-const ImmigrationServicePage = page(() => import('./pages/ImmigrationServicePage.jsx'))
-const InternationalVisaAssistancePage = page(() => import('./pages/InternationalVisaAssistancePage.jsx'))
-const VisaCountryPage = page(() => import('./pages/VisaCountryPage.jsx'))
-const TravelToursPage = page(() => import('./pages/TravelToursPage.jsx'))
-const TravelPackageDetailPage = page(() => import('./pages/TravelPackageDetailPage.jsx'))
-const NewsArticlePage = page(() => import('./pages/NewsArticlePage.jsx'))
-const NewsPage = page(() => import('./pages/NewsPage.jsx'))
-const Dashboard = page(() => import('./pages/Dashboard.jsx'))
-
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <BrowserRouter>
-      <Suspense fallback={null}>
-        <Routes>
-          <Route path="/" element={<Website />} />
-          <Route path="/news" element={<NewsPage />} />
-          <Route path="/news/:slug" element={<NewsArticlePage />} />
-          <Route path="/package/:slug" element={<PackageDetailPage />} />
-          <Route path="/philippine-immigration-services" element={<PhilippineImmigrationServices />} />
-          <Route path="/philippine-immigration-services/:serviceSlug" element={<ImmigrationServicePage />} />
-          <Route path="/visa-assistance/international-tourist-visa" element={<InternationalVisaAssistancePage />} />
-          <Route path="/visa-assistance/:countrySlug" element={<VisaCountryPage />} />
-          <Route path="/travel-tours" element={<TravelToursPage />} />
-          <Route path="/travel-tours/:packageSlug" element={<TravelPackageDetailPage />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Suspense>
-      <PreviewBanner />
-    </BrowserRouter>
-  </React.StrictMode>,
 )
+
+const routes = [
+  { path: '/', Component: Website },
+  { path: '/news', load: () => import('./pages/NewsPage.jsx') },
+  { path: '/news/:slug', load: () => import('./pages/NewsArticlePage.jsx') },
+  { path: '/package/:slug', Component: PackageDetailPage },
+  { path: '/philippine-immigration-services', load: () => import('./pages/PhilippineImmigrationServices.jsx') },
+  { path: '/philippine-immigration-services/:serviceSlug', load: () => import('./pages/ImmigrationServicePage.jsx') },
+  { path: '/visa-assistance/international-tourist-visa', load: () => import('./pages/InternationalVisaAssistancePage.jsx') },
+  { path: '/visa-assistance/:countrySlug', load: () => import('./pages/VisaCountryPage.jsx') },
+  { path: '/travel-tours', load: () => import('./pages/TravelToursPage.jsx') },
+  { path: '/travel-tours/:packageSlug', load: () => import('./pages/TravelPackageDetailPage.jsx') },
+  { path: '/dashboard', load: () => import('./pages/Dashboard.jsx') },
+].map(route => (route.load ? { ...route, load: loadChunk(route.load), Component: lazy(loadChunk(route.load)) } : route))
+
+const container = document.getElementById('root')
+
+function render() {
+  ReactDOM.createRoot(container).render(
+    <React.StrictMode>
+      <BrowserRouter>
+        <Suspense fallback={null}>
+          <Routes>
+            {routes.map(({ path, Component }) => <Route key={path} path={path} element={<Component />} />)}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
+        <PreviewBanner />
+      </BrowserRouter>
+    </React.StrictMode>,
+  )
+}
+
+// Prerendered pages (see scripts/prerender.mjs) already show their content.
+// Keep that HTML on screen until this page's code and the live content are
+// ready, then let the app take over in one step, without a blank or
+// default-content flash in between.
+if (container.hasChildNodes()) {
+  const match = matchRoutes(routes, window.location)?.[0]?.route
+  const current = match?.load
+    ? match.load().then(module => { match.Component = module.default })
+    : Promise.resolve()
+  Promise.all([current, whenContentReady(2500)]).then(render, render)
+} else {
+  render()
+}
