@@ -27,6 +27,7 @@ function createFake() {
       email_outbox: [],
       newsletter_subscribers: [],
       rate_limit_events: [],
+      email_templates: [],   // seeded by run.cjs from DEFAULT_AUTO_REPLIES (same as the migration)
     },
   };
   const uniqueKeys = { form_submissions: "id", email_outbox: "dedupe_key", newsletter_subscribers: "email" };

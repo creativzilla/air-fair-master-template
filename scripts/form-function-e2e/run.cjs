@@ -4,6 +4,7 @@
 // the dashboard and pg_cron would. Nothing leaves this machine.
 const { spawn } = require("child_process");
 const path = require("path");
+const { pathToFileURL } = require("url");
 const assert = require("assert/strict");
 const { createFake } = require("./fake-supabase.cjs");
 
@@ -38,6 +39,9 @@ const sub = (kind, over = {}) => ({
   const { server, state } = createFake();
   await new Promise(r => server.listen(FAKE_PORT, "127.0.0.1", r));
   const T = state.tables;
+  // Same four category defaults the migration seeds.
+  const { DEFAULT_AUTO_REPLIES } = await import(pathToFileURL(path.join(ROOT, "supabase/functions/_shared/forms/templates.ts")).href);
+  T.email_templates = Object.entries(DEFAULT_AUTO_REPLIES).map(([service_type, t]) => ({ id: uuid(), service_type, form_id: null, enabled: true, ...t }));
 
   const deno = spawn(DENO, [
     "run", "--node-modules-dir=none", `--allow-net=127.0.0.1,localhost,0.0.0.0:${FN_PORT}`, "--allow-env", "--allow-read",
@@ -205,6 +209,60 @@ const sub = (kind, over = {}) => ({
     assert.equal((await post({ action: "newsletter_confirm", token }, ip())).status, 200);
     assert.ok(subRow.confirmed_at);
     assert.ok(!subRow.confirm_token_hash.includes(token), "only a hash is stored");
+  });
+
+  // ---------------------------------------------------------------- dashboard auto-replies (email_templates)
+  const clientCall = calls => calls.find(c => c.body.tags.some(t => t.value === "client_confirmation"))?.body;
+  await check("new package with no override uses the edited category default", async () => {
+    const travel = T.email_templates.find(t => t.service_type === "travel" && !t.form_id);
+    const saved = { ...travel };
+    travel.subject = "Your {{item_name}} trip request ({{reference}})";
+    T.cms_published.push({ kind: "travel_package", slug: "tokyo-japan", title: "Tokyo, Japan", content: { title: "Tokyo, Japan" } });
+    const before = state.resendCalls.length;
+    const s = sub("travel", { email: "tokyo@example.com", form_type: "travel_package_tokyo-japan", source_page: "/travel-tours/tokyo-japan" });
+    assert.equal((await post({ action: "submit_form", submission: s, guard: human }, ip())).status, 200);
+    Object.assign(travel, saved);
+    const client = clientCall(state.resendCalls.slice(before));
+    assert.match(client.subject, /^Your Tokyo, Japan trip request \(AF-/);
+    assert.equal(T.email_outbox.find(o => o.submission_id === s.id && o.kind === "client_confirmation").template_ref, "default:travel");
+  });
+  await check("form override wins over the category default", async () => {
+    T.email_templates.push({ id: uuid(), service_type: "travel", form_id: "travel-inquiry-bali-indonesia", enabled: true, subject: "Bali special for {{client_first_name}}", body: "Selamat datang, {{client_first_name}}! <b>not bold</b>" });
+    const before = state.resendCalls.length;
+    const s = sub("travel", { email: "bali@example.com" });
+    await post({ action: "submit_form", submission: s, guard: human }, ip());
+    T.email_templates.pop();
+    const client = clientCall(state.resendCalls.slice(before));
+    assert.equal(client.subject, "Bali special for Ana");
+    assert.ok(client.html.includes("&lt;b&gt;not bold&lt;/b&gt;"), "template text escaped");
+  });
+  await check("category auto-reply off: client not emailed, staff notified, inquiry saved", async () => {
+    const visa = T.email_templates.find(t => t.service_type === "visa" && !t.form_id);
+    visa.enabled = false;
+    const before = state.resendCalls.length;
+    const s = sub("visa", { email: "quiet@example.com" });
+    const r = await post({ action: "submit_form", submission: s, guard: human }, ip());
+    visa.enabled = true;
+    assert.equal(r.status, 200);
+    assert.ok(T.form_submissions.find(x => x.id === s.id));
+    const calls = state.resendCalls.slice(before);
+    assert.equal(calls.length, 1);
+    assert.ok(calls[0].body.tags.some(t => t.value === "staff_notification"));
+  });
+  await check("send_template_test: admin only, configured inboxes only, [TEST] subject, no lead created", async () => {
+    const tpl = { action: "send_template_test", service_type: "travel", form_id: "travel-inquiry-bali-indonesia", subject: "Trip {{item_name}}", body: "Hi {{client_first_name}}" };
+    assert.equal((await post({ ...tpl, to: "staff-inbox@example.test" }, ip())).status, 403);
+    assert.equal((await post({ ...tpl, to: "staff-inbox@example.test" }, { ...ip(), Authorization: "Bearer staff-token" })).status, 403);
+    assert.equal((await post({ ...tpl, to: "client@example.com" }, { ...ip(), Authorization: "Bearer admin-token" })).status, 400);
+    const before = [state.resendCalls.length, T.form_submissions.length];
+    const r = await post({ ...tpl, to: "Travel-Desk@example.test" }, { ...ip(), Authorization: "Bearer admin-token" });
+    assert.equal(r.status, 200, await r.clone().text());
+    assert.equal((await r.json()).status, "sent");
+    const calls = state.resendCalls.slice(before[0]);
+    assert.equal(calls.length, 1);
+    assert.deepEqual(calls[0].body.to, ["travel-desk@example.test"]);
+    assert.equal(calls[0].body.subject, "[TEST] Trip Bali, Indonesia");
+    assert.equal(T.form_submissions.length, before[1]);
   });
 
   // ---------------------------------------------------------------- safety net

@@ -8,6 +8,9 @@
 //   newsletter_unsubscribe public   { token }
 //   process_due            public (5-min schedule)  send queued emails that are due; nothing else
 //   process_outbox         admin / editor JWT   { retry_failed? }   send due retries now
+//   send_template_test     admin JWT   { service_type, form_id?, subject, body, to }
+//                          test an auto-reply; "to" must be an inbox already
+//                          configured in email_settings
 //
 // Recipients come only from public.email_settings (edited by admins in the
 // dashboard) and the submitter's own address; the sender is fixed. Secrets
@@ -17,8 +20,8 @@ import { DEFAULT_SETTINGS, type EmailSettings } from "../_shared/forms/routing.t
 import { createResendMailer } from "../_shared/forms/resend.ts";
 import { randomToken, sha256Hex } from "../_shared/forms/tokens.ts";
 import {
-  handleNewsletterConfirm, handleNewsletterSubscribe, handleNewsletterUnsubscribe, handleProcessDue, handleProcessOutbox, handleSubmitForm,
-  type Deps, type OutboxDraft, type OutboxRow, type Store, type Subscriber,
+  handleNewsletterConfirm, handleNewsletterSubscribe, handleNewsletterUnsubscribe, handleProcessDue, handleProcessOutbox, handleSendTemplateTest,
+  handleSubmitForm, type Deps, type OutboxDraft, type OutboxRow, type Store, type Subscriber, type TemplateRow,
 } from "../_shared/forms/handlers.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -43,6 +46,16 @@ const store: Store = {
   async getEmailSettings() {
     const { data } = await db.from("email_settings").select("*").eq("id", 1).maybeSingle();
     return { ...DEFAULT_SETTINGS, ...(data ?? {}) } as EmailSettings;
+  },
+  async getAutoReplyTemplates(serviceType, formId) {
+    const cols = "service_type, form_id, enabled, subject, body";
+    const [defaults, overrides] = await Promise.all([
+      db.from("email_templates").select(cols).eq("service_type", serviceType).is("form_id", null).limit(1),
+      db.from("email_templates").select(cols).eq("form_id", formId).limit(1),
+    ]);
+    if (defaults.error) throw new Error(defaults.error.message);
+    if (overrides.error) throw new Error(overrides.error.message);
+    return { serviceDefault: (defaults.data?.[0] as TemplateRow) ?? null, formOverride: (overrides.data?.[0] as TemplateRow) ?? null };
   },
   async getBusinessName() {
     const { data } = await db.from("site_settings").select("business_name").order("updated_at", { ascending: false }).limit(1).maybeSingle();
@@ -124,13 +137,14 @@ const deps: Deps = {
   },
 };
 
-async function callerRole(authHeader: string): Promise<string | null> {
+// The signed-in dashboard user making the request (null for the public site).
+async function caller(authHeader: string): Promise<{ id: string; role: string } | null> {
   if (!authHeader) return null;
   const asCaller = createClient(SUPABASE_URL, ANON_KEY, { global: { headers: { Authorization: authHeader } }, auth: { persistSession: false } });
   const { data: { user } } = await asCaller.auth.getUser();
   if (!user) return null;
   const { data } = await db.from("profiles").select("role,is_active").eq("id", user.id).maybeSingle();
-  return data?.is_active ? (data.role as string) : null;
+  return data?.is_active ? { id: user.id, role: data.role as string } : null;
 }
 
 Deno.serve(async req => {
@@ -158,7 +172,8 @@ Deno.serve(async req => {
       case "newsletter_confirm": reply = await handleNewsletterConfirm(deps, body); break;
       case "newsletter_unsubscribe": reply = await handleNewsletterUnsubscribe(deps, body); break;
       case "process_due": reply = await handleProcessDue(deps, { ip }); break;
-      case "process_outbox": reply = await handleProcessOutbox(deps, body, await callerRole(req.headers.get("Authorization") ?? "")); break;
+      case "process_outbox": reply = await handleProcessOutbox(deps, body, (await caller(req.headers.get("Authorization") ?? ""))?.role ?? null); break;
+      case "send_template_test": reply = await handleSendTemplateTest(deps, body, await caller(req.headers.get("Authorization") ?? "")); break;
       default: reply = { status: 400, body: { ok: false, error: "Unknown action." } };
     }
     return json(reply.body, reply.status);

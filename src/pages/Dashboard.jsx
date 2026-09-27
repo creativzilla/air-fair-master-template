@@ -13,7 +13,7 @@ import UsersAdmin from "../dashboard/UsersAdmin.jsx";
 import ClientDocuments from "../dashboard/ClientDocuments.jsx";
 import LeadDrawer, { mapContactRow } from "../dashboard/LeadEditor.jsx";
 import { applySeo } from "../lib/seo.js";
-import EmailSettings from "../dashboard/EmailSettings.jsx";
+import FormEmails from "../dashboard/FormEmails.jsx";
 
 // Sidebar. `roles` = who may open it; `moduleKey` = can be switched off in
 // Settings → Modules; `staffKey` = staff access follows the employee's
@@ -38,6 +38,7 @@ const NAV = [
   { id: "services", label: "Catalog", icon: Briefcase, moduleKey: "services", roles: CONTENT_ROLES, staffKey: "services" },
   { id: "employees", label: "Employees", icon: UserCog, moduleKey: "employees", roles: ["admin"] },
   { id: "users", label: "Users", icon: ShieldCheck, roles: ["admin"] },
+  { id: "form-emails", label: "Form Emails", icon: Mail, roles: ["admin"] },
   { id: "settings", label: "Settings", icon: SettingsIcon, roles: ["admin"] },
 ];
 
@@ -589,7 +590,7 @@ function Media({ role }) {
 
 function Settings({ pipelineStages, setPipelineStages, pipelineStageRows, setPipelineStageRows, currency, setCurrency, modules, setModules, chatWidgetCode, setChatWidgetCode, settings, onSaveSettings, goTo }) {
   const [tab, setTab] = useState("Business");
-  const tabs = ["Business", "Branding", "Social", "SEO", "Pipeline", "Modules", "Integrations", "Email"];
+  const tabs = ["Business", "Branding", "Social", "SEO", "Pipeline", "Modules", "Integrations"];
   const [newStageName, setNewStageName] = useState("");
   const [form, setForm] = useState(null);
   const [savedFlash, setSavedFlash] = useState(false);
@@ -680,7 +681,7 @@ function Settings({ pipelineStages, setPipelineStages, pipelineStageRows, setPip
     <div className="flex flex-col gap-6">
       <div><h1 className="text-2xl mb-1" style={{ ...fontDisplay, color: T.ink }}>Settings</h1><p className="text-sm" style={{ color: T.muted, ...fontBody }}>Business info, branding, and site-wide details.</p></div>
       <div className="flex gap-1 border-b flex-wrap" style={{ borderColor: T.border }}>{tabs.map(t => <button key={t} onClick={() => setTab(t)} className="px-4 py-2 text-sm -mb-px" style={{ ...fontBody, color: tab === t ? T.ink : T.muted, borderBottom: tab === t ? `2px solid ${T.accent}` : "2px solid transparent", fontWeight: tab === t ? 500 : 400 }}>{t}</button>)}</div>
-      {tab === "Email" ? <EmailSettings /> : <div className="rounded-xl p-6 max-w-xl" style={{ backgroundColor: T.surface, border: `1px solid ${T.border}` }}>
+      <div className="rounded-xl p-6 max-w-xl" style={{ backgroundColor: T.surface, border: `1px solid ${T.border}` }}>
         {!form ? <div className="text-sm" style={{ color: T.muted, ...fontBody }}>Loading settings...</div> : (<>
         {tab === "Business" && (<div className="flex flex-col gap-4"><Field label="Business Name" fieldKey="business_name" /><Field label="Email" fieldKey="contact_email" /><Field label="Phone" fieldKey="contact_phone" /><Field label="Address" fieldKey="address" /><div><label className="text-xs block mb-1.5" style={{ color: T.muted, ...fontBody }}>Currency Symbol</label><input value={form.currency_symbol || ""} onChange={e => update("currency_symbol", e.target.value)} className="w-20 rounded-lg px-3 py-2 text-sm outline-none text-center" style={{ border: `1px solid ${T.border}`, color: T.ink, ...fontBody, backgroundColor: T.bg }} /><p className="text-xs mt-1.5" style={{ color: T.muted, ...fontBody }}>Used across Pipeline, Clients, and form Monetary fields.</p></div></div>)}
         {tab === "Branding" && (<div className="flex flex-col gap-4"><div className="flex gap-4"><div className="flex-1"><label className="text-xs block mb-1.5" style={{ color: T.muted, ...fontBody }}>Primary Color</label><div className="flex items-center gap-2"><div className="w-9 h-9 rounded-lg" style={{ backgroundColor: T.accent, border: `1px solid ${T.border}` }} /><span className="text-sm" style={{ ...fontMono, color: T.ink }}>#6EBE3D</span></div></div><div className="flex-1"><label className="text-xs block mb-1.5" style={{ color: T.muted, ...fontBody }}>Accent Color</label><div className="flex items-center gap-2"><div className="w-9 h-9 rounded-lg" style={{ backgroundColor: T.warn, border: `1px solid ${T.border}` }} /><span className="text-sm" style={{ ...fontMono, color: T.ink }}>#E08A2C</span></div></div></div><div><label className="text-xs block mb-1.5" style={{ color: T.muted, ...fontBody }}>Logo</label><p className="text-xs mb-2" style={{ color: T.muted, ...fontBody }}>The website logo is edited with the header and footer, so it goes through draft and publish like other content.</p><button type="button" onClick={() => goTo("edit-website")} className="text-xs px-3 py-2 rounded-lg" style={{ backgroundColor: T.accentSoft, color: T.accent, ...fontBody }}>Open Pages → Site-wide (header & footer)</button></div></div>)}
@@ -691,7 +692,7 @@ function Settings({ pipelineStages, setPipelineStages, pipelineStageRows, setPip
         {tab === "Integrations" && (<div className="flex flex-col gap-4"><div><h3 className="text-sm font-medium mb-1" style={{ color: T.ink, ...fontBody }}>Chat Widget</h3><p className="text-xs" style={{ color: T.muted, ...fontBody }}>Paste the embed code from any chat provider — Facebook Messenger Chat Plugin, Tawk.to, Crisp, Tidio, or a WhatsApp click-to-chat link. It shows up on your live website automatically, no developer needed.</p></div><textarea rows={6} value={form.chat_widget_code || ""} onChange={e => update("chat_widget_code", e.target.value)} placeholder={'<!-- Paste your widget script here, e.g. Facebook Messenger Chat Plugin or Tawk.to code -->'} className="w-full rounded-lg px-3 py-2 text-xs font-mono outline-none" style={{ border: `1px solid ${T.border}`, color: T.ink, backgroundColor: T.bg }} /><div className="rounded-lg p-3 text-xs" style={{ backgroundColor: T.infoSoft, color: T.info, ...fontBody }}>Recommended for this business: Facebook Messenger Chat Plugin (ties into the Facebook page you already use) or Tawk.to (free, no Facebook page needed).</div></div>)}
         <button onClick={handleSave} disabled={saving} className="mt-6 px-4 py-2 rounded-lg text-sm flex items-center gap-1.5" style={{ backgroundColor: T.accent, color: "#fff", ...fontBody, opacity: saving ? 0.7 : 1 }}>{savedFlash ? <><Check size={14} /> Saved</> : saving ? "Saving..." : "Save Changes"}</button>
         </>)}
-      </div>}
+      </div>
     </div>
   );
 }
@@ -1067,6 +1068,7 @@ export default function Dashboard() {
     bookings: <Bookings bookings={bookings} contacts={contacts} role={role} onSaveBooking={handleSaveBooking} onDeleteBooking={handleDeleteBooking} />,
     media: <Media role={role} />,
     users: profile ? <UsersAdmin me={profile} /> : null,
+    "form-emails": <FormEmails />,
     settings: <Settings pipelineStages={pipelineStages} setPipelineStages={setPipelineStages} pipelineStageRows={pipelineStageRows} setPipelineStageRows={setPipelineStageRows} currency={currency} setCurrency={setCurrency} modules={modules} setModules={setModules} chatWidgetCode={chatWidgetCode} setChatWidgetCode={setChatWidgetCode} settings={siteSettings} onSaveSettings={handleSaveSettings} goTo={setPage} />,
   };
 

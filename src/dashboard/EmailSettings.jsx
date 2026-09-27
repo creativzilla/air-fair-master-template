@@ -1,4 +1,4 @@
-// Settings > Email: where website form notifications go, test mode, the on/off
+// Form Emails > Inboxes & sending: where website form notifications go, test mode, the on/off
 // switch, and a log of recent emails with retry. Admin only (RLS enforces it).
 import React, { useEffect, useState } from "react";
 import { RefreshCw, Save } from "lucide-react";
@@ -15,7 +15,7 @@ const SERVICE_INBOXES = [
 ];
 const STATUS_LABEL = { pending: "Queued", sending: "Sending", retry: "Will retry", sent: "Sent", failed: "Failed", skipped: "Not sent" };
 const STATUS_BADGE = { pending: "Pending", sending: "Pending", retry: "Pending", sent: "Confirmed", failed: "Cancelled", skipped: "Cancelled" };
-const KIND_LABEL = { staff_notification: "Staff", client_confirmation: "Client", newsletter_confirmation: "Newsletter" };
+const KIND_LABEL = { staff_notification: "Staff", client_confirmation: "Client", newsletter_confirmation: "Newsletter", test_email: "Test" };
 
 const clean = value => (value || "").trim().toLowerCase() || null;
 
@@ -92,7 +92,7 @@ export default function EmailSettings() {
           <div>
             <h3 className="text-sm font-semibold mb-1" style={{ color: T.ink, ...fontBody }}>Website form emails</h3>
             <p className="text-xs" style={{ color: T.muted, ...fontBody }}>
-              Each contact, immigration, visa and travel inquiry sends a notification to your team and a confirmation to the client.
+              Each contact, immigration, visa and travel inquiry sends a notification to your team and an auto-reply to the client (edit it under "Client auto-replies").
               Newsletter signups get a separate confirm-your-subscription email. Sender: {SENDER}.
             </p>
           </div>

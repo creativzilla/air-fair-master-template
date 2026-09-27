@@ -1,7 +1,13 @@
-// Email templates: one per service_type (general, immigration, visa, travel),
-// each with a staff and a client version, plus the newsletter confirmation.
+// Email templates.
+// - Staff notification: built in, one layout for every form.
+// - Client auto-reply: edited by admins in Dashboard > Form Emails (table
+//   email_templates): one default per service_type, optional override per
+//   form_id. DEFAULT_AUTO_REPLIES below is the built-in copy (also the seed).
+//   Templates are plain text with {{variables}}; the result is escaped as a
+//   whole, so neither admins nor visitors can inject HTML.
+// - Newsletter confirmation: built in, separate from inquiries.
 // The specific service / country / package comes from `itemName` (looked up
-// from form_id), so every package shares the same template.
+// from form_id), so every package shares its category's template.
 import type { ServiceType } from "./identifiers.ts";
 
 export interface Rendered {
@@ -31,14 +37,12 @@ export interface FormEmailContext {
   businessName: string;
   possibleDuplicate: boolean;
   redirectedFrom: string | null; // set in test mode
+  replyEmail?: string | null;    // monitored inbox clients reply to
 }
 
 interface ServiceCopy {
   label: string;
   staffSubject: (c: FormEmailContext) => string;
-  clientSubject: (c: FormEmailContext) => string;
-  clientIntro: (c: FormEmailContext) => string;
-  nextSteps: string[];
 }
 
 const item = (c: FormEmailContext, fallback: string) => c.itemName || fallback;
@@ -47,39 +51,18 @@ export const SERVICE_COPY: Record<ServiceType, ServiceCopy> = {
   general: {
     label: "Website contact",
     staffSubject: c => `New website inquiry from ${c.customerName || c.customerEmail}`,
-    clientSubject: () => "We received your message",
-    clientIntro: () => "Thank you for contacting us. We have received your message.",
-    nextSteps: ["A member of our team will read your message and reply by email, usually within one business day."],
   },
   immigration: {
     label: "Immigration assessment",
     staffSubject: c => `New immigration assessment: ${item(c, "Immigration service")} (${c.customerName || c.customerEmail})`,
-    clientSubject: c => `We received your ${item(c, "immigration")} assessment request`,
-    clientIntro: c => `Thank you for requesting an assessment for ${item(c, "our immigration services")}. We have received your details.`,
-    nextSteps: [
-      "Our immigration team will review your answers.",
-      "We will contact you to confirm the requirements and next steps for your case.",
-    ],
   },
   visa: {
     label: "Visa inquiry",
     staffSubject: c => `New visa inquiry: ${item(c, "Visa assistance")} (${c.customerName || c.customerEmail})`,
-    clientSubject: c => `We received your ${item(c, "visa")} inquiry`,
-    clientIntro: c => `Thank you for your inquiry about ${item(c, "visa assistance")}. We have received your details.`,
-    nextSteps: [
-      "Our visa team will review your travel dates and details.",
-      "We will contact you with the requirements checklist and the next steps.",
-    ],
   },
   travel: {
     label: "Travel package inquiry",
     staffSubject: c => `New travel inquiry: ${item(c, "Travel package")} (${c.customerName || c.customerEmail})`,
-    clientSubject: c => `We received your inquiry for ${item(c, "your trip")}`,
-    clientIntro: c => `Thank you for your interest in ${item(c, "our travel packages")}. We have received your inquiry.`,
-    nextSteps: [
-      "Our travel team will check availability for your preferred dates.",
-      "We will contact you with the package details and pricing.",
-    ],
   },
 };
 
@@ -147,31 +130,113 @@ export function renderStaffEmail(c: FormEmailContext): Rendered {
   return { subject, html: layout(`${c.businessName}: ${copy.label}`, body, `Sent by the ${escapeHtml(c.businessName)} website.`), text };
 }
 
-export function renderClientEmail(c: FormEmailContext): Rendered {
-  const copy = SERVICE_COPY[c.serviceType];
-  const firstName = oneLine(c.customerName.split(/\s+/)[0] || "", 40);
-  const greeting = firstName ? `Hi ${firstName},` : "Hello,";
-  const subject = oneLine(`${copy.clientSubject(c)} (${c.reference})`);
-  // The client email never repeats free text the visitor typed (other than
-  // their first name), so the form can't be used to send messages to others.
-  const body = [
-    c.redirectedFrom ? `<p style="background:#fff4d6;padding:10px 12px;border-radius:8px;font-size:13px">TEST MODE: this email would have gone to ${escapeHtml(c.redirectedFrom)}.</p>` : "",
-    `<p>${escapeHtml(greeting)}</p>`,
-    `<p>${escapeHtml(copy.clientIntro(c))}</p>`,
-    `<p style="font-size:14px;color:#6b7a8c">Reference: <strong style="color:#1f2d3d">${escapeHtml(c.reference)}</strong><br>Received: ${escapeHtml(manila(c.submittedAt))}</p>`,
-    `<h3 style="font-size:15px;margin:18px 0 6px">What happens next</h3>`,
-    `<ul style="padding-left:20px;margin:0">${copy.nextSteps.map(step => `<li style="margin-bottom:6px">${escapeHtml(step)}</li>`).join("")}</ul>`,
-    `<p style="margin-top:18px">If you need to add anything, just reply to this email.</p>`,
-    `<p>Thank you,<br>${escapeHtml(c.businessName)}</p>`,
-  ].join("");
-  const text = [
-    c.redirectedFrom ? `TEST MODE: would have gone to ${c.redirectedFrom}\n` : "",
-    greeting, "", copy.clientIntro(c), "", `Reference: ${c.reference}`, `Received: ${manila(c.submittedAt)}`, "",
-    "What happens next:", ...copy.nextSteps.map(step => `- ${step}`), "",
-    "If you need to add anything, just reply to this email.", "", "Thank you,", c.businessName,
-  ].join("\n");
+// ---------------------------------------------------------------------------
+// Client auto-replies
+// ---------------------------------------------------------------------------
+export interface AutoReplyTemplate {
+  subject: string;
+  body: string;
+}
+
+// The only placeholders a template can use. Anything else renders as nothing.
+export const TEMPLATE_VARIABLES = [
+  { name: "client_first_name", description: 'Client\'s first name (letters only; "there" if missing)' },
+  { name: "item_name", description: "Service, visa or travel package name" },
+  { name: "service_label", description: 'Category, e.g. "Travel package inquiry"' },
+  { name: "reference", description: "Reference number, e.g. AF-3F2A9C" },
+  { name: "submitted_date", description: "Date and time received (Manila time)" },
+  { name: "business_name", description: "Business name from Settings" },
+  { name: "reply_email", description: "Your monitored inbox (replies go there)" },
+] as const;
+const KNOWN = new Set<string>(TEMPLATE_VARIABLES.map(v => v.name));
+const VARIABLE = /\{\{\s*([A-Za-z_]+)\s*\}\}/g;
+
+export const TEMPLATE_LIMITS = { subject: 200, body: 5000 };
+
+export const DEFAULT_AUTO_REPLIES: Record<ServiceType, AutoReplyTemplate> = {
+  general: {
+    subject: "We received your message ({{reference}})",
+    body: "Hi {{client_first_name}},\n\nThank you for contacting {{business_name}}. We have received your message.\n\nReference: {{reference}}\nReceived: {{submitted_date}}\n\nA member of our team will read your message and reply by email, usually within one business day.\n\nIf you need to add anything, just reply to this email.\n\nThank you,\n{{business_name}}",
+  },
+  immigration: {
+    subject: "We received your {{item_name}} assessment request ({{reference}})",
+    body: "Hi {{client_first_name}},\n\nThank you for requesting an assessment for {{item_name}}. We have received your details.\n\nReference: {{reference}}\nReceived: {{submitted_date}}\n\nWhat happens next:\n- Our immigration team will review your answers.\n- We will contact you to confirm the requirements and next steps for your case.\n\nIf you need to add anything, just reply to this email.\n\nThank you,\n{{business_name}}",
+  },
+  visa: {
+    subject: "We received your {{item_name}} inquiry ({{reference}})",
+    body: "Hi {{client_first_name}},\n\nThank you for your inquiry about {{item_name}}. We have received your details.\n\nReference: {{reference}}\nReceived: {{submitted_date}}\n\nWhat happens next:\n- Our visa team will review your travel dates and details.\n- We will contact you with the requirements checklist and the next steps.\n\nIf you need to add anything, just reply to this email.\n\nThank you,\n{{business_name}}",
+  },
+  travel: {
+    subject: "We received your inquiry for {{item_name}} ({{reference}})",
+    body: "Hi {{client_first_name}},\n\nThank you for your interest in {{item_name}}. We have received your inquiry.\n\nReference: {{reference}}\nReceived: {{submitted_date}}\n\nWhat happens next:\n- Our travel team will check availability for your preferred dates.\n- We will contact you with the package details and pricing.\n\nIf you need to add anything, just reply to this email.\n\nThank you,\n{{business_name}}",
+  },
+};
+
+const ITEM_FALLBACK: Record<ServiceType, string> = {
+  general: "your inquiry", immigration: "our immigration services", visa: "visa assistance", travel: "our travel packages",
+};
+
+// Variables used in a template that aren't supported (for validation / UI).
+export function unknownVariables(text: string): string[] {
+  return [...new Set([...String(text ?? "").matchAll(VARIABLE)].map(m => m[1]).filter(name => !KNOWN.has(name)))];
+}
+
+// Letters only (any alphabet), plus apostrophes, hyphens and dots; so the
+// name field can't be used to put links or other text into an email.
+export function safeFirstName(name: string): string {
+  const first = String(name ?? "").trim().split(/\s+/)[0] || "";
+  return /^[\p{L}][\p{L}'.-]{0,29}$/u.test(first) ? first : "";
+}
+
+export function fillTemplate(text: string, values: Record<string, string>): string {
+  return String(text ?? "").replace(VARIABLE, (_, name: string) => (KNOWN.has(name) ? values[name] ?? "" : ""));
+}
+
+export interface AutoReplyContext {
+  serviceType: ServiceType;
+  itemName: string | null;
+  reference: string;
+  customerName: string;
+  submittedAt: Date;
+  businessName: string;
+  replyEmail: string | null;
+  redirectedFrom: string | null;
+}
+
+export function autoReplyValues(c: AutoReplyContext): Record<string, string> {
+  return {
+    client_first_name: safeFirstName(c.customerName) || "there",
+    item_name: c.itemName || ITEM_FALLBACK[c.serviceType],
+    service_label: SERVICE_COPY[c.serviceType].label,
+    reference: c.reference,
+    submitted_date: manila(c.submittedAt),
+    business_name: c.businessName,
+    reply_email: c.replyEmail || "",
+  };
+}
+
+// Plain-text template -> email. The filled-in text is escaped as a whole, then
+// blank lines become paragraphs and single line breaks become <br>.
+export function renderAutoReply(template: AutoReplyTemplate, c: AutoReplyContext): Rendered {
+  const values = autoReplyValues(c);
+  const fallback = DEFAULT_AUTO_REPLIES[c.serviceType];
+  const subject = oneLine(fillTemplate(template.subject || fallback.subject, values)) || oneLine(fillTemplate(fallback.subject, values));
+  const bodyText = fillTemplate((template.body || fallback.body).slice(0, TEMPLATE_LIMITS.body), values).replace(/\r\n?/g, "\n").trim();
+  const paragraphs = bodyText.split(/\n{2,}/).map(p => `<p style="margin:0 0 14px">${escapeHtml(p).replace(/\n/g, "<br>")}</p>`).join("");
+  const banner = c.redirectedFrom
+    ? `<p style="background:#fff4d6;padding:10px 12px;border-radius:8px;font-size:13px">TEST MODE: this email would have gone to ${escapeHtml(c.redirectedFrom)}.</p>`
+    : "";
   const footer = `You are receiving this because this email address was entered in a form on the ${escapeHtml(c.businessName)} website. If this wasn't you, you can ignore this email.`;
-  return { subject, html: layout(c.businessName, body, footer), text };
+  const text = [c.redirectedFrom ? `TEST MODE: would have gone to ${c.redirectedFrom}\n` : "", bodyText].join("");
+  return { subject, html: layout(c.businessName, banner + paragraphs, footer), text };
+}
+
+// Built-in auto-reply for a form email context (no dashboard template).
+export function renderClientEmail(c: FormEmailContext): Rendered {
+  return renderAutoReply(DEFAULT_AUTO_REPLIES[c.serviceType], {
+    serviceType: c.serviceType, itemName: c.itemName, reference: c.reference, customerName: c.customerName,
+    submittedAt: c.submittedAt, businessName: c.businessName, replyEmail: c.replyEmail ?? null, redirectedFrom: c.redirectedFrom,
+  });
 }
 
 export interface NewsletterContext {

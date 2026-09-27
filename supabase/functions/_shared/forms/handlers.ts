@@ -4,11 +4,14 @@
 import { deriveIdentifiers, humanizeSlug, itemRefFromFormId, type ServiceType } from "./identifiers.ts";
 import { isBot, isValidEmail, normalizeEmail, validateSubmission, type Guard } from "./validate.ts";
 import { envelope, SENDER, staffInboxFor, type EmailSettings } from "./routing.ts";
-import { renderClientEmail, renderNewsletterConfirmation, renderStaffEmail, type Answer } from "./templates.ts";
+import {
+  DEFAULT_AUTO_REPLIES, renderAutoReply, renderNewsletterConfirmation, renderStaffEmail, TEMPLATE_LIMITS, unknownVariables,
+  type Answer, type AutoReplyTemplate,
+} from "./templates.ts";
 import { isToken } from "./tokens.ts";
 import type { Mailer } from "./resend.ts";
 
-export type OutboxKind = "staff_notification" | "client_confirmation" | "newsletter_confirmation";
+export type OutboxKind = "staff_notification" | "client_confirmation" | "newsletter_confirmation" | "test_email";
 export type OutboxStatus = "pending" | "sending" | "retry" | "sent" | "failed" | "skipped";
 
 export interface OutboxDraft {
@@ -25,6 +28,7 @@ export interface OutboxDraft {
   body_text: string;
   status: "pending" | "skipped";
   last_error: string | null;
+  template_ref?: string | null; // which auto-reply template was used, e.g. "form:travel-inquiry-bali-indonesia"
 }
 
 export interface OutboxRow extends Omit<OutboxDraft, "status"> {
@@ -47,8 +51,20 @@ export interface Subscriber {
   confirmation_sent_at: string | null;
 }
 
+// A row of public.email_templates (client auto-reply).
+export interface TemplateRow {
+  id?: string;
+  service_type: ServiceType;
+  form_id: string | null;
+  enabled: boolean;
+  subject: string;
+  body: string;
+}
+
 export interface Store {
   getEmailSettings(): Promise<EmailSettings>;
+  // The category default (form_id null) and the override for this form, if any.
+  getAutoReplyTemplates(serviceType: ServiceType, formId: string): Promise<{ serviceDefault: TemplateRow | null; formOverride: TemplateRow | null }>;
   getBusinessName(): Promise<string>;
   getPublishedForm(formKey: string): Promise<{ content: Record<string, unknown> } | null>;
   getItemName(kind: string, slug: string): Promise<string | null>;
@@ -93,6 +109,7 @@ export const RATE_LIMITS = {
   duplicateWindowMinutes: 10,
   newsletterResendMinutes: 10,
   processDuePerIpHour: 120, // the 5-minute schedule uses 12
+  templateTestsPerAdminHour: 10,
 };
 
 // Technical keys the website stores in raw_data; not shown as answers.
@@ -146,6 +163,17 @@ export function buildAnswers(rawData: Record<string, unknown>, content: Record<s
   return answers;
 }
 
+// Which auto-reply to send: an enabled form override wins; otherwise the
+// category default (if it is switched off, no auto-reply); if the default row
+// doesn't exist yet, the built-in copy. A new form or package has no override,
+// so it automatically uses its category's default.
+export function pickAutoReply(serviceType: ServiceType, rows: { serviceDefault: TemplateRow | null; formOverride: TemplateRow | null }, formId: string):
+  { template: AutoReplyTemplate; ref: string } | { template: null; ref: string } {
+  if (rows.formOverride?.enabled) return { template: rows.formOverride, ref: `form:${formId}` };
+  if (rows.serviceDefault) return rows.serviceDefault.enabled ? { template: rows.serviceDefault, ref: `default:${serviceType}` } : { template: null, ref: `default:${serviceType}` };
+  return { template: DEFAULT_AUTO_REPLIES[serviceType], ref: `builtin:${serviceType}` };
+}
+
 // ---------------------------------------------------------------------------
 // Queue processing (shared by every entry point)
 // ---------------------------------------------------------------------------
@@ -155,8 +183,10 @@ export async function processOutbox(deps: Deps, opts: { ids?: string[] | null; l
   const claimed = await store.claimOutbox(opts.ids ?? null, opts.limit ?? 10);
   const summary = { sent: 0, retry: 0, failed: 0, skipped: 0 };
   for (const row of claimed) {
-    if (!settings.sending_enabled) {
-      await store.updateOutbox(row.id, { status: "skipped", last_error: "Email sending is turned off in Settings.", locked_until: null });
+    // Template tests go only to a configured staff inbox, so they are allowed
+    // before customer sending is switched on.
+    if (!settings.sending_enabled && row.kind !== "test_email") {
+      await store.updateOutbox(row.id, { status: "skipped", last_error: "Email sending is turned off in Form Emails.", locked_until: null });
       summary.skipped++;
       continue;
     }
@@ -251,21 +281,27 @@ export async function planFormEmails(deps: Deps, sub: {
     submittedAt: new Date(sub.createdAt || now().toISOString()), pageUrl: `${siteUrl}${sub.sourcePage}`, dashboardUrl: `${siteUrl}/dashboard`,
     answers: buildAnswers(sub.rawData, sub.content), attachmentsCount: sub.attachmentsCount, businessName, possibleDuplicate,
   };
-  const configProblem = !settings.sending_enabled ? "Email sending is turned off in Settings." : !staffInbox ? "No staff inbox is set in Settings > Email." : null;
+  const configProblem = !settings.sending_enabled ? "Email sending is turned off in Form Emails." : !staffInbox ? "No staff inbox is set in Form Emails." : null;
 
   // Staff notification: to the monitored inbox for this service type; Reply-To the client.
   const staffEnv = envelope(settings, staffInbox ?? "not-configured", isValidEmail(clientEmail) ? clientEmail : null);
   const staff = renderStaffEmail({ ...baseContext, redirectedFrom: staffEnv.redirectedFrom });
 
-  // Client confirmation: only to the address typed in the form; Reply-To the monitored inbox.
+  // Client confirmation (auto-reply): only to the address typed in the form;
+  // Reply-To the monitored inbox. Content from the dashboard template.
+  const autoReply = pickAutoReply(sub.serviceType, await store.getAutoReplyTemplates(sub.serviceType, sub.formId), sub.formId);
   let clientProblem = configProblem;
+  if (!clientProblem && !autoReply.template) clientProblem = "Auto-reply is turned off for this category in Form Emails.";
   if (!clientProblem && possibleDuplicate) clientProblem = "Same person sent this form in the last 10 minutes; confirmation not repeated.";
   if (!clientProblem) {
     const recent = await store.countRecentEmails("client_confirmation", clientEmail, minutesAgo(now(), 24 * 60));
     if (recent >= RATE_LIMITS.clientConfirmationsPerAddressDay) clientProblem = "Daily limit of confirmations for this address reached.";
   }
   const clientEnv = envelope(settings, clientEmail, staffInbox);
-  const client = renderClientEmail({ ...baseContext, redirectedFrom: clientEnv.redirectedFrom });
+  const client = renderAutoReply(autoReply.template ?? DEFAULT_AUTO_REPLIES[sub.serviceType], {
+    serviceType: sub.serviceType, itemName, reference: baseContext.reference, customerName: sub.name, submittedAt: baseContext.submittedAt,
+    businessName, replyEmail: staffInbox, redirectedFrom: clientEnv.redirectedFrom,
+  });
 
   const common = { submission_id: sub.id, subscriber_id: null, service_type: sub.serviceType, form_id: sub.formId } as const;
   return [
@@ -274,7 +310,7 @@ export async function planFormEmails(deps: Deps, sub: {
       status: configProblem ? "skipped" : "pending", last_error: configProblem },
     { ...common, dedupe_key: `form:${sub.id}:client`, kind: "client_confirmation", to_email: clientEnv.to, reply_to: clientEnv.replyTo,
       subject: clientEnv.subjectPrefix + client.subject, html: client.html, body_text: client.text,
-      status: clientProblem ? "skipped" : "pending", last_error: clientProblem },
+      status: clientProblem ? "skipped" : "pending", last_error: clientProblem, template_ref: autoReply.ref },
   ];
 }
 
@@ -318,7 +354,7 @@ export async function handleNewsletterSubscribe(deps: Deps, body: { email?: unkn
     unsubscribeUrl: `${siteUrl}/newsletter/unsubscribe?token=${unsubscribeToken}`,
     redirectedFrom: env.redirectedFrom,
   });
-  const problem = settings.sending_enabled ? null : "Email sending is turned off in Settings.";
+  const problem = settings.sending_enabled ? null : "Email sending is turned off in Form Emails.";
   const created = await store.insertOutbox([{
     dedupe_key: `newsletter:${subscriber.id}:${tokenFields.confirm_token_hash.slice(0, 16)}`, kind: "newsletter_confirmation",
     submission_id: null, subscriber_id: subscriber.id, service_type: "newsletter", form_id: "newsletter-footer",
@@ -357,6 +393,56 @@ export async function handleProcessDue(deps: Deps, ctx: { ip: string | null }): 
   if (!(await deps.store.rateLimitHit("process_due_ip", ipKey, 3600, RATE_LIMITS.processDuePerIpHour))) return fail(429, "Too many requests.");
   const summary = await processOutbox(deps, { ids: null, limit: 20 });
   return ok(summary);
+}
+
+// ---------------------------------------------------------------------------
+// Dashboard > Form Emails: send a test of an auto-reply (admin only). The
+// recipient must be one of the inboxes already configured in email_settings,
+// so this can never email a client or an arbitrary address.
+// ---------------------------------------------------------------------------
+const SAMPLE_ITEMS: Record<ServiceType, string> = {
+  general: "", immigration: "Pre-Arranged Working Visa (9G)", visa: "Japan Tourist Visa", travel: "Bali, Indonesia",
+};
+
+export function authorizedTestInboxes(settings: EmailSettings): string[] {
+  return [...new Set([settings.staff_inbox, settings.inbox_general, settings.inbox_immigration, settings.inbox_visa, settings.inbox_travel, settings.test_redirect_to]
+    .filter(isValidEmail).map(e => normalizeEmail(e as string)))];
+}
+
+export async function handleSendTemplateTest(deps: Deps, body: { service_type?: unknown; form_id?: unknown; subject?: unknown; body?: unknown; to?: unknown }, caller: { id: string; role: string } | null): Promise<Reply> {
+  const { store, now } = deps;
+  if (caller?.role !== "admin") return fail(403, "Only admins can send test emails.");
+  const serviceType = body.service_type as ServiceType;
+  if (!["general", "immigration", "visa", "travel"].includes(serviceType)) return fail(400, "Choose a category.");
+  const formId = typeof body.form_id === "string" && body.form_id ? body.form_id : null;
+  if (formId && !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(formId)) return fail(400, "Invalid form.");
+  const template = { subject: String(body.subject ?? ""), body: String(body.body ?? "") };
+  if (!template.subject.trim() || !template.body.trim()) return fail(400, "Enter a subject and a message.");
+  if (template.subject.length > TEMPLATE_LIMITS.subject || template.body.length > TEMPLATE_LIMITS.body) return fail(400, "The subject or message is too long.");
+  const unknown = unknownVariables(template.subject + " " + template.body);
+  if (unknown.length) return fail(400, `Unknown variable(s): ${unknown.map(v => `{{${v}}}`).join(", ")}`);
+
+  const settings = await store.getEmailSettings();
+  const to = typeof body.to === "string" ? normalizeEmail(body.to) : "";
+  if (!authorizedTestInboxes(settings).includes(to)) return fail(400, "Tests can only be sent to an inbox configured in Form Emails.");
+  if (!(await store.rateLimitHit("template_test_admin", await deps.hash(`user:${caller.id}`), 3600, RATE_LIMITS.templateTestsPerAdminHour))) {
+    return fail(429, "Too many test emails. Try again later.");
+  }
+
+  const ref = formId ? itemRefFromFormId(formId) : null;
+  const itemName = ref ? (await store.getItemName(ref.kind, ref.slug)) || humanizeSlug(ref.slug) : SAMPLE_ITEMS[serviceType] || null;
+  const rendered = renderAutoReply(template, {
+    serviceType, itemName, reference: "AF-TEST01", customerName: "Maria Santos", submittedAt: now(),
+    businessName: await store.getBusinessName(), replyEmail: staffInboxFor(settings, serviceType), redirectedFrom: null,
+  });
+  const created = await store.insertOutbox([{
+    dedupe_key: `test:${deps.randomToken().slice(0, 24)}`, kind: "test_email", submission_id: null, subscriber_id: null,
+    service_type: serviceType, form_id: formId ?? `default-${serviceType}`, to_email: to, reply_to: null,
+    subject: `[TEST] ${rendered.subject}`.slice(0, 300), html: rendered.html, body_text: rendered.text,
+    status: "pending", last_error: null, template_ref: formId ? `test:form:${formId}` : `test:default:${serviceType}`,
+  }]);
+  const summary = await processOutbox(deps, { ids: created.map(r => r.id), limit: 1 });
+  return summary.sent ? ok({ status: "sent" }) : ok({ status: summary.retry ? "queued_for_retry" : "not_sent" });
 }
 
 // ---------------------------------------------------------------------------

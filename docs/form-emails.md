@@ -11,14 +11,16 @@ Browser form ──> form-submit Edge Function ──> form_submissions (+ CRM l
 ```
 
 - **Forms covered**: contact (`general`), immigration assessments, visa
-  inquiries, travel package inquiries. Routing and the template are chosen by
-  `service_type`; `form_id` is used to look up the current name of the
-  service / country / package in the CMS (e.g. "Bali, Indonesia"). There is one
-  template per service type, not one per package.
+  inquiries, travel package inquiries. Routing is chosen by `service_type`;
+  `form_id` is used to look up the current name of the service / country /
+  package in the CMS (e.g. "Bali, Indonesia"). There is one template per
+  service type, not one per package, and one Edge Function for all of them.
 - **Staff notification**: to the monitored inbox for that service type
-  (Settings > Email); Reply-To is the client, so staff can answer directly.
-- **Client confirmation**: only to the address typed in the form; Reply-To is
-  the monitored inbox. It never repeats the visitor's free text.
+  (Dashboard > Form Emails > Inboxes & sending); Reply-To is the client, so
+  staff can answer directly. Layout is built in.
+- **Client auto-reply**: only to the address typed in the form; Reply-To is
+  the monitored inbox. Text is edited by admins in Dashboard > Form Emails
+  (see below). It never repeats the visitor's free text.
 - **Sender** (fixed in code): `Air Fair Travel & Immigration <no-reply@airfairtravel.com>`.
 - **Newsletter** (separate): signup sends a "confirm your subscription" email;
   the address is only on the marketing list after the link is clicked. Marketing
@@ -57,7 +59,42 @@ retries emails that gave up). No database triggers are added.
   are refused, so every submission passes the checks above; if the function is
   down, visitors see a "please try again" message.
 
-## Settings (dashboard > Settings > Email, admins only)
+## Client auto-replies (Dashboard > Form Emails > Client auto-replies, admins only)
+
+Stored in `email_templates` (migration `20260928120000_form_email_templates`).
+
+- **Category defaults**: one per `service_type` (general, immigration, visa,
+  travel), each with an on/off switch, subject and message. Seeded with the
+  previous built-in copy.
+- **Form-specific overrides** (optional): one per `form_id`, e.g.
+  `travel-inquiry-bali-indonesia`. Must belong to the form's own category.
+- **Which one is used** (decided by the Edge Function for each submission):
+  1. an override for this `form_id` that is switched on;
+  2. otherwise the category default; if that is switched off, no auto-reply is
+     sent (the staff notification and CRM save still happen);
+  3. otherwise (no rows, e.g. before the migration) the built-in copy.
+
+  A new service, country or package has no override, so it automatically uses
+  its category default. The outbox row records which one was used in
+  `template_ref` (`form:<id>`, `default:<type>` or `builtin:<type>`).
+- **Variables**: `{{client_first_name}}`, `{{item_name}}`,
+  `{{service_label}}`, `{{reference}}`, `{{submitted_date}}`,
+  `{{business_name}}`, `{{reply_email}}`. Anything else is rejected when
+  saving from the dashboard and renders as nothing. The first name is only used
+  if it is letters only (otherwise "there"); the item name comes from the CMS,
+  not from the visitor.
+- **Safety**: templates are plain text. The whole filled-in text is
+  HTML-escaped, then blank lines become paragraphs, so neither admins nor
+  visitors can inject HTML or links. Subjects are one line (no header
+  injection).
+- **Preview and Send test**: the preview uses the same renderer as the
+  function, with sample data. "Send test" (action `send_template_test`) is
+  admin-only, goes only to an inbox already configured under Inboxes & sending,
+  is marked `[TEST]`, is limited to 10 per admin per hour, works while
+  sending is still switched off, and never creates a submission or lead.
+- The newsletter confirmation is separate and not editable here.
+
+## Inboxes & sending (Dashboard > Form Emails > Inboxes & sending, admins only)
 
 | Setting | Purpose |
 |---|---|
@@ -81,10 +118,12 @@ See [form-emails-deploy.md](form-emails-deploy.md) for the ordered steps and rol
 
 ## Tests
 
-- `npm run test:email`: 29 unit tests with an in-memory database and a fake
+- `npm run test:email`: 36 unit tests with an in-memory database and a fake
   mailer (routing, recipient restrictions, spam guards, rate limits, retries,
-  scheduled runs, idempotency, duplicates, newsletter double opt-in).
+  scheduled runs, idempotency, duplicates, newsletter double opt-in, template
+  choice (override / default / off / built-in), variable safety, test sends).
 - `npm run typecheck:functions`: Deno type-check of the Edge Function.
 - `npm run test:email:e2e`: runs the real Edge Function under Deno against a
   local fake Supabase and a Resend sink, with network access limited to
-  localhost. Sends nothing.
+  localhost (22 checks, including a new package using its category default, an
+  override, a category switched off and admin-only test sends). Sends nothing.

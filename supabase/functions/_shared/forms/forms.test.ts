@@ -6,11 +6,12 @@ import assert from "node:assert/strict";
 import { deriveIdentifiers, itemRefFromFormId } from "./identifiers.ts";
 import { DEFAULT_SETTINGS, SENDER, staffInboxFor, type EmailSettings } from "./routing.ts";
 import {
-  handleNewsletterConfirm, handleNewsletterSubscribe, handleNewsletterUnsubscribe, handleProcessDue, handleProcessOutbox, handleSubmitForm, processOutbox,
-  MAX_ATTEMPTS, type Deps, type OutboxDraft, type OutboxRow, type Store, type Subscriber,
+  handleNewsletterConfirm, handleNewsletterSubscribe, handleNewsletterUnsubscribe, handleProcessDue, handleProcessOutbox, handleSendTemplateTest, handleSubmitForm, processOutbox,
+  MAX_ATTEMPTS, type Deps, type OutboxDraft, type OutboxRow, type Store, type Subscriber, type TemplateRow,
 } from "./handlers.ts";
 import { createResendMailer, type OutgoingEmail, type SendResult } from "./resend.ts";
 import { randomToken, sha256Hex } from "./tokens.ts";
+import { DEFAULT_AUTO_REPLIES, renderAutoReply, safeFirstName, unknownVariables } from "./templates.ts";
 
 // ---------------------------------------------------------------------------
 // Fakes
@@ -44,9 +45,16 @@ class MemoryStore implements Store {
   outbox: OutboxRow[] = [];
   subscribers: Array<Subscriber & Record<string, unknown>> = [];
   rate: Array<{ bucket: string; key: string; at: number }> = [];
+  templates: TemplateRow[] = [];
   clock: Clock;
   constructor(clock: Clock) { this.clock = clock; }
   async getEmailSettings() { return { ...this.settings }; }
+  async getAutoReplyTemplates(serviceType: string, formId: string) {
+    return {
+      serviceDefault: this.templates.find(t => t.service_type === serviceType && t.form_id === null) ?? null,
+      formOverride: this.templates.find(t => t.form_id === formId) ?? null,
+    };
+  }
   async getBusinessName() { return "Air Fair Travel & Immigration"; }
   async getPublishedForm(key: string) { return FORMS[key] ? { content: FORMS[key] } : null; }
   async getItemName(kind: string, slug: string) { return ITEMS[`${kind}:${slug}`] ?? null; }
@@ -490,5 +498,96 @@ test("scheduled run endpoint is rate limited per caller", async () => {
   const { deps } = setup();
   let last;
   for (let i = 0; i < 121; i++) last = await handleProcessDue(deps, { ip: "10.0.0.3" });
+  assert.equal(last!.status, 429);
+});
+
+// ---------------------------------------------------------------------------
+// Dashboard-editable auto-replies (email_templates)
+// ---------------------------------------------------------------------------
+const seedDefaults = (store: MemoryStore) => {
+  store.templates = (Object.keys(DEFAULT_AUTO_REPLIES) as Array<keyof typeof DEFAULT_AUTO_REPLIES>)
+    .map(type => ({ service_type: type, form_id: null, enabled: true, ...DEFAULT_AUTO_REPLIES[type] }));
+};
+const clientMail = (mailer: FakeMailer) => mailer.calls.find(c => c.message.tags.kind === "client_confirmation")?.message;
+
+test("new package with no override uses its category's default (edited in the dashboard)", async () => {
+  const { deps, store, mailer } = setup();
+  seedDefaults(store);
+  store.templates.find(t => t.service_type === "travel")!.subject = "Your {{item_name}} trip request is in! ({{reference}})";
+  await submit(deps, submission("travel")); // bali-indonesia has no override
+  assert.match(clientMail(mailer)!.subject, /^Your Bali, Indonesia trip request is in! \(AF-/);
+  assert.equal(store.outbox.find(o => o.kind === "client_confirmation")!.template_ref, "default:travel");
+});
+
+test("form override wins while enabled; a disabled override falls back to the default", async () => {
+  const { deps, store, mailer } = setup();
+  seedDefaults(store);
+  store.templates.push({ service_type: "visa", form_id: "visa-inquiry-japan", enabled: true, subject: "Japan special for {{client_first_name}}", body: "Konnichiwa {{client_first_name}}!" });
+  await submit(deps, submission("visa"));
+  assert.equal(clientMail(mailer)!.subject, "Japan special for Ana");
+  assert.equal(store.outbox.find(o => o.kind === "client_confirmation")!.template_ref, "form:visa-inquiry-japan");
+  store.templates.find(t => t.form_id === "visa-inquiry-japan")!.enabled = false;
+  mailer.calls.length = 0;
+  await submit(deps, submission("visa", { email: "other@example.com" }));
+  assert.match(clientMail(mailer)!.subject, /^We received your Japan Tourist Visa inquiry/);
+});
+
+test("category auto-reply switched off: client not emailed, staff still notified, CRM save unchanged", async () => {
+  const { deps, store, mailer } = setup();
+  seedDefaults(store);
+  store.templates.find(t => t.service_type === "immigration")!.enabled = false;
+  const reply = await submit(deps, submission("immigration"));
+  assert.equal(reply.status, 200);
+  assert.equal(store.submissions.length, 1);
+  assert.equal(clientMail(mailer), undefined);
+  assert.equal(mailer.calls.filter(c => c.message.tags.kind === "staff_notification").length, 1);
+  assert.match(store.outbox.find(o => o.kind === "client_confirmation")!.last_error!, /turned off/);
+});
+
+test("no template rows yet: built-in default copy is used", async () => {
+  const { deps, store, mailer } = setup();
+  store.templates = [];
+  await submit(deps, submission("contact"));
+  assert.match(clientMail(mailer)!.subject, /^We received your message \(AF-/);
+  assert.equal(store.outbox.find(o => o.kind === "client_confirmation")!.template_ref, "builtin:general");
+});
+
+test("template variables are safe: escaped values, letters-only first name, unknown variables removed", () => {
+  const ctx = { serviceType: "travel" as const, itemName: "Bali <script>alert(1)</script> & Co", reference: "AF-ABC123", customerName: "http://spam.example now",
+    submittedAt: new Date("2026-09-28T02:00:00Z"), businessName: "Air Fair", replyEmail: "inbox@example.test", redirectedFrom: null };
+  const out = renderAutoReply({ subject: "Hi {{client_first_name}}\nBcc: x@y.z {{secret_token}}", body: "<b>Bold</b> {{item_name}}\n\nThanks {{client_first_name}} {{nope}}" }, ctx);
+  assert.equal(out.subject, "Hi there Bcc: x@y.z", "newline collapsed, unknown variable dropped, name not echoed");
+  assert.ok(!out.html.includes("<script>") && !out.html.includes("<b>"), "admin text and values are escaped");
+  assert.ok(out.html.includes("&lt;script&gt;") && out.html.includes("&lt;b&gt;Bold&lt;/b&gt;"));
+  assert.ok(!out.text.includes("spam.example"));
+  assert.equal(safeFirstName("María José"), "María");
+  assert.equal(safeFirstName("<img src=x>"), "");
+  assert.deepEqual(unknownVariables("{{item_name}} {{password}} {{ reference }}"), ["password"]);
+});
+
+test("send test: admin only, only to configured inboxes, works before sending is switched on", async () => {
+  const { deps, store, mailer } = setup();
+  store.settings = { ...CONFIGURED, sending_enabled: false, test_redirect_to: "qa@example.test" };
+  const tpl = { service_type: "travel", form_id: "travel-inquiry-bali-indonesia", subject: "Trip {{item_name}}", body: "Hi {{client_first_name}}" };
+  const admin = { id: "u-admin", role: "admin" };
+  assert.equal((await handleSendTemplateTest(deps, { ...tpl, to: "inbox@example.test" }, { id: "u-staff", role: "staff" })).status, 403);
+  assert.equal((await handleSendTemplateTest(deps, { ...tpl, to: "inbox@example.test" }, null)).status, 403);
+  assert.equal((await handleSendTemplateTest(deps, { ...tpl, to: "client@example.com" }, admin)).status, 400, "arbitrary address refused");
+  assert.equal((await handleSendTemplateTest(deps, { ...tpl, subject: "{{password}}", to: "inbox@example.test" }, admin)).status, 400, "unknown variable refused");
+  const sent1 = await handleSendTemplateTest(deps, { ...tpl, to: "Travel-Desk@example.test" }, admin);
+  assert.equal(sent1.status, 200);
+  assert.equal(sent1.body.status, "sent");
+  const sent = mailer.calls.at(-1)!.message;
+  assert.equal(sent.to, "travel-desk@example.test");
+  assert.equal(sent.subject, "[TEST] Trip Bali, Indonesia");
+  assert.equal(sent.tags.kind, "test_email");
+  assert.equal(store.submissions.length, 0, "a test never creates a submission or lead");
+});
+
+test("send test is rate limited per admin", async () => {
+  const { deps } = setup();
+  const admin = { id: "u-admin", role: "admin" };
+  let last;
+  for (let i = 0; i < 11; i++) last = await handleSendTemplateTest(deps, { service_type: "general", subject: "S", body: "B", to: "inbox@example.test" }, admin);
   assert.equal(last!.status, 429);
 });
