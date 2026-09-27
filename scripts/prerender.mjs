@@ -4,7 +4,7 @@
 //
 // - Content comes from the published CMS rows and Settings at build time; if
 //   Supabase can't be reached the built-in defaults are used, never a failure.
-// - Writes dist/<route>/index.html with the page's markup, title, description,
+// - Writes dist/<route>.html with the page's markup, title, description,
 //   canonical and share tags, plus sitemap.xml and the robots.txt Sitemap line.
 // - dist/app.html keeps the empty app shell for routes that aren't
 //   prerendered (the dashboard, items published after this build).
@@ -97,7 +97,9 @@ for (const route of routes) {
     console.warn(`prerender: skipped ${route} (no content)`);
     continue;
   }
-  const file = route === "/" ? path.join(DIST, "index.html") : path.join(DIST, route, "index.html");
+  // Flat files (/news -> news.html): Netlify and Vercel (cleanUrls) serve them
+  // at the extensionless URL without a trailing-slash redirect.
+  const file = route === "/" ? path.join(DIST, "index.html") : path.join(DIST, `${route.slice(1)}.html`);
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, page(route, markup, head));
   written.push(route);

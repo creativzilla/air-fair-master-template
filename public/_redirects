@@ -1,1 +1,9 @@
-/*    /app.html   200
+# Netlify (Bolt.new hosting). Real files (prerendered pages, sitemap.xml,
+# images) are served first; app routes without a prerendered page load the
+# app shell. Anything else is a genuine 404.
+/news/*                              /app.html   200
+/travel-tours/*                      /app.html   200
+/visa-assistance/*                   /app.html   200
+/philippine-immigration-services/*   /app.html   200
+/package/*                           /app.html   200
+/dashboard                           /app.html   200

@@ -1,13 +1,32 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "cleanUrls": true,
   "trailingSlash": false,
   "rewrites": [
-    { "source": "/news/:path*", "destination": "/app.html" },
-    { "source": "/travel-tours/:path*", "destination": "/app.html" },
-    { "source": "/visa-assistance/:path*", "destination": "/app.html" },
-    { "source": "/philippine-immigration-services/:path*", "destination": "/app.html" },
-    { "source": "/package/:path*", "destination": "/app.html" },
-    { "source": "/dashboard", "destination": "/app.html" }
+    {
+      "source": "/news/:path*",
+      "destination": "/app"
+    },
+    {
+      "source": "/travel-tours/:path*",
+      "destination": "/app"
+    },
+    {
+      "source": "/visa-assistance/:path*",
+      "destination": "/app"
+    },
+    {
+      "source": "/philippine-immigration-services/:path*",
+      "destination": "/app"
+    },
+    {
+      "source": "/package/:path*",
+      "destination": "/app"
+    },
+    {
+      "source": "/dashboard",
+      "destination": "/app"
+    }
   ]
 }
