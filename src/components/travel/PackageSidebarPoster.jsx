@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { fetchTravelPoster } from "../../lib/travelPosters.js";
+import { optimizedSrc } from "../../lib/optimizedImages.js";
 
 export default function PackageSidebarPoster({ pkg, posterFolder = "travel-posters", storageSlug = pkg.slug }) {
   const [attachment, setAttachment] = useState(null);
@@ -20,7 +21,7 @@ export default function PackageSidebarPoster({ pkg, posterFolder = "travel-poste
   return (
     <a className="tt-sidebar-poster" href={poster} target="_blank" rel="noreferrer"
       aria-label={`Open ${pkg.title} promotional poster full size`}>
-      <img src={poster} alt={`${pkg.title} promotional poster`} width={1080} height={1080}
+      <img src={optimizedSrc(poster)} alt={`${pkg.title} promotional poster`} width={1080} height={1080} loading="lazy" decoding="async"
         onError={() => setFailed(poster)} />
     </a>
   );

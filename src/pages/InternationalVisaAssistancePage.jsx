@@ -147,9 +147,11 @@ export default function InternationalVisaAssistancePage() {
   return (
     <div className="travel-site pis-page" aria-busy={page.loading || undefined}>
       <TopBars settings={settings} />
+      <main id="main-content">
       {show("hero", Hero)}
       {show("destinations", DestinationSearch)}
       {show("cantFind", CantFindStrip)}
+      </main>
       <Footer settings={settings} />
       <ChatWidget code={settings.chat_widget_code} />
     </div>

@@ -19,7 +19,7 @@ export default function ServiceAbout({ service }) {
       {hasImage ? (
         <div className="svc-about-grid">
           <div className="svc-about-media">
-            <img src={service.aboutImage} alt={service.aboutTitle || service.title} />
+            <img src={service.aboutImage} alt={service.aboutTitle || service.title} loading="lazy" decoding="async" />
           </div>
           {content}
         </div>

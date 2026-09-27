@@ -30,7 +30,7 @@ export default function VisaCountryPage() {
     })();
   }, []);
 
-  useSeo({ title: country ? country.seo?.title || `${country.title} | {businessName}` : "", description: country?.seo?.description }, settings);
+  useSeo({ title: country ? country.seo?.title || `${country.title} | {businessName}` : "", description: country?.seo?.description, image: country?.featuredImage || country?.promoPoster }, settings);
 
   if (notFound) {
     return <Navigate to="/visa-assistance/international-tourist-visa" replace />;
@@ -40,7 +40,9 @@ export default function VisaCountryPage() {
     return (
       <div className="travel-site pis-page" aria-busy={loading || undefined}>
         <TopBars settings={settings} />
+        <main id="main-content">
         <PageLoading />
+        </main>
         <Footer settings={settings} />
       </div>
     );
@@ -49,6 +51,7 @@ export default function VisaCountryPage() {
   return (
     <div className="travel-site pis-page">
       <TopBars settings={settings} />
+      <main id="main-content">
       <VisaBreadcrumb country={country} />
 
       <div className="section-shell vcp2-body">
@@ -70,6 +73,7 @@ export default function VisaCountryPage() {
         </aside>
       </div>
 
+      </main>
       <Footer settings={settings} />
       <ChatWidget code={settings.chat_widget_code} />
     </div>

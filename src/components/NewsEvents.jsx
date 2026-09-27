@@ -2,6 +2,7 @@ import { ArrowRight } from "lucide-react";
 import "./NewsEvents.css";
 
 import { useNews } from "../lib/cms.js";
+import { optimizedSrc } from "../lib/optimizedImages.js";
 
 export default function NewsEvents({ fields = {} }) {
   const { stories } = useNews();
@@ -19,8 +20,8 @@ export default function NewsEvents({ fields = {} }) {
         <div className="af-news-grid">
           {stories.map(story => (
             <article key={story.href} className="af-news-card">
-              <a href={`/news/${story.slug}`} className="af-news-link" aria-label={story.title}>
-                <div className="af-news-cover"><img src={story.image} alt="" loading="lazy" width="900" height="490" /></div>
+              <a href={`/news/${story.slug}`} className="af-news-link">
+                <div className="af-news-cover"><img src={optimizedSrc(story.image)} alt="" loading="lazy" decoding="async" width="900" height="490" /></div>
                 <div className="af-news-content">
                   <span className="af-news-category">{story.category}</span>
                   <h3>{story.title}</h3>

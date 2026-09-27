@@ -10,7 +10,7 @@ export default function RelatedServicesCard({ items }) {
     <>
       {items.map((item, index) => (
         <div className="vcp2-related-card" key={index}>
-          {item.image && <img src={item.image} alt="" />}
+          {item.image && <img src={item.image} alt="" loading="lazy" decoding="async" />}
           <div className="vcp2-related-card-body">
             <h4>{item.title}</h4>
             <p>{item.description}</p>

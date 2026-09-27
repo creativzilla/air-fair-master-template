@@ -1,5 +1,6 @@
 import React from "react";
 import { ArrowRight } from "lucide-react";
+import { optimizedSrc } from "../../lib/optimizedImages.js";
 
 // The single source-of-truth destination card — same markup/classes used on
 // the homepage teaser grid and the full destination hub page. Do not fork
@@ -8,11 +9,11 @@ export default function VisaDestinationCard({ destination }) {
   const { name, slug, description, flagCode, image, cta } = destination;
   return (
     <a className="visa-assist-card" href={`/visa-assistance/${slug}`}>
-      <img className="visa-assist-photo" src={image} alt={name} />
+      <img className="visa-assist-photo" src={image} alt={name} loading="lazy" decoding="async" />
       <div className="visa-assist-shade" />
-      <img className="visa-assist-icon" src="/visa-icon.png" alt="" />
+      <img className="visa-assist-icon" src={optimizedSrc("/visa-icon.png")} alt="" loading="lazy" decoding="async" />
       <span className="card-flag-badge">
-        <img src={`https://flagcdn.com/w80/${flagCode}.png`} alt="" />
+        <img src={`https://flagcdn.com/w80/${flagCode}.png`} alt="" loading="lazy" decoding="async" />
       </span>
       <div className="visa-assist-overlay">
         <h3>{name}</h3>

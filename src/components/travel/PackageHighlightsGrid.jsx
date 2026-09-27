@@ -18,7 +18,7 @@ export default function PackageHighlightsGrid({ items }) {
       <div className="tt-pkg-highlight-grid" id="package-highlights">
         {items.map((item, index) => (
           <div className="tt-pkg-highlight-card" key={index}>
-            <img src={item.image} alt={item.title} />
+            <img src={item.image} alt={item.title} loading="lazy" decoding="async" />
             <div className="tt-pkg-highlight-body">
               <h4>{item.title}</h4>
               <p>{item.description}</p>

@@ -30,7 +30,7 @@ export default function TravelPackageDetailPage() {
     })();
   }, []);
 
-  useSeo({ title: pkg ? pkg.seo?.title || `${pkg.title} | {businessName}` : "", description: pkg?.seo?.description }, settings);
+  useSeo({ title: pkg ? pkg.seo?.title || `${pkg.title} | {businessName}` : "", description: pkg?.seo?.description, image: pkg?.image }, settings);
 
   if (notFound) {
     return <Navigate to="/travel-tours" replace />;
@@ -40,7 +40,9 @@ export default function TravelPackageDetailPage() {
     return (
       <div className="travel-site pis-page" aria-busy={loading || undefined}>
         <TopBars settings={settings} />
+        <main id="main-content">
         <PageLoading />
+        </main>
         <Footer settings={settings} />
       </div>
     );
@@ -49,6 +51,7 @@ export default function TravelPackageDetailPage() {
   return (
     <div className="travel-site pis-page">
       <TopBars settings={settings} />
+      <main id="main-content">
       <PackageBreadcrumb pkg={pkg} />
 
       <div className="section-shell vcp2-body">
@@ -70,6 +73,7 @@ export default function TravelPackageDetailPage() {
         </aside>
       </div>
 
+      </main>
       <Footer settings={settings} />
       <ChatWidget code={settings.chat_widget_code} />
     </div>

@@ -8,7 +8,7 @@ export default function PackageRelatedCard({ related }) {
 
   return (
     <a className="tt-related-card" href={related.ctaHref || "/travel-tours"}>
-      <img src={related.image} alt="" />
+      <img src={related.image} alt="" loading="lazy" decoding="async" />
       <div className="tt-related-shade" />
       <div className="tt-related-body">
         <h4>{related.title}</h4>

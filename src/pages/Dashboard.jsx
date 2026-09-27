@@ -12,6 +12,7 @@ import MediaLibrary from "../dashboard/MediaLibrary.jsx";
 import UsersAdmin from "../dashboard/UsersAdmin.jsx";
 import ClientDocuments from "../dashboard/ClientDocuments.jsx";
 import LeadDrawer, { mapContactRow } from "../dashboard/LeadEditor.jsx";
+import { applySeo } from "../lib/seo.js";
 
 // Sidebar. `roles` = who may open it; `moduleKey` = can be switched off in
 // Settings → Modules; `staffKey` = staff access follows the employee's
@@ -846,6 +847,8 @@ const mapBooking = r => ({
 const mapTask = r => ({ id: r.id, employeeId: r.employee_id, contactId: r.contact_id, title: r.title, due: r.due_date || "No due date", done: r.is_done });
 
 export default function Dashboard() {
+  // Private back office: keep it out of search results.
+  useEffect(() => { applySeo({ title: "Dashboard | Air Fair", noindex: true }); }, []);
   const [session, setSession] = useState(null);
   const [authReady, setAuthReady] = useState(false);
   const [profile, setProfile] = useState(undefined); // undefined = loading
@@ -1141,7 +1144,7 @@ export default function Dashboard() {
           <button onClick={() => setCollapsed(c => !c)} className="ml-auto" style={{ color: T.sidebarText }} aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}>{collapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}</button>
         </div>
         <nav className="flex-1 py-3 px-2 flex flex-col gap-0.5 overflow-y-auto">{renderNav(setPage, false)}</nav>
-        {!collapsed && <div className="mx-3 mb-3 rounded-xl overflow-hidden relative" style={{ height: 130 }}><img src="/header-rizal-park.png" alt="" className="w-full h-full object-cover" /><div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(16,22,37,0) 20%, rgba(16,22,37,0.92) 100%)" }} /><div className="absolute bottom-0 left-0 right-0 p-3"><div className="text-xs font-medium mb-0.5" style={{ color: "#fff", ...fontBody }}>Delivering Journeys.</div><div className="text-xs mb-1.5" style={{ color: "#fff", ...fontBody }}>Simplifying Visas.</div><div className="w-6 h-0.5 rounded" style={{ backgroundColor: T.accent }} /></div></div>}
+        {!collapsed && <div className="mx-3 mb-3 rounded-xl overflow-hidden relative" style={{ height: 130 }}><img src="/header-rizal-park.webp" alt="" className="w-full h-full object-cover" /><div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(16,22,37,0) 20%, rgba(16,22,37,0.92) 100%)" }} /><div className="absolute bottom-0 left-0 right-0 p-3"><div className="text-xs font-medium mb-0.5" style={{ color: "#fff", ...fontBody }}>Delivering Journeys.</div><div className="text-xs mb-1.5" style={{ color: "#fff", ...fontBody }}>Simplifying Visas.</div><div className="w-6 h-0.5 rounded" style={{ backgroundColor: T.accent }} /></div></div>}
       </aside>
       <div className="flex-1 flex flex-col min-w-0" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
         {/* Header */}

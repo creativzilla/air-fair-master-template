@@ -5,7 +5,7 @@ import { ArrowUpRight } from "lucide-react";
 export default function TravelPackageCard({ pkg }) {
   return (
     <a className="tt-dest-card" href={`/travel-tours/${pkg.slug}`}>
-      <img className="tt-dest-photo" src={pkg.image} alt={pkg.title} loading="lazy" />
+      <img className="tt-dest-photo" src={pkg.image} alt={pkg.title} loading="lazy" decoding="async" />
       <div className="tt-dest-shade" />
       <span className="tt-pkg-duration">{pkg.duration}</span>
       <div className="tt-dest-overlay">

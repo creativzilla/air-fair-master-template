@@ -11,7 +11,7 @@
 //   editor/admin session exists (RLS returns nothing to anyone else).
 //   ?preview=0 leaves preview mode.
 import { useMemo, useSyncExternalStore } from "react";
-import { supabase } from "./supabase.js";
+import { getSupabase, restSelect } from "./supabaseLazy.js";
 import { FALLBACK_DOCS } from "./cmsFallback.js";
 import {
   buildIndex, globalContent, pageView, formView, immigrationService, immigrationCards,
@@ -73,6 +73,7 @@ function wantsPreview() {
 }
 
 async function loadDrafts() {
+  const supabase = await getSupabase();
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) return null;
   const { data, error } = await supabase
@@ -101,8 +102,8 @@ async function load() {
         return;
       }
     }
-    const { data, error } = await supabase.from("cms_published").select(PUBLISHED_COLUMNS);
-    if (error || !Array.isArray(data)) throw error || new Error("No data");
+    const data = await restSelect("cms_published", `select=${PUBLISHED_COLUMNS}`);
+    if (!Array.isArray(data)) throw new Error("No data");
     writeCache(data);
     setState(makeState(data, "ready", "live"));
   } catch {

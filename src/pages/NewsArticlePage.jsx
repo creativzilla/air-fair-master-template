@@ -5,6 +5,7 @@ import { TopBars, Footer, ChatWidget, PageLoading, fallbackSettings, useSeo } fr
 import { StoryCard } from "./NewsPage.jsx";
 import { useGlobalContent, useLabels, useNews, usePage } from "../lib/cms.js";
 import { imageSrc } from "../lib/cmsAdapters.js";
+import { optimizedSrc } from "../lib/optimizedImages.js";
 import { fetchSiteSettings } from "../lib/content.js";
 import "./NewsArticlePage.css";
 
@@ -19,18 +20,18 @@ export default function NewsArticlePage() {
   const [settings, setSettings] = useState(fallbackSettings);
   const [copyStatus, setCopyStatus] = useState("");
   useEffect(() => { let active = true; fetchSiteSettings().then(value => { if (active && value) setSettings({ ...fallbackSettings, ...value }); }).catch(() => {}); return () => { active = false; }; }, []);
-  useSeo({ title: `${story?.title || t.notFound} | Air Fair` }, settings);
+  useSeo({ title: `${story?.title || t.notFound} | Air Fair`, description: story?.description, image: story?.image, type: story ? "article" : undefined }, settings);
   useEffect(() => { window.scrollTo(0, 0); setCopyStatus(""); }, [slug]);
   async function copyLink() { try { await navigator.clipboard.writeText(window.location.href); setCopyStatus("Link copied"); } catch { setCopyStatus("Copy the address from your browser to share this story."); } }
   if (!story || !content) {
-    if (!ready) return <div className="travel-site" aria-busy="true"><TopBars settings={settings} /><PageLoading /><Footer settings={settings} /></div>;
-    return <div className="travel-site"><TopBars settings={settings} /><main className="section-shell news-article-missing"><h1>{t.notFound}</h1><a href="/news">Back to news and current events</a></main><Footer settings={settings} /></div>;
+    if (!ready) return <div className="travel-site" aria-busy="true"><TopBars settings={settings} /><main id="main-content"><PageLoading /></main><Footer settings={settings} /></div>;
+    return <div className="travel-site"><TopBars settings={settings} /><main id="main-content" className="section-shell news-article-missing"><h1>{t.notFound}</h1><a href="/news">Back to news and current events</a></main><Footer settings={settings} /></div>;
   }
-  return <div className="travel-site"><TopBars settings={settings} /><main className="section-shell news-article-page">
+  return <div className="travel-site"><TopBars settings={settings} /><main id="main-content" className="section-shell news-article-page">
     <nav className="news-breadcrumb" aria-label="Breadcrumb"><a href="/">{labels.breadcrumbHome}</a><span>/</span><a href="/news">{labels.breadcrumbNews}</a><span>/</span><span aria-current="page">{story.title}</span></nav>
     <div className="news-article-layout"><article className="news-article-body">
       <header><h1>{story.title}</h1><p className="news-article-deck">{story.description}</p>{story.date && <time dateTime={story.dateTime}>{story.date}</time>}</header>
-      <figure><img src={story.image} alt="" width="900" height="580" /><figcaption>{t.figcaption}</figcaption></figure>
+      <figure><img src={optimizedSrc(story.image)} alt="" width="900" height="580" /><figcaption>{t.figcaption}</figcaption></figure>
       <p>{content.intro}</p>
       <section id="overview"><h2>{content.heading}</h2><p>{content.body}</p></section>
       <section id="travelers"><h2>{t.travelersHeading}</h2><p>{content.takeaway}</p></section>

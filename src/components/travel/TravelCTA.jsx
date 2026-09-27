@@ -5,7 +5,7 @@ export default function TravelCTA({ fields = {} }) {
   return (
     <section className="section-shell tt-cta">
       <a className="tt-promo-banner" href={fields.href}>
-        <img src={imageSrc(fields.image)} alt={fields.image?.alt} />
+        <img src={imageSrc(fields.image)} alt={fields.image?.alt} loading="lazy" decoding="async" />
       </a>
     </section>
   );

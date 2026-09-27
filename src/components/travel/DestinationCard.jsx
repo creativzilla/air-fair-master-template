@@ -4,7 +4,7 @@ import { ArrowUpRight } from "lucide-react";
 export default function DestinationCard({ destination }) {
   return (
     <a className="tt-dest-card" href={`/travel-tours/${destination.packageSlug || destination.slug}`}>
-      <img className="tt-dest-photo" src={destination.image} alt={destination.name} />
+      <img className="tt-dest-photo" src={destination.image} alt={destination.name} loading="lazy" decoding="async" />
       <div className="tt-dest-shade" />
       <div className="tt-dest-overlay">
         <div>

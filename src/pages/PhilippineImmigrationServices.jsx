@@ -81,6 +81,8 @@ function About({ fields }) {
           <img
             src={imageSrc(fields.image)}
             alt={fields.image?.alt}
+            loading="lazy"
+            decoding="async"
           />
         </div>
         <div className="pis-about-content">
@@ -175,11 +177,13 @@ export default function PhilippineImmigrationServices() {
   return (
     <div className="travel-site pis-page" aria-busy={page.loading || undefined}>
       <TopBars settings={settings} />
+      <main id="main-content">
       {show("hero", Hero)}
       {show("about", About)}
       {show("services", Services)}
       {show("why", WhyChoose)}
       {show("cta", FinalCTA)}
+      </main>
       <Footer settings={settings} />
       <ChatWidget code={settings.chat_widget_code} />
     </div>

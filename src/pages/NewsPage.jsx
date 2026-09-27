@@ -3,14 +3,15 @@ import { ArrowRight, Mail } from "lucide-react";
 import { TopBars, Footer, ChatWidget, fallbackSettings, useSeo } from "./Website.jsx";
 import { fetchSiteSettings } from "../lib/content.js";
 import { useLabels, useNews, usePage } from "../lib/cms.js";
+import { optimizedSrc } from "../lib/optimizedImages.js";
 import "../components/NewsEvents.css";
 import "./NewsPage.css";
 
 const matches = (story, category, allLabel) => category === allLabel || story.category === category || (category === "Immigration" && story.category === "Policy Updates");
 
 export function StoryCard({ story, ctaLabel = "Learn more" }) {
-  return <article className="af-news-card"><a className="af-news-link" href={`/news/${story.slug}`} aria-label={story.title}>
-    <div className="af-news-cover"><img src={story.image} alt="" width="900" height="580" loading="lazy" /></div>
+  return <article className="af-news-card"><a className="af-news-link" href={`/news/${story.slug}`}>
+    <div className="af-news-cover"><img src={optimizedSrc(story.image)} alt="" width="900" height="580" loading="lazy" decoding="async" /></div>
     <div className="af-news-content"><span className="af-news-category">{story.category}</span><h3>{story.title}</h3><p>{story.description}</p><span className="af-news-read">{ctaLabel} <ArrowRight size={14} aria-hidden="true" /></span></div>
   </a></article>;
 }
@@ -36,7 +37,7 @@ export default function NewsPage() {
   const featured = stories.slice(0, 3).filter(story => matches(story, category, allLabel));
   const latest = [...guides, ...stories.slice(3, 4)].filter(story => matches(story, category, allLabel));
   return <div className="travel-site" aria-busy={page.loading || undefined}><TopBars settings={settings} />
-    <main className="news-journal">
+    <main id="main-content" className="news-journal">
       <div className="section-shell">
         <nav className="news-breadcrumb" aria-label="Breadcrumb"><a href="/">{labels.breadcrumbHome}</a><span>/</span><span aria-current="page">{labels.breadcrumbNews}</span></nav>
         {page.visible("hero") && <header className="news-journal-heading"><h1>{hero.heading}</h1><p>{hero.body}</p></header>}

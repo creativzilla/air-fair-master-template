@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
 import { useTravelPackages } from "../../lib/cms.js";
 import TravelPromoPoster from "./TravelPromoPoster.jsx";
+import { optimizedSrc } from "../../lib/optimizedImages.js";
 
 export default function TravelPromoSlider() {
   const allPackages = useTravelPackages();
@@ -38,7 +39,7 @@ export default function TravelPromoSlider() {
         {travelPackages.map((pkg, index) => (
           <button key={pkg.slug} type="button" className={`tt-promo-thumbnail${active === index ? " active" : ""}`}
             onClick={() => setActive(index)} aria-label={`Show ${pkg.title}`} aria-pressed={active === index} title={pkg.title}>
-            <img src={pkg.promoPoster || `/travel-posters/${pkg.slug}.jpg`} alt="" width={1080} height={1080} />
+            <img src={optimizedSrc(pkg.promoPoster || `/travel-posters/${pkg.slug}.jpg`)} alt="" width={1080} height={1080} loading="lazy" decoding="async" />
           </button>
         ))}
       </div>

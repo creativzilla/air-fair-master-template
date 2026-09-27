@@ -3,6 +3,8 @@
 // the component-facing shapes unchanged is what lets the site switch to
 // Supabase content without any markup or styling changes.
 
+import { optimizedSrc } from "./optimizedImages.js";
+
 const isPlainObject = value => value !== null && typeof value === "object" && !Array.isArray(value);
 
 // Objects merge key by key; arrays and scalars from `over` replace `base`.
@@ -16,7 +18,9 @@ export function deepMerge(base, over) {
   return merged;
 }
 
-export const imageSrc = image => (image && typeof image === "object" ? image.src : image) || "";
+// Resolves a CMS image ({ src, alt } or a plain path) to the URL to load,
+// preferring the lighter .webp copy of known local images.
+export const imageSrc = image => optimizedSrc((image && typeof image === "object" ? image.src : image) || "");
 
 export function fillTemplate(text, vars) {
   if (typeof text !== "string") return text;

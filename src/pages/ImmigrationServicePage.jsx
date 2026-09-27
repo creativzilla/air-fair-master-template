@@ -27,7 +27,7 @@ export default function ImmigrationServicePage() {
     })();
   }, []);
 
-  useSeo({ title: service ? service.seo?.title || `${service.title} | {businessName}` : "", description: service?.seo?.description }, settings);
+  useSeo({ title: service ? service.seo?.title || `${service.title} | {businessName}` : "", description: service?.seo?.description, image: service?.heroImage }, settings);
 
   if (notFound) {
     return <Navigate to="/philippine-immigration-services" replace />;
@@ -37,7 +37,9 @@ export default function ImmigrationServicePage() {
     return (
       <div className="travel-site pis-page" aria-busy={loading || undefined}>
         <TopBars settings={settings} />
+        <main id="main-content">
         <PageLoading />
+        </main>
         <Footer settings={settings} />
       </div>
     );
@@ -46,6 +48,7 @@ export default function ImmigrationServicePage() {
   return (
     <div className="travel-site pis-page">
       <TopBars settings={settings} />
+      <main id="main-content">
       <ServiceHero service={service} />
       <div className="section-shell svc-body">
         <div className="svc-main">
@@ -57,6 +60,7 @@ export default function ImmigrationServicePage() {
         {service.form && <ServiceAssessmentForm service={service} />}
       </div>
       {!service.hideHelpCta && <ServiceHelpCTA />}
+      </main>
       <Footer settings={settings} />
       <ChatWidget code={settings.chat_widget_code} />
     </div>

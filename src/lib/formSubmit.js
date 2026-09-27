@@ -1,4 +1,4 @@
-import { supabase } from "./supabase.js";
+import { getSupabase } from "./supabaseLazy.js";
 
 // Files go to the PRIVATE form-attachments bucket. The site stores only the
 // object path; staff open files through short-lived signed URLs in the
@@ -8,6 +8,7 @@ async function uploadAttachment(file) {
   const id = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
   const safeName = file.name.replace(/[^\w.-]+/g, "_").slice(-80);
   const path = `submissions/${month}/${id}-${safeName}`;
+  const supabase = await getSupabase();
   const { error } = await supabase.storage
     .from("form-attachments")
     .upload(path, file, { contentType: file.type || undefined, upsert: false });
@@ -47,6 +48,7 @@ export async function submitWebsiteForm({ form, formType, source = {}, fields, v
   }
 
   const sourcePage = typeof window !== "undefined" ? window.location.pathname : "";
+  const supabase = await getSupabase();
   const { error } = await supabase.from("form_submissions").insert({
     form_type: formType,
     form_key: form?.key || null,
@@ -69,6 +71,7 @@ export async function submitWebsiteForm({ form, formType, source = {}, fields, v
 }
 
 export async function subscribeToNewsletter(email) {
+  const supabase = await getSupabase();
   const { error } = await supabase.from("newsletter_subscribers").insert({
     email: email.trim(),
     source_page: typeof window !== "undefined" ? window.location.pathname : "",

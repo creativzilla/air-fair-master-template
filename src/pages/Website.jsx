@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ArrowRight, ChevronLeft, ChevronRight, Facebook, Instagram, Linkedin, Mail, MapPin, Phone, Plane, Search, ShieldCheck, Star, X, Menu, Check, CalendarDays } from "lucide-react";
-import { supabase } from "../lib/supabase.js";
+import { getSupabase } from "../lib/supabaseLazy.js";
 import { useParams } from "react-router-dom";
 import { dbRowToService, getPriceLabel } from "../lib/catalog.js";
 import { fetchSiteSettings } from "../lib/content.js";
@@ -11,6 +11,8 @@ import { toDestinationCard } from "../lib/visaCountries.js";
 import { getIcon } from "../components/immigration/icons.js";
 import VisaDestinationCard from "../components/visa/VisaDestinationCard.jsx";
 import NewsEvents from "../components/NewsEvents.jsx";
+import { useAutoplay } from "../lib/useAutoplay.js";
+import { applyOrganizationJsonLd, applySeo } from "../lib/seo.js";
 
 export const colors = {
   green: "#4B9B13",
@@ -39,19 +41,17 @@ export const fallbackSettings = {
   chat_widget_code: "",
 };
 
-// Applies a page's SEO title/description from the CMS; "{businessName}" in a
-// title is replaced with the business name from Settings.
-export function useSeo({ title, description }, settings) {
+// Applies a page's SEO title/description (plus Open Graph/Twitter tags,
+// canonical URL and share image) from the CMS; "{businessName}" in a title is
+// replaced with the business name from Settings. Pages without their own
+// description use the site default from Settings.
+export function useSeo({ title, description, image, type } = {}, settings) {
   const businessName = settings?.business_name || fallbackSettings.business_name;
   const resolvedTitle = title ? title.replace("{businessName}", businessName) : "";
+  const resolvedDescription = description || settings?.seo_description || fallbackSettings.seo_description;
   useEffect(() => {
-    if (resolvedTitle) document.title = resolvedTitle;
-  }, [resolvedTitle]);
-  useEffect(() => {
-    if (!description) return;
-    const meta = document.querySelector('meta[name="description"]');
-    if (meta) meta.setAttribute("content", description);
-  }, [description]);
+    applySeo({ title: resolvedTitle, description: resolvedDescription, image, type });
+  }, [resolvedTitle, resolvedDescription, image, type]);
 }
 
 function ServiceCard({ icon: Icon, title, desc, slug }) {
@@ -82,7 +82,7 @@ export function PageLoading() {
 function Logo({ light = false }) {
   const logo = useGlobalContent().logo || {};
   return <div className="logo-lockup">
-    <img src={imageSrc(logo)} alt={logo.alt} className="logo-img" />
+    <img src={imageSrc(logo)} alt={logo.alt} className="logo-img" width="1254" height="521" />
   </div>;
 }
 
@@ -93,6 +93,7 @@ export function TopBars({ settings }) {
   const nav = site.nav || {};
   const businessName = settings.business_name || fallbackSettings.business_name;
   return <>
+    <a className="skip-link" href="#main-content">Skip to main content</a>
     {site.browserBar?.visible !== false && <div className="browser-bar"><span className="browser-dot">A</span><span>{businessName} — Website</span><span className="browser-actions">◌　□　<span>Make a copy</span><b>Share</b></span></div>}
     <div className="promise-bar">{(site.promiseBar?.items || []).map(item => <span key={item}>{item}</span>)}</div>
     <header className="main-nav">
@@ -101,9 +102,9 @@ export function TopBars({ settings }) {
         <nav className={menuOpen ? "nav-links open" : "nav-links"}>
           {(nav.items || []).map(item => <a key={item.label + item.href} href={item.href} onClick={() => setMenuOpen(false)} className={item.highlight ? "nav-green" : undefined}>{item.label}</a>)}
         </nav>
-        <div className="nav-actions"><button aria-label="Search" onClick={() => setSearchOpen(v => !v)}><Search size={15} /></button><a className="book-button" href={nav.ctaHref}>{nav.ctaLabel} <ArrowRight size={14} /></a><button className="mobile-menu" aria-label="Menu" onClick={() => setMenuOpen(v => !v)}>{menuOpen ? <X size={20} /> : <Menu size={20} />}</button></div>
+        <div className="nav-actions"><button aria-label="Search" aria-expanded={searchOpen} onClick={() => setSearchOpen(v => !v)}><Search size={15} /></button><a className="book-button" href={nav.ctaHref}>{nav.ctaLabel} <ArrowRight size={14} /></a><button className="mobile-menu" aria-label={menuOpen ? "Close menu" : "Open menu"} aria-expanded={menuOpen} onClick={() => setMenuOpen(v => !v)}>{menuOpen ? <X size={20} /> : <Menu size={20} />}</button></div>
       </div>
-      {searchOpen && <div className="search-panel"><input autoFocus placeholder={nav.searchPlaceholder} /><X size={16} onClick={() => setSearchOpen(false)} /></div>}
+      {searchOpen && <div className="search-panel"><input autoFocus type="search" aria-label={nav.searchPlaceholder || "Search"} placeholder={nav.searchPlaceholder} /><X size={16} role="button" tabIndex={0} aria-label="Close search" onClick={() => setSearchOpen(false)} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSearchOpen(false); } }} /></div>}
     </header>
   </>;
 }
@@ -116,9 +117,21 @@ function Hero({ fields }) {
   const [active, setActive] = useState(0);
   const [imageIndex, setImageIndex] = useState(0);
   const [paused, setPaused] = useState(false);
+  const sectionRef = useRef(null);
+  const canAutoplay = useAutoplay(sectionRef);
+  const running = !paused && canAutoplay;
   const imagesInSlide = slides[active]?.images?.length || 1;
+  // Background photos are only requested once they are showing or up next,
+  // instead of every slide's photos on first load. Once requested they stay
+  // set so the cross-fade out still works.
+  const nextKey = imageIndex + 1 < imagesInSlide ? `${active}-${imageIndex + 1}` : `${(active + 1) % Math.max(slides.length, 1)}-0`;
+  const [requested, setRequested] = useState(() => new Set());
   useEffect(() => {
-    if (paused || slides.length === 0) return undefined;
+    setRequested(prev => (prev.has(`${active}-${imageIndex}`) && prev.has(nextKey) ? prev : new Set([...prev, `${active}-${imageIndex}`, nextKey])));
+  }, [active, imageIndex, nextKey]);
+  const shouldLoad = key => key === `${active}-${imageIndex}` || key === nextKey || requested.has(key);
+  useEffect(() => {
+    if (!running || slides.length === 0) return undefined;
     const timer = setInterval(() => {
       setImageIndex(prev => {
         const nextIndex = prev + 1;
@@ -130,17 +143,17 @@ function Hero({ fields }) {
       });
     }, HERO_IMAGE_MS);
     return () => clearInterval(timer);
-  }, [paused, imagesInSlide, slides.length]);
+  }, [running, imagesInSlide, slides.length]);
   if (slides.length === 0) return null;
   const goToSlide = i => { setActive(i); setImageIndex(0); };
   const next = () => goToSlide((active + 1) % slides.length);
   const prev = () => goToSlide((active - 1 + slides.length) % slides.length);
   const slide = slides[active % slides.length];
-  return <section id="top" className="hero" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
+  return <section id="top" ref={sectionRef} className="hero" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
     <div className="hero-bg">
       {slides.map((s, i) => (
         <div key={s.headline + s.highlight} className={i === active ? "hero-bg-slide active" : "hero-bg-slide"}>
-          {(s.images || []).map((img, imgI) => <div key={imageSrc(img)} className={i === active && imgI === imageIndex ? "hero-bg-img active" : "hero-bg-img"} style={{ backgroundImage: `url(${imageSrc(img)})` }} />)}
+          {(s.images || []).map((img, imgI) => <div key={imageSrc(img)} className={i === active && imgI === imageIndex ? "hero-bg-img active" : "hero-bg-img"} style={shouldLoad(`${i}-${imgI}`) ? { backgroundImage: `url(${imageSrc(img)})` } : undefined} />)}
         </div>
       ))}
       <div className="hero-bg-overlay" />
@@ -167,7 +180,7 @@ function Hero({ fields }) {
       <div className="hero-progress-track">
         {slides.map((s, i) => (
           <button key={s.headline + s.highlight} onClick={() => goToSlide(i)} className={i === active ? "hero-progress-dot active" : "hero-progress-dot"} aria-label={`Show ${s.headline}${s.highlight}`}>
-            {i === active && <span className="hero-progress-fill" style={{ animationPlayState: paused ? "paused" : "running" }} />}
+            {i === active && <span className="hero-progress-fill" style={{ animationPlayState: running ? "running" : "paused" }} />}
           </button>
         ))}
       </div>
@@ -186,7 +199,7 @@ function AccreditationBar({ fields }) {
     <div className="section-shell accreditation-inner">
       <span className="accreditation-label">{fields.label}</span>
       <div className="accreditation-items">
-        {(fields.items || []).map(a => <div className="accreditation-item" key={a.label}><img className="accreditation-logo" src={imageSrc(a.logo)} alt={a.logo?.alt || a.label} /><div className="accreditation-item-text"><span className="accreditation-item-sub">{fields.itemSubLabel}</span><span className="accreditation-item-label">{a.label}</span></div></div>)}
+        {(fields.items || []).map(a => <div className="accreditation-item" key={a.label}><img className="accreditation-logo" src={imageSrc(a.logo)} alt={a.logo?.alt || a.label} loading="lazy" decoding="async" /><div className="accreditation-item-text"><span className="accreditation-item-sub">{fields.itemSubLabel}</span><span className="accreditation-item-label">{a.label}</span></div></div>)}
       </div>
     </div>
   </div>;
@@ -232,7 +245,7 @@ function SRRVBanner({ fields }) {
     <div className="section-shell">
       <div className="srrv-card">
         <div className="srrv-card-image">
-          <img src={imageSrc(fields.image)} alt={fields.image?.alt} />
+          <img src={imageSrc(fields.image)} alt={fields.image?.alt} width="1122" height="1186" loading="lazy" decoding="async" />
         </div>
         <div className="srrv-card-content">
           <h2>{fields.heading}</h2>
@@ -243,7 +256,7 @@ function SRRVBanner({ fields }) {
           </ul>
           <div className="srrv-card-actions">
             <a className="green-button" href={fields.primaryCta?.href}>{fields.primaryCta?.label} <ArrowRight size={15} /></a>
-            <a className="outline-green-button" href={fields.secondaryCta?.href}>{fields.secondaryCta?.label}</a>
+            <a className="outline-green-button" href={fields.secondaryCta?.href}>{fields.secondaryCta?.label}<span className="sr-only"> about {fields.heading}</span></a>
           </div>
         </div>
       </div>
@@ -273,10 +286,10 @@ function TravelTours({ fields }) {
     </div>
     <div className="tours-grid">
       {travelPackages.map(item => <a className="tour-card" href={`/travel-tours/${item.slug}`} key={item.slug}>
-        <img className="tour-card-photo" src={item.image} alt={item.name} />
+        <img className="tour-card-photo" src={item.image} alt={item.name} loading="lazy" decoding="async" />
         <div className="tour-card-shade" />
-        <img className="tour-card-icon" src={imageSrc(fields.cardIcon)} alt="" />
-        <span className="card-flag-badge"><img src={`https://flagcdn.com/w80/${item.flagCode}.png`} alt="" /></span>
+        <img className="tour-card-icon" src={imageSrc(fields.cardIcon)} alt="" loading="lazy" decoding="async" />
+        <span className="card-flag-badge"><img src={`https://flagcdn.com/w80/${item.flagCode}.png`} alt="" loading="lazy" decoding="async" /></span>
         <div className="tour-card-overlay">
           <span className="tour-card-tag">{item.place}</span>
           <h3>{item.name}</h3>
@@ -362,13 +375,14 @@ function Contact({ fields, settings }) {
     }
   };
   return <section id="contact" className="contact-section"><div className="section-shell contact-layout"><div><h2>{fields.heading}</h2><p>{fields.body}</p><div className="contact-detail"><Phone size={16} /> {settings.contact_phone || fallbackSettings.contact_phone}</div><div className="contact-detail"><Mail size={16} /> {settings.contact_email || fallbackSettings.contact_email}</div><div className="contact-detail"><MapPin size={16} /> {settings.address || fallbackSettings.address}</div></div>{sent ? <div className="sent-card"><ShieldCheck size={38} /><h3>{form?.successTitle}</h3><p>{form?.successMessage}</p></div> : <form className="contact-form" onSubmit={submit}>{formFields.map(field => field.type === "textarea"
-    ? <textarea key={field.name} rows="4" required={field.required || undefined} placeholder={field.placeholder} value={values[field.name] || ""} onChange={e => update(field.name, e.target.value)} />
-    : <input key={field.name} required={field.required || undefined} type={field.type === "email" ? "email" : undefined} placeholder={field.placeholder} value={values[field.name] || ""} onChange={e => update(field.name, e.target.value)} />)}<button className="yellow-button" type="submit">{form?.submitLabel} <ArrowRight size={14} /></button></form>}</div></section>;
+    ? <textarea key={field.name} aria-label={field.label || field.placeholder} rows="4" required={field.required || undefined} placeholder={field.placeholder} value={values[field.name] || ""} onChange={e => update(field.name, e.target.value)} />
+    : <input key={field.name} aria-label={field.label || field.placeholder} required={field.required || undefined} type={field.type === "email" ? "email" : undefined} placeholder={field.placeholder} value={values[field.name] || ""} onChange={e => update(field.name, e.target.value)} />)}<button className="yellow-button" type="submit">{form?.submitLabel} <ArrowRight size={14} /></button></form>}</div></section>;
 }
 
 export function Footer({ settings }) {
   const footer = useGlobalContent().footer || {};
-  const socials = [[Facebook, settings.facebook_url], [Instagram, settings.instagram_url], [Linkedin, settings.linkedin_url]];
+  const businessName = settings.business_name || fallbackSettings.business_name;
+  const socials = [[Facebook, settings.facebook_url, "Facebook"], [Instagram, settings.instagram_url, "Instagram"], [Linkedin, settings.linkedin_url, "LinkedIn"]];
   const [subscribed, setSubscribed] = useState(false);
   const subscribe = async event => {
     event.preventDefault();
@@ -380,7 +394,7 @@ export function Footer({ settings }) {
       // Keep the form visible so the visitor can try again.
     }
   };
-  return <footer><div className="section-shell footer-grid"><div className="footer-brand"><Logo light /><p>{footer.blurb}</p><div className="socials">{socials.map(([Icon, url], index) => <a key={index} href={url || "#"} aria-label="Social link"><Icon size={13} /></a>)}</div></div>{(footer.columns || []).map(column => <div key={column.heading}><h4>{column.heading}</h4>{(column.links || []).map(item => <a key={item.label + item.href} href={item.href}>{item.label}</a>)}</div>)}<div><h4>{footer.contactHeading}</h4><a href={`tel:${settings.contact_phone}`}>☎ {settings.contact_phone || fallbackSettings.contact_phone}</a><a href={`mailto:${settings.contact_email}`}>✉ {settings.contact_email || fallbackSettings.contact_email}</a><a href="#contact">▣ {settings.address || fallbackSettings.address}</a></div><div className="footer-newsletter"><h4>{footer.newsletter?.heading}</h4><p>{footer.newsletter?.body}</p>{subscribed ? <span className="newsletter-thanks"><Check size={14} /> {footer.newsletter?.thanks}</span> : <form className="newsletter-form" onSubmit={subscribe}><input required type="email" placeholder={footer.newsletter?.placeholder} /><button type="submit" aria-label="Subscribe"><ArrowRight size={14} /></button></form>}</div></div><div className="footer-bottom section-shell"><span>{footer.copyright}</span><span>{footer.legalText}</span></div></footer>;
+  return <footer><div className="section-shell footer-grid"><div className="footer-brand"><Logo light /><p>{footer.blurb}</p><div className="socials">{socials.map(([Icon, url, name]) => <a key={name} href={url || "#"} aria-label={`${businessName} on ${name}`}><Icon size={13} aria-hidden="true" /></a>)}</div></div>{(footer.columns || []).map(column => <div key={column.heading}><h4>{column.heading}</h4>{(column.links || []).map(item => <a key={item.label + item.href} href={item.href}>{item.label}</a>)}</div>)}<div><h4>{footer.contactHeading}</h4><a href={`tel:${settings.contact_phone}`}>☎ {settings.contact_phone || fallbackSettings.contact_phone}</a><a href={`mailto:${settings.contact_email}`}>✉ {settings.contact_email || fallbackSettings.contact_email}</a><a href="#contact">▣ {settings.address || fallbackSettings.address}</a></div><div className="footer-newsletter"><h4>{footer.newsletter?.heading}</h4><p>{footer.newsletter?.body}</p>{subscribed ? <span className="newsletter-thanks"><Check size={14} /> {footer.newsletter?.thanks}</span> : <form className="newsletter-form" onSubmit={subscribe}><input required type="email" aria-label={footer.newsletter?.placeholder || "Email address"} placeholder={footer.newsletter?.placeholder} /><button type="submit" aria-label="Subscribe"><ArrowRight size={14} /></button></form>}</div></div><div className="footer-bottom section-shell"><span>{footer.copyright}</span><span>{footer.legalText}</span></div></footer>;
 }
 
 export function ChatWidget({ code }) {
@@ -402,6 +416,7 @@ export function PackageDetailPage() {
       try {
         const [settingsData] = await Promise.all([fetchSiteSettings()]);
         if (settingsData) setSettings({ ...fallbackSettings, ...settingsData });
+        const supabase = await getSupabase();
         const { data } = await supabase.from("services").select("*").eq("status", "Published").eq("slug", slug).maybeSingle();
         if (data) setItem(dbRowToService(data));
       } catch (err) {
@@ -411,16 +426,14 @@ export function PackageDetailPage() {
     })();
   }, [slug]);
 
-  useEffect(() => {
-    if (item) document.title = `${item.name} | ${settings.business_name || fallbackSettings.business_name}`;
-  }, [item, settings.business_name]);
+  useSeo({ title: item ? `${item.name} | {businessName}` : "", description: item?.shortDescription, image: item?.image }, settings);
 
   if (loading) {
-    return <div className="travel-site"><TopBars settings={settings} /><div className="section-shell" style={{ padding: "120px 0", textAlign: "center", color: colors.text }}><p>Loading package details...</p></div><Footer settings={settings} /></div>;
+    return <div className="travel-site"><TopBars settings={settings} /><main id="main-content"><div className="section-shell" style={{ padding: "120px 0", textAlign: "center", color: colors.text }}><p>Loading package details...</p></div></main><Footer settings={settings} /></div>;
   }
 
   if (!item) {
-    return <div className="travel-site"><TopBars settings={settings} /><div className="section-shell" style={{ padding: "120px 0", textAlign: "center" }}><h2 style={{ color: colors.ink, fontSize: 28, marginBottom: 12 }}>Package not found</h2><p style={{ color: colors.text, marginBottom: 24 }}>We couldn't find this package. It may have been removed or unpublished.</p><a href="/" className="yellow-button">← Back to Home</a></div><Footer settings={settings} /></div>;
+    return <div className="travel-site"><TopBars settings={settings} /><main id="main-content"><div className="section-shell" style={{ padding: "120px 0", textAlign: "center" }}><h2 style={{ color: colors.ink, fontSize: 28, marginBottom: 12 }}>Package not found</h2><p style={{ color: colors.text, marginBottom: 24 }}>We couldn't find this package. It may have been removed or unpublished.</p><a href="/" className="yellow-button">← Back to Home</a></div></main><Footer settings={settings} /></div>;
   }
 
   const currency = settings.currency_symbol || "₱";
@@ -431,6 +444,7 @@ export function PackageDetailPage() {
 
   return <div className="travel-site">
     <TopBars settings={settings} />
+    <main id="main-content">
     <section className="section-shell" style={{ paddingTop: 40, paddingBottom: 60 }}>
       <a href="/" style={{ display: "inline-flex", alignItems: "center", gap: 6, color: colors.text, fontSize: 14, marginBottom: 20, textDecoration: "none" }}><ChevronLeft size={16} /> Back to Home</a>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 48, alignItems: "start" }} className="package-detail-grid">
@@ -442,7 +456,7 @@ export function PackageDetailPage() {
             <div style={{ display: "flex", gap: 8, overflowX: "auto" }}>
               {galleryImages.map((img, i) => (
                 <button key={i} onClick={() => setGalleryIndex(i)} style={{ borderRadius: 8, overflow: "hidden", border: `2px solid ${i === galleryIndex ? colors.green : colors.line}`, cursor: "pointer", flexShrink: 0 }}>
-                  <img src={img} alt="" style={{ width: 72, height: 54, objectFit: "cover" }} />
+                  <img src={img} alt="" style={{ width: 72, height: 54, objectFit: "cover" }} loading="lazy" decoding="async" />
                 </button>
               ))}
             </div>
@@ -484,6 +498,7 @@ export function PackageDetailPage() {
         </div>
       )}
     </section>
+    </main>
     <Footer settings={settings} />
     <ChatWidget code={settings.chat_widget_code} />
   </div>;
@@ -493,8 +508,8 @@ export default function Website() {
   const [settings, setSettings] = useState(fallbackSettings);
   const page = usePage("home");
   useEffect(() => { (async () => { const settingsData = await fetchSiteSettings(); if (settingsData) setSettings({ ...fallbackSettings, ...settingsData }); })(); }, []);
-  useEffect(() => { document.title = settings.seo_title || fallbackSettings.seo_title; }, [settings.seo_title]);
-  useSeo({ description: settings.seo_description }, settings);
+  useSeo({ title: settings.seo_title || fallbackSettings.seo_title, description: settings.seo_description }, settings);
+  useEffect(() => applyOrganizationJsonLd(settings), [settings]);
   const show = (key, Section, extra = {}) => page.visible(key) && <Section fields={page.section(key)} {...extra} />;
-  return <div className="travel-site" aria-busy={page.loading || undefined}><TopBars settings={settings} />{show("hero", Hero)}{show("accreditations", AccreditationBar)}{show("categories", ServiceCategories)}{show("immigration", ImmigrationServices)}{show("srrv", SRRVBanner)}{show("visa", InternationalVisaAssistance)}{show("travel", TravelTours)}{show("trustBar", TrustBar)}{show("assessment", FreeAssessment)}{show("testimonials", Testimonials)}{show("news", NewsEvents)}{show("contact", Contact, { settings })}<Footer settings={settings} /><ChatWidget code={settings.chat_widget_code} /></div>;
+  return <div className="travel-site" aria-busy={page.loading || undefined}><TopBars settings={settings} /><main id="main-content">{show("hero", Hero)}{show("accreditations", AccreditationBar)}{show("categories", ServiceCategories)}{show("immigration", ImmigrationServices)}{show("srrv", SRRVBanner)}{show("visa", InternationalVisaAssistance)}{show("travel", TravelTours)}{show("trustBar", TrustBar)}{show("assessment", FreeAssessment)}{show("testimonials", Testimonials)}{show("news", NewsEvents)}{show("contact", Contact, { settings })}</main><Footer settings={settings} /><ChatWidget code={settings.chat_widget_code} /></div>;
 }
