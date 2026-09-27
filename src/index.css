@@ -45,6 +45,7 @@ body{margin:0;font-family:'Poppins',sans-serif;color:#5B6C80;background:#fff}
 .nav-inner{height:68px;max-width:1080px;margin:auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between}
 .logo-lockup{display:flex;align-items:center;gap:9px}
 .logo-img{height:40px;width:auto;object-fit:contain;display:block}
+.main-nav .logo-img{height:54px}
 .nav-links{display:flex;align-items:center;gap:24px;margin-left:auto;margin-right:28px}
 .nav-links a{font-size:14px;color:#42546b;text-decoration:none;font-weight:600;transition:color .2s ease}
 .nav-links a:hover,.nav-links .nav-green{color:#4B9B13}
@@ -380,6 +381,7 @@ footer{background:#0d2456;color:#9fb2cc;border-top:1px solid rgba(255,255,255,.0
 }
 
 @media(max-width:480px){
+  .main-nav .logo-img{height:48px}
   .browser-actions{display:none}
   .browser-bar{justify-content:center}
   .promise-bar span:nth-child(n+3){display:none}
@@ -423,6 +425,7 @@ footer{background:#0d2456;color:#9fb2cc;border-top:1px solid rgba(255,255,255,.0
   .nav-inner{max-width:1320px;padding:0 40px}
   .hero-inner{max-width:1320px}
   .logo-img{height:46px}
+  .main-nav .logo-img{height:58px}
 
   .promise-bar{font-size:14px;gap:64px}
   .nav-links{gap:30px;margin-right:40px}
