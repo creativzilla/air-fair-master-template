@@ -30,7 +30,10 @@ a {
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{margin:0;font-family:'Poppins',sans-serif;color:#5B6C80;background:#fff}
-.travel-site{overflow:hidden}
+/* clip, not hidden: hidden would stop the sticky header from sticking. */
+.travel-site{overflow:hidden;overflow:clip}
+/* In-page links (#contact, #news…) land below the sticky header. */
+.travel-site [id]{scroll-margin-top:84px}
 .section-shell{max-width:1080px;margin:0 auto;padding-left:24px;padding-right:24px}
 
 
