@@ -109,7 +109,6 @@ export function TopBars({ settings }) {
   const nav = site.nav || {};
   return <>
     <a className="skip-link" href="#main-content">Skip to main content</a>
-    <div className="promise-bar">{(site.promiseBar?.items || []).map(item => <span key={item}>{item}</span>)}</div>
     <header className="main-nav">
       <div className="nav-inner">
         <a href="/#top"><Logo /></a>

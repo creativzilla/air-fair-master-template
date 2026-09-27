@@ -37,7 +37,6 @@ body{margin:0;font-family:'Poppins',sans-serif;color:#5B6C80;background:#fff}
 .section-shell{max-width:1080px;margin:0 auto;padding-left:24px;padding-right:24px}
 
 
-.promise-bar{height:26px;background:#2F720E;color:#f8fbdc;display:flex;align-items:center;justify-content:center;gap:48px;font-size:13px}
 
 .main-nav{background:rgba(255,255,255,.72);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid rgba(16,45,104,.08);position:sticky;top:0;z-index:20;box-shadow:0 1px 0 rgba(16,45,104,.03)}
 .nav-inner{height:68px;max-width:1080px;margin:auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between}
@@ -352,7 +351,6 @@ footer{background:#051931;color:#9fb2cc;border-top:1px solid rgba(255,255,255,.0
 .chat-bubble:hover{transform:scale(1.08)}
 
 @media(max-width:800px){
-  .promise-bar{gap:14px;font-size:12px}
   .nav-links{display:none}
   .nav-links.open{display:flex;position:absolute;top:68px;left:0;right:0;margin:0;padding:22px 24px;background:#fff;border-top:1px solid #E3E8ED;align-items:flex-start;flex-direction:column;gap:18px;box-shadow:0 8px 20px #0001}
   .mobile-menu{display:block!important}
@@ -380,7 +378,6 @@ footer{background:#051931;color:#9fb2cc;border-top:1px solid rgba(255,255,255,.0
 
 @media(max-width:480px){
   .main-nav .logo-img{height:48px}
-  .promise-bar span:nth-child(n+3){display:none}
   .nav-inner{padding:0 16px}
   .book-button{display:none}
   .hero-inner{padding:24px 16px}
@@ -423,7 +420,6 @@ footer{background:#051931;color:#9fb2cc;border-top:1px solid rgba(255,255,255,.0
   .logo-img{height:46px}
   .main-nav .logo-img{height:58px}
 
-  .promise-bar{font-size:14px;gap:64px}
   .nav-links{gap:30px;margin-right:40px}
   .nav-links a{font-size:15px}
   .book-button,.green-button,.yellow-button,.phone-button{font-size:15px;padding:12px 26px}
