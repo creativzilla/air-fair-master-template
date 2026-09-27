@@ -382,7 +382,7 @@ function Contact({ fields, settings }) {
   const submit = async event => {
     event.preventDefault();
     try {
-      await submitWebsiteForm({ form, formType: "website_inquiry", fields: formFields, values });
+      await submitWebsiteForm({ form, formId: "contact-home", serviceType: "general", formType: "website_inquiry", fields: formFields, values });
       setSent(true);
     } catch {
       // Same behaviour as before: stay on the form so the visitor can retry.

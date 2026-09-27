@@ -41,6 +41,8 @@ export default function ServiceAssessmentForm({ service }) {
     try {
       await submitWebsiteForm({
         form: config,
+        formId: `immigration-${service.slug}`,
+        serviceType: "immigration",
         formType: `immigration_${service.slug}`,
         source: service._doc,
         fields: visibleFields,

@@ -33,7 +33,7 @@ function formLabel(row) {
   return row.form_type;
 }
 
-const META_KEYS = new Set(["service_id", "service_slug", "service_name", "service_category", "country_name", "country_slug", "visa_type", "package_name", "package_slug", "source_page", "submitted_at", "agreed_to_privacy_policy", "attachment_upload_failed"]);
+const META_KEYS = new Set(["service_id", "service_slug", "service_name", "service_category", "country_name", "country_slug", "visa_type", "package_name", "package_slug", "source_page", "submitted_at", "agreed_to_privacy_policy", "attachment_upload_failed", "form_id", "service_type", "source"]);
 
 function useSubmissions() {
   const [rows, setRows] = useState(null);
@@ -153,6 +153,7 @@ function SubmissionDrawer({ row, lead, stages, role, onClose, onUpdated, onCreat
         </div>
         <div className="text-xs flex flex-col gap-0.5" style={{ color: T.muted, ...fontBody }}>
           {row.source_page && <span>Submitted from {row.source_page}</span>}
+          {(row.form_id || data.form_id) && <span>Form ID: {row.form_id || data.form_id}</span>}
           {data.agreed_to_privacy_policy && <span>Agreed to the Privacy Policy</span>}
         </div>
         {error && <Notice tone="danger">{error}</Notice>}

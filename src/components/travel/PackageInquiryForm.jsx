@@ -7,6 +7,8 @@ export default function PackageInquiryForm({ pkg, formConfig }) {
   return (
     <InquiryForm
       form={formConfig}
+      formId={`travel-inquiry-${pkg.slug}`}
+      serviceType="travel"
       formType={`travel_package_${pkg.slug}`}
       source={pkg._doc}
       titleVars={{ title: pkg.title }}

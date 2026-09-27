@@ -20,13 +20,16 @@ async function uploadAttachment(file) {
  * Save a website form submission.
  *
  * form      formView() of the published form document (key/documentId/versionId)
+ * formId    unique identifier of this form on this page, e.g. "visa-inquiry-japan"
+ *           (see docs/form-identifiers.md)
+ * serviceType  general | immigration | visa | travel
  * formType  legacy form_type value the dashboard already understands
  * source    { documentId, versionId } of the service/page the form is on
  * fields    the fields that were visible when submitting
  * values    { [field.name]: value }
  * metadata  extra context stored in raw_data
  */
-export async function submitWebsiteForm({ form, formType, source = {}, fields, values, metadata = {} }) {
+export async function submitWebsiteForm({ form, formId, serviceType, formType, source = {}, fields, values, metadata = {} }) {
   const payload = {};
   const attachments = [];
   const failedUploads = [];
@@ -63,6 +66,11 @@ export async function submitWebsiteForm({ form, formType, source = {}, fields, v
       ...payload,
       ...metadata,
       ...(failedUploads.length ? { attachment_upload_failed: failedUploads } : {}),
+      // Identifiers: copied into the form_id / service_type / source columns by
+      // a database trigger (migration 20260927130000_form_identifiers).
+      form_id: formId,
+      service_type: serviceType,
+      source: sourcePage,
       source_page: sourcePage,
       submitted_at: new Date().toISOString(),
     },

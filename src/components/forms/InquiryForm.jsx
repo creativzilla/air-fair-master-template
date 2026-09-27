@@ -14,7 +14,7 @@ function ConsentText({ consent }) {
 // Sidebar inquiry form used by visa destination and travel package pages.
 // Everything shown — fields, texts, consent, success message — comes from the
 // published form document ({title} is replaced with the page's title).
-export default function InquiryForm({ form, formType, source, titleVars, metadata }) {
+export default function InquiryForm({ form, formId, serviceType, formType, source, titleVars, metadata }) {
   const fields = form?.fields || [];
   const consent = form?.consent;
   const [values, setValues] = useState({});
@@ -53,6 +53,8 @@ export default function InquiryForm({ form, formType, source, titleVars, metadat
     try {
       await submitWebsiteForm({
         form,
+        formId,
+        serviceType,
         formType,
         source,
         fields: visibleFields,

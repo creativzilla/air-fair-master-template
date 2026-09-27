@@ -7,6 +7,8 @@ export default function VisaInquiryForm({ country, formConfig }) {
   return (
     <InquiryForm
       form={formConfig}
+      formId={`visa-inquiry-${country.slug}`}
+      serviceType="visa"
       formType={`visa_${country.slug}`}
       source={country._doc}
       titleVars={{ title: country.title }}
