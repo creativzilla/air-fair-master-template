@@ -49,6 +49,7 @@ const routes = [
   { path: '/travel-tours', load: () => import('./pages/TravelToursPage.jsx') },
   { path: '/travel-tours/:packageSlug', load: () => import('./pages/TravelPackageDetailPage.jsx') },
   { path: '/dashboard', load: () => import('./pages/Dashboard.jsx') },
+  { path: '/newsletter/:mode', load: () => import('./pages/NewsletterPage.jsx') },
   { path: '*', load: () => import('./pages/NotFoundPage.jsx') },
 ].map(route => (route.load ? { ...route, load: loadChunk(route.load), Component: lazy(loadChunk(route.load)) } : route))
 

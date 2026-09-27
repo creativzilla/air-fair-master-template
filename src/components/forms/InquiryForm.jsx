@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { ArrowRight, ShieldCheck } from "lucide-react";
-import { submitWebsiteForm } from "../../lib/formSubmit.js";
+import { FormSubmitError, submitWebsiteForm } from "../../lib/formSubmit.js";
+import { useFormGuard } from "./FormGuard.jsx";
 import { fillTemplate } from "../../lib/cmsAdapters.js";
 import DynamicFormField, { isFieldVisible, validateFieldValue } from "../immigration/DynamicFormField.jsx";
 
@@ -24,6 +25,7 @@ export default function InquiryForm({ form, formId, serviceType, formType, sourc
   const [submitError, setSubmitError] = useState("");
   const [agreed, setAgreed] = useState(false);
   const [agreeError, setAgreeError] = useState("");
+  const { honeypot, guard } = useFormGuard();
 
   const handleFieldChange = (name, value) => {
     setValues(prev => ({ ...prev, [name]: value }));
@@ -60,10 +62,11 @@ export default function InquiryForm({ form, formId, serviceType, formType, sourc
         fields: visibleFields,
         values,
         metadata: { ...metadata, ...(consent ? { agreed_to_privacy_policy: agreed } : {}) },
+        guard: guard(),
       });
       setSubmitted(true);
-    } catch {
-      setSubmitError("Something went wrong submitting your inquiry. Please try again or contact us directly.");
+    } catch (err) {
+      setSubmitError(err instanceof FormSubmitError ? err.message : "Something went wrong submitting your inquiry. Please try again or contact us directly.");
     } finally {
       setSubmitting(false);
     }
@@ -130,6 +133,7 @@ export default function InquiryForm({ form, formId, serviceType, formType, sourc
           )}
           {agreeError && <p className="svc-field-error">{agreeError}</p>}
 
+          {honeypot}
           <button className="green-button svc-submit-btn" type="submit" disabled={submitting}>
             {submitting ? "Submitting..." : form?.submitLabel} {!submitting && <ArrowRight size={15} />}
           </button>

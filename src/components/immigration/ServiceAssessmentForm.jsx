@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Briefcase, Lock, ShieldCheck } from "lucide-react";
-import { submitWebsiteForm } from "../../lib/formSubmit.js";
+import { FormSubmitError, submitWebsiteForm } from "../../lib/formSubmit.js";
+import { useFormGuard } from "../forms/FormGuard.jsx";
 import { isFieldVisible, validateFieldValue } from "./DynamicFormField.jsx";
 import FormSection from "./FormSection.jsx";
 
@@ -15,6 +16,7 @@ export default function ServiceAssessmentForm({ service }) {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const { honeypot, guard } = useFormGuard();
 
   const handleFieldChange = (name, value) => {
     setValues(prev => ({ ...prev, [name]: value }));
@@ -53,10 +55,11 @@ export default function ServiceAssessmentForm({ service }) {
           service_name: service.title,
           service_category: service.category || "Philippine Immigration Services",
         },
+        guard: guard(),
       });
       setSubmitted(true);
-    } catch {
-      setSubmitError("Something went wrong submitting your assessment. Please try again or contact us directly.");
+    } catch (err) {
+      setSubmitError(err instanceof FormSubmitError ? err.message : "Something went wrong submitting your assessment. Please try again or contact us directly.");
     } finally {
       setSubmitting(false);
     }
@@ -108,6 +111,7 @@ export default function ServiceAssessmentForm({ service }) {
               />
             ))}
 
+            {honeypot}
             <button className="green-button svc-submit-btn" type="submit" disabled={submitting}>
               {submitting ? "Submitting..." : config.submitLabel || "Submit for Assessment"} {!submitting && <ArrowRight size={15} />}
             </button>

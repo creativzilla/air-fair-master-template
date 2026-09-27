@@ -1,11 +1,19 @@
 import { getSupabase } from "./supabaseLazy.js";
 
+// Website forms are sent to the form-submit Edge Function, which checks spam
+// and rate limits, saves the submission (the CRM lead is still created by the
+// database) and sends the staff notification + client confirmation.
+//
+// If the function isn't reachable (not deployed yet, or down), the form is
+// saved directly exactly as before, with the same id, so nothing is lost or
+// saved twice. Emails are only sent through the function.
+
 // Files go to the PRIVATE form-attachments bucket. The site stores only the
 // object path; staff open files through short-lived signed URLs in the
 // dashboard. Visitors can upload but never list or read attachments.
 async function uploadAttachment(file) {
   const month = new Date().toISOString().slice(0, 7);
-  const id = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  const id = newId();
   const safeName = file.name.replace(/[^\w.-]+/g, "_").slice(-80);
   const path = `submissions/${month}/${id}-${safeName}`;
   const supabase = await getSupabase();
@@ -14,6 +22,34 @@ async function uploadAttachment(file) {
     .upload(path, file, { contentType: file.type || undefined, upsert: false });
   if (error) throw error;
   return path;
+}
+
+function newId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  const bytes = new Uint8Array(16);
+  globalThis.crypto.getRandomValues(bytes);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = [...bytes].map(b => b.toString(16).padStart(2, "0")).join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+// A problem the visitor can fix or should know about (invalid input, too many
+// submissions); its message is safe to show.
+export class FormSubmitError extends Error {}
+
+// Returns the function's response, "unavailable" when it can't be reached
+// (the caller falls back to a direct save), or throws FormSubmitError.
+async function callFormFunction(supabase, body) {
+  const { data, error } = await supabase.functions.invoke("form-submit", { body });
+  if (!error) return data;
+  const status = error.context?.status;
+  if (error.name === "FunctionsHttpError" && status && status !== 404 && status < 500) {
+    let message = "";
+    try { message = (await error.context.json())?.error || ""; } catch { /* no body */ }
+    throw new FormSubmitError(message || "Please check the form and try again.");
+  }
+  return "unavailable";
 }
 
 /**
@@ -28,8 +64,9 @@ async function uploadAttachment(file) {
  * fields    the fields that were visible when submitting
  * values    { [field.name]: value }
  * metadata  extra context stored in raw_data
+ * guard     from useFormGuard(): hidden spam field + time to fill
  */
-export async function submitWebsiteForm({ form, formId, serviceType, formType, source = {}, fields, values, metadata = {} }) {
+export async function submitWebsiteForm({ form, formId, serviceType, formType, source = {}, fields, values, metadata = {}, guard = {} }) {
   const payload = {};
   const attachments = [];
   const failedUploads = [];
@@ -51,8 +88,8 @@ export async function submitWebsiteForm({ form, formId, serviceType, formType, s
   }
 
   const sourcePage = typeof window !== "undefined" ? window.location.pathname : "";
-  const supabase = await getSupabase();
-  const { error } = await supabase.from("form_submissions").insert({
+  const row = {
+    id: newId(),
     form_type: formType,
     form_key: form?.key || null,
     document_id: source.documentId || null,
@@ -66,24 +103,46 @@ export async function submitWebsiteForm({ form, formId, serviceType, formType, s
       ...payload,
       ...metadata,
       ...(failedUploads.length ? { attachment_upload_failed: failedUploads } : {}),
-      // Identifiers: copied into the form_id / service_type / source columns by
-      // a database trigger (migration 20260927130000_form_identifiers).
+      // Identifiers: the Edge Function derives these itself; they're kept here
+      // for the direct-save fallback (copied into columns by a DB trigger).
       form_id: formId,
       service_type: serviceType,
       source: sourcePage,
       source_page: sourcePage,
       submitted_at: new Date().toISOString(),
     },
-  });
-  if (error) throw error;
+  };
+
+  const supabase = await getSupabase();
+  const result = await callFormFunction(supabase, { action: "submit_form", submission: row, guard });
+  if (result !== "unavailable") return;
+
+  // Fallback: save directly, as before (no emails). 23505 = the function did
+  // save it after all (same id), which is fine.
+  const { error } = await supabase.from("form_submissions").insert(row);
+  if (error && error.code !== "23505") throw error;
 }
 
-export async function subscribeToNewsletter(email) {
+// Newsletter signup (separate from inquiries), with double opt-in. Returns
+// "check_email" when a confirmation email is on its way, or "saved" when the
+// function wasn't reachable and the address was stored directly (unconfirmed).
+export async function subscribeToNewsletter(email, guard = {}) {
   const supabase = await getSupabase();
-  const { error } = await supabase.from("newsletter_subscribers").insert({
-    email: email.trim(),
-    source_page: typeof window !== "undefined" ? window.location.pathname : "",
-  });
+  const sourcePage = typeof window !== "undefined" ? window.location.pathname : "";
+  const result = await callFormFunction(supabase, { action: "newsletter_subscribe", email: email.trim(), source_page: sourcePage, guard });
+  if (result !== "unavailable") return "check_email";
+  const { error } = await supabase.from("newsletter_subscribers").insert({ email: email.trim(), source_page: sourcePage });
   // 23505 = already subscribed (unique email): treat as success.
   if (error && error.code !== "23505") throw error;
+  return "saved";
+}
+
+// Confirmation / unsubscribe links from the newsletter email.
+export async function newsletterLinkAction(action, token) {
+  const supabase = await getSupabase();
+  const { data, error } = await supabase.functions.invoke("form-submit", { body: { action, token } });
+  if (!error) return { ok: true, status: data?.status };
+  let message = "";
+  try { message = (await error.context?.json?.())?.error || ""; } catch { /* no body */ }
+  return { ok: false, error: message || "Something went wrong. Please try again later." };
 }

@@ -12,6 +12,7 @@ import { getIcon } from "../components/immigration/icons.js";
 import VisaDestinationCard from "../components/visa/VisaDestinationCard.jsx";
 import NewsEvents from "../components/NewsEvents.jsx";
 import { useAutoplay } from "../lib/useAutoplay.js";
+import { useFormGuard } from "../components/forms/FormGuard.jsx";
 import { applyOrganizationJsonLd, applySeo, collectSsrJsonLd, collectSsrSeo, organizationJsonLd } from "../lib/seo.js";
 
 export const colors = {
@@ -378,11 +379,12 @@ function Contact({ fields, settings }) {
   const formFields = form?.fields || [];
   const [values, setValues] = useState({});
   const [sent, setSent] = useState(false);
+  const { honeypot, guard } = useFormGuard();
   const update = (key, value) => setValues(prev => ({ ...prev, [key]: value }));
   const submit = async event => {
     event.preventDefault();
     try {
-      await submitWebsiteForm({ form, formId: "contact-home", serviceType: "general", formType: "website_inquiry", fields: formFields, values });
+      await submitWebsiteForm({ form, formId: "contact-home", serviceType: "general", formType: "website_inquiry", fields: formFields, values, guard: guard() });
       setSent(true);
     } catch {
       // Same behaviour as before: stay on the form so the visitor can retry.
@@ -390,25 +392,26 @@ function Contact({ fields, settings }) {
   };
   return <section id="contact" className="contact-section"><div className="section-shell contact-layout"><div><h2>{fields.heading}</h2><p>{fields.body}</p><div className="contact-detail"><Phone size={16} /> {settings.contact_phone || fallbackSettings.contact_phone}</div><div className="contact-detail"><Mail size={16} /> {settings.contact_email || fallbackSettings.contact_email}</div><div className="contact-detail"><MapPin size={16} /> {settings.address || fallbackSettings.address}</div></div>{sent ? <div className="sent-card"><ShieldCheck size={38} /><h3>{form?.successTitle}</h3><p>{form?.successMessage}</p></div> : <form className="contact-form" onSubmit={submit}>{formFields.map(field => field.type === "textarea"
     ? <textarea key={field.name} aria-label={field.label || field.placeholder} rows="4" required={field.required || undefined} placeholder={field.placeholder} value={values[field.name] || ""} onChange={e => update(field.name, e.target.value)} />
-    : <input key={field.name} aria-label={field.label || field.placeholder} required={field.required || undefined} type={field.type === "email" ? "email" : undefined} placeholder={field.placeholder} value={values[field.name] || ""} onChange={e => update(field.name, e.target.value)} />)}<button className="yellow-button" type="submit">{form?.submitLabel} <ArrowRight size={14} /></button></form>}</div></section>;
+    : <input key={field.name} aria-label={field.label || field.placeholder} required={field.required || undefined} type={field.type === "email" ? "email" : undefined} placeholder={field.placeholder} value={values[field.name] || ""} onChange={e => update(field.name, e.target.value)} />)}{honeypot}<button className="yellow-button" type="submit">{form?.submitLabel} <ArrowRight size={14} /></button></form>}</div></section>;
 }
 
 export function Footer({ settings }) {
   const footer = useGlobalContent().footer || {};
   const businessName = settings.business_name || fallbackSettings.business_name;
   const socials = [[Facebook, settings.facebook_url, "Facebook"], [Instagram, settings.instagram_url, "Instagram"], [Linkedin, settings.linkedin_url, "LinkedIn"]];
-  const [subscribed, setSubscribed] = useState(false);
+  // null | "check_email" (confirmation sent) | "saved" (email service unavailable)
+  const [subscribed, setSubscribed] = useState(null);
+  const { honeypot: newsletterHoneypot, guard: newsletterGuard } = useFormGuard();
   const subscribe = async event => {
     event.preventDefault();
-    const email = event.currentTarget.querySelector("input")?.value || "";
+    const email = event.currentTarget.querySelector('input[type="email"]')?.value || "";
     try {
-      await subscribeToNewsletter(email);
-      setSubscribed(true);
+      setSubscribed(await subscribeToNewsletter(email, newsletterGuard()));
     } catch {
       // Keep the form visible so the visitor can try again.
     }
   };
-  return <footer><div className="section-shell footer-grid"><div className="footer-brand"><Logo light /><p>{footer.blurb}</p><div className="socials">{socials.map(([Icon, url, name]) => <a key={name} href={url || "#"} aria-label={`${businessName} on ${name}`}><Icon size={13} aria-hidden="true" /></a>)}</div></div>{(footer.columns || []).map(column => <div key={column.heading}><h2>{column.heading}</h2>{(column.links || []).map(item => <a key={item.label + item.href} href={item.href}>{item.label}</a>)}</div>)}<div><h2>{footer.contactHeading}</h2><a href={`tel:${settings.contact_phone}`}>☎ {settings.contact_phone || fallbackSettings.contact_phone}</a><a href={`mailto:${settings.contact_email}`}>✉ {settings.contact_email || fallbackSettings.contact_email}</a><a href="#contact">▣ {settings.address || fallbackSettings.address}</a></div><div className="footer-newsletter"><h2>{footer.newsletter?.heading}</h2><p>{footer.newsletter?.body}</p>{subscribed ? <span className="newsletter-thanks"><Check size={14} /> {footer.newsletter?.thanks}</span> : <form className="newsletter-form" onSubmit={subscribe}><input required type="email" aria-label={footer.newsletter?.placeholder || "Email address"} placeholder={footer.newsletter?.placeholder} /><button type="submit" aria-label="Subscribe"><ArrowRight size={14} /></button></form>}</div></div><div className="footer-bottom section-shell"><span>{footer.copyright}</span><span>{footer.legalText}</span></div></footer>;
+  return <footer><div className="section-shell footer-grid"><div className="footer-brand"><Logo light /><p>{footer.blurb}</p><div className="socials">{socials.map(([Icon, url, name]) => <a key={name} href={url || "#"} aria-label={`${businessName} on ${name}`}><Icon size={13} aria-hidden="true" /></a>)}</div></div>{(footer.columns || []).map(column => <div key={column.heading}><h2>{column.heading}</h2>{(column.links || []).map(item => <a key={item.label + item.href} href={item.href}>{item.label}</a>)}</div>)}<div><h2>{footer.contactHeading}</h2><a href={`tel:${settings.contact_phone}`}>☎ {settings.contact_phone || fallbackSettings.contact_phone}</a><a href={`mailto:${settings.contact_email}`}>✉ {settings.contact_email || fallbackSettings.contact_email}</a><a href="#contact">▣ {settings.address || fallbackSettings.address}</a></div><div className="footer-newsletter"><h2>{footer.newsletter?.heading}</h2><p>{footer.newsletter?.body}</p>{subscribed ? <span className="newsletter-thanks"><Check size={14} /> {subscribed === "check_email" ? (footer.newsletter?.checkEmail || "Almost done! Check your inbox to confirm.") : footer.newsletter?.thanks}</span> : <form className="newsletter-form" onSubmit={subscribe}><input required type="email" aria-label={footer.newsletter?.placeholder || "Email address"} placeholder={footer.newsletter?.placeholder} />{newsletterHoneypot}<button type="submit" aria-label="Subscribe"><ArrowRight size={14} /></button></form>}</div></div><div className="footer-bottom section-shell"><span>{footer.copyright}</span><span>{footer.legalText}</span></div></footer>;
 }
 
 export function ChatWidget({ code }) {
