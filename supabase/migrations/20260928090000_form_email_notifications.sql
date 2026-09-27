@@ -48,7 +48,9 @@ create table if not exists public.email_settings (
   -- Can't switch sending on without a monitored inbox.
   constraint email_settings_enabled_needs_inbox check (not sending_enabled or staff_inbox is not null)
 );
-insert into public.email_settings (id) values (1) on conflict (id) do nothing;
+-- Monitored staff inbox confirmed by the owner (2026-09-28). Sending stays off
+-- until an admin switches it on in Dashboard > Form Emails.
+insert into public.email_settings (id, staff_inbox) values (1, 'admin@airfairtravel.com') on conflict (id) do nothing;
 
 drop trigger if exists trg_email_settings_updated_at on public.email_settings;
 create trigger trg_email_settings_updated_at before update on public.email_settings

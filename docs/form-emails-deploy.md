@@ -52,12 +52,12 @@ Each step is safe to stop after. Customer emails only start at step 11.
 6. **Verify the database** (SQL Editor):
    ```sql
    select jobname, schedule, active from cron.job where jobname = 'form-email-retries';  -- 1 row, */5 * * * *, true
-   select sending_enabled, staff_inbox, test_redirect_to from public.email_settings;     -- false, null, null
+   select sending_enabled, staff_inbox, test_redirect_to from public.email_settings;     -- false, admin@airfairtravel.com, null
    select count(*) from vault.decrypted_secrets where name = 'form_submit_anon_key';      -- 1
    select service_type, enabled from public.email_templates where form_id is null;       -- 4 rows, all true
    ```
 7. **Configure test mode** (Dashboard > Form Emails > Inboxes & sending, admin):
-   - Monitored staff inbox: the Google Workspace inbox the team checks.
+   - Monitored staff inbox: pre-filled as `admin@airfairtravel.com` (confirm it's the inbox the team checks).
    - Test mode: send everything to: your own address.
    - Send emails: on. Save.
 
