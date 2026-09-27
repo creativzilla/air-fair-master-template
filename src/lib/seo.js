@@ -78,7 +78,7 @@ export function organizationJsonLd(settings) {
     "@type": "TravelAgency",
     name: settings.business_name,
     url: `${SITE_URL}/`,
-    logo: absoluteUrl("/airfair_logo_colored.png"),
+    logo: absoluteUrl("/airfair-logo.png"),
     address: { "@type": "PostalAddress", addressCountry: "PH" },
     ...(sameAs.length && { sameAs }),
   };

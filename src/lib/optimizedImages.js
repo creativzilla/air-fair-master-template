@@ -5,6 +5,7 @@ const WEBP = new Set([
   "/srrv-retire-paradise-2.png",
   "/header-rizal-park.png",
   "/airfair_logo_colored.png",
+  "/airfair-logo.png",
   "/bi-logo-v2.png",
   "/dole-logo-v2.png",
   "/pra-logo-v2.png",
