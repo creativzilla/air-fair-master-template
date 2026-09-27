@@ -13,7 +13,7 @@ export default function VisaDestinationCard({ destination }) {
       <div className="visa-assist-shade" />
       <img className="visa-assist-icon" src={optimizedSrc("/visa-icon.png")} alt="" loading="lazy" decoding="async" />
       <span className="card-flag-badge">
-        <img src={`https://flagcdn.com/w80/${flagCode}.png`} alt="" loading="lazy" decoding="async" />
+        <img src={`https://flagcdn.com/w80/${flagCode}.webp`} alt="" loading="lazy" decoding="async" />
       </span>
       <div className="visa-assist-overlay">
         <h3>{name}</h3>

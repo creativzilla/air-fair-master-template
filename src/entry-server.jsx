@@ -15,6 +15,7 @@ import TravelToursPage from "./pages/TravelToursPage.jsx";
 import TravelPackageDetailPage from "./pages/TravelPackageDetailPage.jsx";
 import NewsArticlePage from "./pages/NewsArticlePage.jsx";
 import NewsPage from "./pages/NewsPage.jsx";
+import NotFoundPage from "./pages/NotFoundPage.jsx";
 
 export { takeSsrHead, seoTags } from "./lib/seo.js";
 
@@ -31,6 +32,7 @@ export function render(url) {
         <Route path="/visa-assistance/:countrySlug" element={<VisaCountryPage />} />
         <Route path="/travel-tours" element={<TravelToursPage />} />
         <Route path="/travel-tours/:packageSlug" element={<TravelPackageDetailPage />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </StaticRouter>
   );

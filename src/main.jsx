@@ -1,6 +1,13 @@
 import React, { Suspense, lazy } from 'react'
 import ReactDOM from 'react-dom/client'
-import { BrowserRouter, Routes, Route, Navigate, matchRoutes } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, matchRoutes } from 'react-router-dom'
+// Poppins is self-hosted (bundled with the site's CSS) instead of loaded from
+// Google Fonts: no extra render-blocking request to another server.
+import '@fontsource/poppins/400.css'
+import '@fontsource/poppins/500.css'
+import '@fontsource/poppins/600.css'
+import '@fontsource/poppins/700.css'
+import '@fontsource/poppins/800.css'
 import './index.css'
 // Page stylesheets stay global (same order as before code splitting): some
 // shared components, like the homepage news block, rely on their rules.
@@ -42,6 +49,7 @@ const routes = [
   { path: '/travel-tours', load: () => import('./pages/TravelToursPage.jsx') },
   { path: '/travel-tours/:packageSlug', load: () => import('./pages/TravelPackageDetailPage.jsx') },
   { path: '/dashboard', load: () => import('./pages/Dashboard.jsx') },
+  { path: '*', load: () => import('./pages/NotFoundPage.jsx') },
 ].map(route => (route.load ? { ...route, load: loadChunk(route.load), Component: lazy(loadChunk(route.load)) } : route))
 
 const container = document.getElementById('root')
@@ -53,7 +61,6 @@ function render() {
         <Suspense fallback={null}>
           <Routes>
             {routes.map(({ path, Component }) => <Route key={path} path={path} element={<Component />} />)}
-            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
         <PreviewBanner />

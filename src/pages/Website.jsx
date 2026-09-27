@@ -58,14 +58,14 @@ export const fallbackSettings = {
 // canonical URL and share image) from the CMS; "{businessName}" in a title is
 // replaced with the business name from Settings. Pages without their own
 // description use the site default from Settings.
-export function useSeo({ title, description, image, type } = {}, settings) {
+export function useSeo({ title, description, image, type, noindex } = {}, settings) {
   const businessName = settings?.business_name || fallbackSettings.business_name;
   const resolvedTitle = title ? title.replace("{businessName}", businessName) : "";
   const resolvedDescription = description || settings?.seo_description || fallbackSettings.seo_description;
-  if (import.meta.env.SSR) collectSsrSeo({ title: resolvedTitle, description: resolvedDescription, image, type });
+  if (import.meta.env.SSR) collectSsrSeo({ title: resolvedTitle, description: resolvedDescription, image, type, noindex });
   useEffect(() => {
-    applySeo({ title: resolvedTitle, description: resolvedDescription, image, type });
-  }, [resolvedTitle, resolvedDescription, image, type]);
+    applySeo({ title: resolvedTitle, description: resolvedDescription, image, type, noindex });
+  }, [resolvedTitle, resolvedDescription, image, type, noindex]);
 }
 
 function ServiceCard({ icon: Icon, title, desc, slug }) {
@@ -303,7 +303,7 @@ function TravelTours({ fields }) {
         <img className="tour-card-photo" src={item.image} alt={item.name} loading="lazy" decoding="async" />
         <div className="tour-card-shade" />
         <img className="tour-card-icon" src={imageSrc(fields.cardIcon)} alt="" loading="lazy" decoding="async" />
-        <span className="card-flag-badge"><img src={`https://flagcdn.com/w80/${item.flagCode}.png`} alt="" loading="lazy" decoding="async" /></span>
+        <span className="card-flag-badge"><img src={`https://flagcdn.com/w80/${item.flagCode}.webp`} alt="" loading="lazy" decoding="async" /></span>
         <div className="tour-card-overlay">
           <span className="tour-card-tag">{item.place}</span>
           <h3>{item.name}</h3>

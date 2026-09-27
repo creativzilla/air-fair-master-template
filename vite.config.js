@@ -14,10 +14,33 @@ function siteMeta(env) {
     name: 'air-fair-site-meta',
     transformIndexHtml() {
       const meta = (key, content, attr = 'property') => ({ tag: 'meta', attrs: { [attr]: key, content }, injectTo: 'head' })
+      // Google Analytics 4 (only when VITE_GA_ID is set). Loads async at the end
+      // of the page so it never delays rendering; the dashboard isn't tracked.
+      const gaId = /^G-[A-Z0-9]+$/.test(env.VITE_GA_ID || '') ? env.VITE_GA_ID : ''
+      const analytics = gaId ? [
+        { tag: 'script', attrs: { async: true, src: `https://www.googletagmanager.com/gtag/js?id=${gaId}` }, injectTo: 'body' },
+        { tag: 'script', children: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());if(!location.pathname.startsWith('/dashboard'))gtag('config','${gaId}');`, injectTo: 'body' },
+      ] : []
       return [
         meta('twitter:card', image ? 'summary_large_image' : 'summary', 'name'),
         ...(image ? [meta('og:image', image), meta('twitter:image', image, 'name')] : []),
+        ...analytics,
       ]
+    },
+  }
+}
+
+// Preload the self-hosted Poppins files most text uses (Latin 400/600/700),
+// so the browser fetches them with the CSS instead of after it.
+function preloadFonts() {
+  return {
+    name: 'air-fair-preload-fonts',
+    apply: 'build',
+    transformIndexHtml(html, ctx) {
+      if (!ctx.bundle) return html
+      return Object.keys(ctx.bundle)
+        .filter(file => /poppins-latin-(400|600|700)-normal[^/]*\.woff2$/.test(file))
+        .map(file => ({ tag: 'link', attrs: { rel: 'preload', href: `/${file}`, as: 'font', type: 'font/woff2', crossorigin: '' }, injectTo: 'head-prepend' }))
     },
   }
 }
@@ -58,7 +81,7 @@ function prerenderPages(mode) {
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), 'VITE_')
   return {
-    plugins: [react(), siteMeta(env), prerenderPages(mode)],
+    plugins: [react(), siteMeta(env), preloadFonts(), prerenderPages(mode)],
     server: {
       port: 5173,
       host: true,

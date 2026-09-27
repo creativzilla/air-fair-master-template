@@ -111,6 +111,11 @@ export async function prerender({ root = process.cwd(), mode = "production", ssr
     written.push(route);
   }
 
+  // Custom 404 page (noindex, not in the sitemap). Netlify and Vercel serve
+  // dist/404.html with a 404 status for addresses that don't exist.
+  const notFoundMarkup = render("/404");
+  fs.writeFileSync(path.join(DIST, "404.html"), page("/404", notFoundMarkup, takeSsrHead()));
+
   if (SITE_URL) {
     const urls = written.map(route => `  <url><loc>${SITE_URL}${route === "/" ? "/" : route}</loc></url>`).join("\n");
     fs.writeFileSync(path.join(DIST, "sitemap.xml"), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`);
