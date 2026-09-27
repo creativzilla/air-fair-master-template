@@ -1,5 +1,3 @@
 User-agent: *
 Allow: /
 Disallow: /dashboard
-
-Sitemap: https://airfairtravel.com/sitemap.xml
