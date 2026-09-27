@@ -10,6 +10,7 @@ const WEBP = new Set([
   "/pra-logo-v2.png",
   "/visa-icon.png",
   "/travel-tours-icon.png",
+  "/dot-logo.png",
   "/travel-posters/bali-indonesia.jpg",
   "/travel-posters/bts-airang-package.jpg",
   "/travel-posters/danang-package-tour.jpg",

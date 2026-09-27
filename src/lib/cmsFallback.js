@@ -112,9 +112,10 @@ const homeSections = [
     label: "Officially Accredited By",
     itemSubLabel: "Republic of the Philippines",
     items: [
-      { logo: img("/dole-logo-v2.png", "National Labor and Deployment"), label: "National Labor and Deployment" },
+      { logo: img("/dole-logo-v2.png", "Department of Labor and Employment"), label: "Department of Labor and Employment" },
       { logo: img("/bi-logo-v2.png", "Bureau of Immigration"), label: "Bureau of Immigration" },
       { logo: img("/pra-logo-v2.png", "Philippine Retirement Authority"), label: "Philippine Retirement Authority" },
+      { logo: img("/dot-logo.png", "Department of Tourism"), label: "Department of Tourism" },
     ],
   }),
   section("categories", "Service categories", {
