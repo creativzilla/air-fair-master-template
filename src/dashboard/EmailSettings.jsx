@@ -126,7 +126,7 @@ export default function EmailSettings() {
         <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
           <div>
             <h3 className="text-sm font-semibold" style={{ color: T.ink, ...fontBody }}>Recent emails</h3>
-            <p className="text-xs" style={{ color: T.muted, ...fontBody }}>Failed sends retry automatically with the next form submission, or retry them now.</p>
+            <p className="text-xs" style={{ color: T.muted, ...fontBody }}>Failed sends retry automatically every 5 minutes (up to 5 attempts). "Retry failed now" also retries ones that gave up.</p>
           </div>
           <div className="flex gap-2">
             <Button tone="outline" small icon={RefreshCw} onClick={loadLog}>Refresh</Button>

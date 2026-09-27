@@ -5,8 +5,9 @@ import { getSupabase } from "./supabaseLazy.js";
 // database) and sends the staff notification + client confirmation.
 //
 // If the function isn't reachable (not deployed yet, or down), the form is
-// saved directly exactly as before, with the same id, so nothing is lost or
-// saved twice. Emails are only sent through the function.
+// saved directly as before, with the same id, so nothing is saved twice. Once
+// migration 20260928110000 closes direct saves, that fallback is refused and
+// the visitor sees a "please try again" message instead.
 
 // Files go to the PRIVATE form-attachments bucket. The site stores only the
 // object path; staff open files through short-lived signed URLs in the
@@ -35,8 +36,16 @@ function newId() {
 }
 
 // A problem the visitor can fix or should know about (invalid input, too many
-// submissions); its message is safe to show.
+// submissions, service unavailable); its message is safe to show.
 export class FormSubmitError extends Error {}
+
+const UNAVAILABLE = "We couldn't send this right now. Please try again in a few minutes, or contact us by phone or email.";
+
+// After the direct-save lockdown (migration 20260928110000) the fallback is
+// refused with 42501; tell the visitor instead of failing silently.
+function fallbackError() {
+  return new FormSubmitError(UNAVAILABLE);
+}
 
 // Returns the function's response, "unavailable" when it can't be reached
 // (the caller falls back to a direct save), or throws FormSubmitError.
@@ -120,7 +129,7 @@ export async function submitWebsiteForm({ form, formId, serviceType, formType, s
   // Fallback: save directly, as before (no emails). 23505 = the function did
   // save it after all (same id), which is fine.
   const { error } = await supabase.from("form_submissions").insert(row);
-  if (error && error.code !== "23505") throw error;
+  if (error && error.code !== "23505") throw fallbackError();
 }
 
 // Newsletter signup (separate from inquiries), with double opt-in. Returns
@@ -133,7 +142,7 @@ export async function subscribeToNewsletter(email, guard = {}) {
   if (result !== "unavailable") return "check_email";
   const { error } = await supabase.from("newsletter_subscribers").insert({ email: email.trim(), source_page: sourcePage });
   // 23505 = already subscribed (unique email): treat as success.
-  if (error && error.code !== "23505") throw error;
+  if (error && error.code !== "23505") throw fallbackError();
   return "saved";
 }
 

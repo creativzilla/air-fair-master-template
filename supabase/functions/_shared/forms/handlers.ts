@@ -92,6 +92,7 @@ export const RATE_LIMITS = {
   newsletterEmailsPerAddressDay: 3,
   duplicateWindowMinutes: 10,
   newsletterResendMinutes: 10,
+  processDuePerIpHour: 120, // the 5-minute schedule uses 12
 };
 
 // Technical keys the website stores in raw_data; not shown as answers.
@@ -344,6 +345,18 @@ export async function handleNewsletterUnsubscribe(deps: Deps, body: { token?: un
   if (!subscriber) return fail(400, "This unsubscribe link is not valid.");
   if (!subscriber.unsubscribed_at) await deps.store.updateSubscriber(subscriber.id, { unsubscribed_at: deps.now().toISOString() });
   return ok({ status: "unsubscribed" });
+}
+
+// ---------------------------------------------------------------------------
+// Scheduled retries (called every 5 minutes by pg_cron via pg_net). Public on
+// purpose: it only sends emails that are already queued and due, never resets
+// failures, and can't choose content or recipients. Rate limited per caller.
+// ---------------------------------------------------------------------------
+export async function handleProcessDue(deps: Deps, ctx: { ip: string | null }): Promise<Reply> {
+  const ipKey = await clientIp(deps, ctx.ip);
+  if (!(await deps.store.rateLimitHit("process_due_ip", ipKey, 3600, RATE_LIMITS.processDuePerIpHour))) return fail(429, "Too many requests.");
+  const summary = await processOutbox(deps, { ids: null, limit: 20 });
+  return ok(summary);
 }
 
 // ---------------------------------------------------------------------------

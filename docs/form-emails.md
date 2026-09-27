@@ -35,9 +35,10 @@ Browser form ──> form-submit Edge Function ──> form_submissions (+ CRM l
   (1, 5, 15, 60, 360 min; 5 attempts) and a visible log in the dashboard.
 - The rendered email is stored, so a retry sends exactly the same content.
 
-No `pg_net`, `pg_cron` or new database triggers: the function sends right after
-saving, retries any overdue emails on later calls, and admins can press
-**Retry failed now** in Settings > Email.
+Retries: the function sends right after saving; a pg_cron job (every 5 min, via
+pg_net) calls the function's `process_due` action, which only sends queued
+emails that are due. Admins can also press **Retry failed now** (which also
+retries emails that gave up). No database triggers are added.
 
 ### Protection
 
@@ -50,8 +51,11 @@ saving, retries any overdue emails on later calls, and admins can press
   connection; 5 newsletter signups per hour. Max 3 client confirmations and 3
   newsletter emails per address per day. Same person + same form within 10 min:
   staff get one "[Possible duplicate]" notification, the client isn't re-emailed.
-- If the function is unreachable, the site saves the form directly as before
-  (same id, so no duplicate) and no email is sent.
+- Until the lockdown step, if the function is unreachable the site saves the
+  form directly as before (same id, so no duplicate) and no email is sent.
+  After `supabase/pending/lock_direct_form_inserts.sql` is applied, direct saves
+  are refused, so every submission passes the checks above; if the function is
+  down, visitors see a "please try again" message.
 
 ## Settings (dashboard > Settings > Email, admins only)
 
@@ -71,8 +75,16 @@ saving, retries any overdue emails on later calls, and admins can press
 | `SITE_URL` | no | Defaults to `https://airfairtravel.com` (links in emails). |
 | `EXTRA_ALLOWED_ORIGINS` | no | Comma-separated extra origins allowed to call the function (e.g. a preview URL). |
 
+## Deployment
+
+See [form-emails-deploy.md](form-emails-deploy.md) for the ordered steps and rollback.
+
 ## Tests
 
-- `npm run test:email`: local tests with an in-memory database and a fake
+- `npm run test:email`: 29 unit tests with an in-memory database and a fake
   mailer (routing, recipient restrictions, spam guards, rate limits, retries,
-  idempotency, duplicates, newsletter double opt-in). Sends nothing.
+  scheduled runs, idempotency, duplicates, newsletter double opt-in).
+- `npm run typecheck:functions`: Deno type-check of the Edge Function.
+- `npm run test:email:e2e`: runs the real Edge Function under Deno against a
+  local fake Supabase and a Resend sink, with network access limited to
+  localhost. Sends nothing.

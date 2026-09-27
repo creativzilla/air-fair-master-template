@@ -928,3 +928,6 @@ footer{background:#051931;color:#9fb2cc;border-top:1px solid rgba(255,255,255,.0
 }
 /* Spam-guard field in public forms: invisible to people and screen readers. */
 .af-hp{position:absolute!important;left:-10000px!important;top:auto;width:1px;height:1px;overflow:hidden}
+/* Shown under the contact / newsletter forms when sending fails (light text on the dark footer, dark on the contact card). */
+.form-send-error{margin:10px 0 0;font-size:13px;line-height:1.5;color:#ffd0cc}
+.contact-form .form-send-error{color:#b42318;margin-top:2px}

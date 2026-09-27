@@ -6,7 +6,7 @@ import { dbRowToService, getPriceLabel } from "../lib/catalog.js";
 import { fetchSiteSettings } from "../lib/content.js";
 import { useForm, useGlobalContent, useHomepageTravelCards, useImmigrationCards, usePage, useTestimonials, useVisaCountries } from "../lib/cms.js";
 import { imageSrc } from "../lib/cmsAdapters.js";
-import { submitWebsiteForm, subscribeToNewsletter } from "../lib/formSubmit.js";
+import { FormSubmitError, submitWebsiteForm, subscribeToNewsletter } from "../lib/formSubmit.js";
 import { toDestinationCard } from "../lib/visaCountries.js";
 import { getIcon } from "../components/immigration/icons.js";
 import VisaDestinationCard from "../components/visa/VisaDestinationCard.jsx";
@@ -380,19 +380,22 @@ function Contact({ fields, settings }) {
   const [values, setValues] = useState({});
   const [sent, setSent] = useState(false);
   const { honeypot, guard } = useFormGuard();
+  const [sendError, setSendError] = useState("");
   const update = (key, value) => setValues(prev => ({ ...prev, [key]: value }));
   const submit = async event => {
     event.preventDefault();
+    setSendError("");
     try {
       await submitWebsiteForm({ form, formId: "contact-home", serviceType: "general", formType: "website_inquiry", fields: formFields, values, guard: guard() });
       setSent(true);
-    } catch {
-      // Same behaviour as before: stay on the form so the visitor can retry.
+    } catch (err) {
+      // Stay on the form so the visitor can retry.
+      setSendError(err instanceof FormSubmitError ? err.message : "We couldn't send your message. Please try again.");
     }
   };
   return <section id="contact" className="contact-section"><div className="section-shell contact-layout"><div><h2>{fields.heading}</h2><p>{fields.body}</p><div className="contact-detail"><Phone size={16} /> {settings.contact_phone || fallbackSettings.contact_phone}</div><div className="contact-detail"><Mail size={16} /> {settings.contact_email || fallbackSettings.contact_email}</div><div className="contact-detail"><MapPin size={16} /> {settings.address || fallbackSettings.address}</div></div>{sent ? <div className="sent-card"><ShieldCheck size={38} /><h3>{form?.successTitle}</h3><p>{form?.successMessage}</p></div> : <form className="contact-form" onSubmit={submit}>{formFields.map(field => field.type === "textarea"
     ? <textarea key={field.name} aria-label={field.label || field.placeholder} rows="4" required={field.required || undefined} placeholder={field.placeholder} value={values[field.name] || ""} onChange={e => update(field.name, e.target.value)} />
-    : <input key={field.name} aria-label={field.label || field.placeholder} required={field.required || undefined} type={field.type === "email" ? "email" : undefined} placeholder={field.placeholder} value={values[field.name] || ""} onChange={e => update(field.name, e.target.value)} />)}{honeypot}<button className="yellow-button" type="submit">{form?.submitLabel} <ArrowRight size={14} /></button></form>}</div></section>;
+    : <input key={field.name} aria-label={field.label || field.placeholder} required={field.required || undefined} type={field.type === "email" ? "email" : undefined} placeholder={field.placeholder} value={values[field.name] || ""} onChange={e => update(field.name, e.target.value)} />)}{honeypot}<button className="yellow-button" type="submit">{form?.submitLabel} <ArrowRight size={14} /></button>{sendError && <p className="form-send-error" role="alert">{sendError}</p>}</form>}</div></section>;
 }
 
 export function Footer({ settings }) {
@@ -402,16 +405,19 @@ export function Footer({ settings }) {
   // null | "check_email" (confirmation sent) | "saved" (email service unavailable)
   const [subscribed, setSubscribed] = useState(null);
   const { honeypot: newsletterHoneypot, guard: newsletterGuard } = useFormGuard();
+  const [subscribeError, setSubscribeError] = useState("");
   const subscribe = async event => {
     event.preventDefault();
     const email = event.currentTarget.querySelector('input[type="email"]')?.value || "";
+    setSubscribeError("");
     try {
       setSubscribed(await subscribeToNewsletter(email, newsletterGuard()));
-    } catch {
+    } catch (err) {
       // Keep the form visible so the visitor can try again.
+      setSubscribeError(err instanceof FormSubmitError ? err.message : "We couldn't subscribe you. Please try again.");
     }
   };
-  return <footer><div className="section-shell footer-grid"><div className="footer-brand"><Logo light /><p>{footer.blurb}</p><div className="socials">{socials.map(([Icon, url, name]) => <a key={name} href={url || "#"} aria-label={`${businessName} on ${name}`}><Icon size={13} aria-hidden="true" /></a>)}</div></div>{(footer.columns || []).map(column => <div key={column.heading}><h2>{column.heading}</h2>{(column.links || []).map(item => <a key={item.label + item.href} href={item.href}>{item.label}</a>)}</div>)}<div><h2>{footer.contactHeading}</h2><a href={`tel:${settings.contact_phone}`}>☎ {settings.contact_phone || fallbackSettings.contact_phone}</a><a href={`mailto:${settings.contact_email}`}>✉ {settings.contact_email || fallbackSettings.contact_email}</a><a href="#contact">▣ {settings.address || fallbackSettings.address}</a></div><div className="footer-newsletter"><h2>{footer.newsletter?.heading}</h2><p>{footer.newsletter?.body}</p>{subscribed ? <span className="newsletter-thanks"><Check size={14} /> {subscribed === "check_email" ? (footer.newsletter?.checkEmail || "Almost done! Check your inbox to confirm.") : footer.newsletter?.thanks}</span> : <form className="newsletter-form" onSubmit={subscribe}><input required type="email" aria-label={footer.newsletter?.placeholder || "Email address"} placeholder={footer.newsletter?.placeholder} />{newsletterHoneypot}<button type="submit" aria-label="Subscribe"><ArrowRight size={14} /></button></form>}</div></div><div className="footer-bottom section-shell"><span>{footer.copyright}</span><span>{footer.legalText}</span></div></footer>;
+  return <footer><div className="section-shell footer-grid"><div className="footer-brand"><Logo light /><p>{footer.blurb}</p><div className="socials">{socials.map(([Icon, url, name]) => <a key={name} href={url || "#"} aria-label={`${businessName} on ${name}`}><Icon size={13} aria-hidden="true" /></a>)}</div></div>{(footer.columns || []).map(column => <div key={column.heading}><h2>{column.heading}</h2>{(column.links || []).map(item => <a key={item.label + item.href} href={item.href}>{item.label}</a>)}</div>)}<div><h2>{footer.contactHeading}</h2><a href={`tel:${settings.contact_phone}`}>☎ {settings.contact_phone || fallbackSettings.contact_phone}</a><a href={`mailto:${settings.contact_email}`}>✉ {settings.contact_email || fallbackSettings.contact_email}</a><a href="#contact">▣ {settings.address || fallbackSettings.address}</a></div><div className="footer-newsletter"><h2>{footer.newsletter?.heading}</h2><p>{footer.newsletter?.body}</p>{subscribed ? <span className="newsletter-thanks"><Check size={14} /> {subscribed === "check_email" ? (footer.newsletter?.checkEmail || "Almost done! Check your inbox to confirm.") : footer.newsletter?.thanks}</span> : <form className="newsletter-form" onSubmit={subscribe}><input required type="email" aria-label={footer.newsletter?.placeholder || "Email address"} placeholder={footer.newsletter?.placeholder} />{newsletterHoneypot}<button type="submit" aria-label="Subscribe"><ArrowRight size={14} /></button></form>}{subscribeError && <p className="form-send-error" role="alert">{subscribeError}</p>}</div></div><div className="footer-bottom section-shell"><span>{footer.copyright}</span><span>{footer.legalText}</span></div></footer>;
 }
 
 export function ChatWidget({ code }) {

@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { deriveIdentifiers, itemRefFromFormId } from "./identifiers.ts";
 import { DEFAULT_SETTINGS, SENDER, staffInboxFor, type EmailSettings } from "./routing.ts";
 import {
-  handleNewsletterConfirm, handleNewsletterSubscribe, handleNewsletterUnsubscribe, handleProcessOutbox, handleSubmitForm, processOutbox,
+  handleNewsletterConfirm, handleNewsletterSubscribe, handleNewsletterUnsubscribe, handleProcessDue, handleProcessOutbox, handleSubmitForm, processOutbox,
   MAX_ATTEMPTS, type Deps, type OutboxDraft, type OutboxRow, type Store, type Subscriber,
 } from "./handlers.ts";
 import { createResendMailer, type OutgoingEmail, type SendResult } from "./resend.ts";
@@ -456,4 +456,39 @@ test("resend: 429/5xx/network are retryable; 4xx validation errors are not; miss
   const noKey = await createResendMailer(undefined, async () => { throw new Error("should not be called"); }).send(sample, "a");
   assert.equal(noKey.ok, false);
   assert.match((noKey as { error: string }).error, /RESEND_API_KEY is not set/);
+});
+
+// ---------------------------------------------------------------------------
+// Scheduled retries (pg_cron -> process_due)
+// ---------------------------------------------------------------------------
+test("scheduled run: sends due retries without any visitor activity, only when due", async () => {
+  const { deps, store, mailer, clock } = setup();
+  mailer.script.push({ ok: false, retryable: true, error: "Resend 503" }, { ok: false, retryable: true, error: "Resend 503" });
+  await submit(deps, submission("visa"));
+  assert.equal(store.outbox.filter(o => o.status === "retry").length, 2);
+  const early = await handleProcessDue(deps, { ip: "10.0.0.1" });
+  assert.equal(early.status, 200);
+  assert.equal(early.body.sent, 0, "not due yet: nothing sent");
+  clock.advance(5); // next cron tick
+  const due = await handleProcessDue(deps, { ip: "10.0.0.1" });
+  assert.equal(due.body.sent, 2);
+  assert.ok(store.outbox.every(o => o.status === "sent"));
+  assert.equal(mailer.delivered.size, 2, "each email delivered once");
+});
+
+test("scheduled run can't resurrect permanently failed emails (admin-only reset)", async () => {
+  const { deps, store, mailer, clock } = setup();
+  mailer.script.push({ ok: false, retryable: false, error: "Resend 422" });
+  await submit(deps, submission("contact"));
+  clock.advance(60);
+  await handleProcessDue(deps, { ip: "10.0.0.2" });
+  assert.equal(store.outbox.filter(o => o.status === "failed").length, 1);
+  assert.equal(mailer.calls.length, 2, "no extra send attempts");
+});
+
+test("scheduled run endpoint is rate limited per caller", async () => {
+  const { deps } = setup();
+  let last;
+  for (let i = 0; i < 121; i++) last = await handleProcessDue(deps, { ip: "10.0.0.3" });
+  assert.equal(last!.status, 429);
 });

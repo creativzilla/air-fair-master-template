@@ -6,6 +6,7 @@
 //   newsletter_subscribe   public   { email, source_page, guard }   confirmation email
 //   newsletter_confirm     public   { token }
 //   newsletter_unsubscribe public   { token }
+//   process_due            public (5-min schedule)  send queued emails that are due; nothing else
 //   process_outbox         admin / editor JWT   { retry_failed? }   send due retries now
 //
 // Recipients come only from public.email_settings (edited by admins in the
@@ -16,7 +17,7 @@ import { DEFAULT_SETTINGS, type EmailSettings } from "../_shared/forms/routing.t
 import { createResendMailer } from "../_shared/forms/resend.ts";
 import { randomToken, sha256Hex } from "../_shared/forms/tokens.ts";
 import {
-  handleNewsletterConfirm, handleNewsletterSubscribe, handleNewsletterUnsubscribe, handleProcessOutbox, handleSubmitForm,
+  handleNewsletterConfirm, handleNewsletterSubscribe, handleNewsletterUnsubscribe, handleProcessDue, handleProcessOutbox, handleSubmitForm,
   type Deps, type OutboxDraft, type OutboxRow, type Store, type Subscriber,
 } from "../_shared/forms/handlers.ts";
 
@@ -156,6 +157,7 @@ Deno.serve(async req => {
       case "newsletter_subscribe": reply = await handleNewsletterSubscribe(deps, body, { ip }); break;
       case "newsletter_confirm": reply = await handleNewsletterConfirm(deps, body); break;
       case "newsletter_unsubscribe": reply = await handleNewsletterUnsubscribe(deps, body); break;
+      case "process_due": reply = await handleProcessDue(deps, { ip }); break;
       case "process_outbox": reply = await handleProcessOutbox(deps, body, await callerRole(req.headers.get("Authorization") ?? "")); break;
       default: reply = { status: 400, body: { ok: false, error: "Unknown action." } };
     }
