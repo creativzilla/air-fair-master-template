@@ -105,10 +105,8 @@ export function TopBars({ settings }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const site = useGlobalContent();
   const nav = site.nav || {};
-  const businessName = settings.business_name || fallbackSettings.business_name;
   return <>
     <a className="skip-link" href="#main-content">Skip to main content</a>
-    {site.browserBar?.visible !== false && <div className="browser-bar"><span className="browser-dot">A</span><span>{businessName} — Website</span><span className="browser-actions">◌　□　<span>Make a copy</span><b>Share</b></span></div>}
     <div className="promise-bar">{(site.promiseBar?.items || []).map(item => <span key={item}>{item}</span>)}</div>
     <header className="main-nav">
       <div className="nav-inner">

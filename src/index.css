@@ -33,11 +33,6 @@ body{margin:0;font-family:'Poppins',sans-serif;color:#5B6C80;background:#fff}
 .travel-site{overflow:hidden}
 .section-shell{max-width:1080px;margin:0 auto;padding-left:24px;padding-right:24px}
 
-.browser-bar{height:28px;background:#fafafa;border-bottom:1px solid #e9e9e9;padding:0 14px;display:flex;align-items:center;gap:7px;font-size:12px;color:#777}
-.browser-dot{font-size:12px;background:#ddd;border-radius:50%;padding:2px 5px}
-.browser-actions{margin-left:auto;display:flex;align-items:center;gap:7px}
-.browser-actions span{border:1px solid #ddd;border-radius:3px;padding:3px 7px}
-.browser-actions b{background:#4c63ef;color:white;border-radius:3px;padding:3px 10px}
 
 .promise-bar{height:26px;background:#2F720E;color:#f8fbdc;display:flex;align-items:center;justify-content:center;gap:48px;font-size:13px}
 
@@ -382,8 +377,6 @@ footer{background:#0d2456;color:#9fb2cc;border-top:1px solid rgba(255,255,255,.0
 
 @media(max-width:480px){
   .main-nav .logo-img{height:48px}
-  .browser-actions{display:none}
-  .browser-bar{justify-content:center}
   .promise-bar span:nth-child(n+3){display:none}
   .nav-inner{padding:0 16px}
   .book-button{display:none}
