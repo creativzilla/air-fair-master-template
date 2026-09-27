@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 Disallow: /dashboard
 
-Sitemap: https://air-fair-master-template.vercel.app/sitemap.xml
+Sitemap: https://airfairtravel.com/sitemap.xml
