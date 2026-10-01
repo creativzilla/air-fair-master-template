@@ -190,7 +190,8 @@ function ItemEditor({ docId, kind, role, forms, samples, onBack, onChanged, relo
         <PublishBar editor={editor} role={role} companions={companions} extraDirty={formEditor.dirty} onSaveAll={saveAll} onPublished={async () => { await formEditor.reload(); await onChanged(); }} />
       </div>
       {notice && <Notice tone="info">{notice}</Notice>}
-      {cfg.form && <Tabs tabs={[{ id: "content", label: "Content" }, { id: "form", label: formEditor.dirty ? "Form \u2022" : "Form" }]} active={section} onChange={setSection} />}
+      {cfg.form && <Tabs tabs={[{ id: "content", label: "Content" }, { id: "form", label: isAdmin ? "Edit form" : "Form" }]} active={section}
+        onChange={id => { if (id === "form" && isAdmin && formDoc) setStudioOpen(true); else setSection(id); }} />}
 
       {(!cfg.form || section === "content") && (<>
       {kind === "news_article" ? (
@@ -243,14 +244,20 @@ function ItemEditor({ docId, kind, role, forms, samples, onBack, onChanged, relo
             <div className="max-w-3xl w-full"><FormPreviewPanel form={formEditor.draft} titleVars={{ title: draft.title || doc.title }} /></div>
             {formEditor.error && <Notice tone="danger">{formEditor.error}</Notice>}
           </>)}
-          {studioOpen && formDoc && (
-            <React.Suspense fallback={<Spinner label="Opening the Form Studio..." />}>
-              <FormStudio docId={formDoc.id} titleVars={{ title: draft.title || doc.title }}
-                onPublished={async () => { await formEditor.reload(); await reloadForms(); }}
-                onClose={async () => { setStudioOpen(false); await formEditor.reload(); await reloadForms(); }} />
-            </React.Suspense>
-          )}
         </div>
+      )}
+      {studioOpen && formDoc && (
+        <React.Suspense fallback={<Spinner label="Opening the Form Studio..." />}>
+          <FormStudio key={formDoc.id} docId={formDoc.id} titleVars={{ title: draft.title || doc.title }}
+            banner={sharedBy > 1 ? (
+              <Notice tone="warn">
+                <span className="flex items-center gap-2 flex-wrap">This form is shared by {sharedBy} {cfg.label.toLowerCase()}. Edits change it for all of them.
+                  <button type="button" className="underline font-semibold" disabled={busy === "custom"} onClick={makeCustomForm}>{busy === "custom" ? "Creating…" : "Use a separate form for this item"}</button></span>
+              </Notice>
+            ) : null}
+            onPublished={async () => { await formEditor.reload(); await reloadForms(); }}
+            onClose={async () => { setStudioOpen(false); await formEditor.reload(); await reloadForms(); }} />
+        </React.Suspense>
       )}
     </div>
   );

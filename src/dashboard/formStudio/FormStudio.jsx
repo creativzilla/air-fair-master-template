@@ -223,7 +223,8 @@ function EditCanvas({ ctx }) {
 }
 
 // ---------------------------------------------------------------- the studio
-export default function FormStudio({ docId, onClose, titleVars = {}, onPublished }) {
+// banner: optional notice shown above the canvas (e.g. "this form is shared").
+export default function FormStudio({ docId, onClose, titleVars = {}, onPublished, banner = null }) {
   const draft = useFormDraft(docId);
   const { schema, setSchema } = draft;
   const [selected, setSelected] = useState(null);
@@ -371,8 +372,9 @@ export default function FormStudio({ docId, onClose, titleVars = {}, onPublished
       </div>
 
       {/* Notices */}
-      {(draft.recovery || draft.status === "conflict" || draft.status === "failed" || problems.length > 0 || message) && (
+      {(banner || draft.recovery || draft.status === "conflict" || draft.status === "failed" || problems.length > 0 || message) && (
         <div className="px-4 pt-3 flex flex-col gap-2 shrink-0">
+          {banner}
           {draft.recovery && <Notice tone="warn">
             <span className="flex items-center gap-2 flex-wrap">Unsaved changes from {new Date(draft.recovery.at).toLocaleString()} were found in this browser.
               <button type="button" className="underline font-semibold" onClick={draft.restoreRecovery}>Restore them</button>
