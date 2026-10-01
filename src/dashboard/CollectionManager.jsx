@@ -128,7 +128,8 @@ function ItemEditor({ docId, kind, role, forms, samples, onBack, onChanged, relo
   const { doc, draft, setDraft, meta, setMeta } = editor;
   const formDoc = useMemo(() => resolveFormDoc(doc, forms), [doc, forms]);
   const formEditor = useDocumentEditor(formDoc?.id || null);
-  const [formTab, setFormTab] = useState("build");
+  // Items with a form get two tabs: Content and Form (builder + live preview).
+  const [section, setSection] = useState("content");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState("");
   const isAdmin = role === "admin";
@@ -185,7 +186,9 @@ function ItemEditor({ docId, kind, role, forms, samples, onBack, onChanged, relo
         <PublishBar editor={editor} role={role} companions={companions} extraDirty={formEditor.dirty} onSaveAll={saveAll} onPublished={async () => { await formEditor.reload(); await onChanged(); }} />
       </div>
       {notice && <Notice tone="info">{notice}</Notice>}
+      {cfg.form && <Tabs tabs={[{ id: "content", label: "Content" }, { id: "form", label: formEditor.dirty ? "Form \u2022" : "Form" }]} active={section} onChange={setSection} />}
 
+      {(!cfg.form || section === "content") && (<>
       {kind === "news_article" ? (
         <NewsArticleForm doc={doc} draft={draft} setDraft={setDraft} meta={meta} setMeta={setMeta} slugInput={slugInput} samples={samples.byKind[kind] || []} siblings={samples.docs} slugEditable={!doc.published_version_id || isAdmin} />
       ) : (<>
@@ -208,29 +211,29 @@ function ItemEditor({ docId, kind, role, forms, samples, onBack, onChanged, relo
         </Panel>
       )}
 
-      {cfg.form && (
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <h3 className="text-base" style={{ color: T.ink, ...fontBody, fontWeight: 600 }}>Form</h3>
-            {sharedBy > 1 && <Button tone="outline" small icon={Copy} busy={busy === "custom"} onClick={makeCustomForm}>Use a separate form for this item</Button>}
-          </div>
-          {sharedBy > 1 && <Notice tone="warn">This form is shared by {sharedBy} {cfg.label.toLowerCase()}. Edits here change it for all of them.</Notice>}
-          {!formDoc ? <Notice tone="warn">No form is linked to this item.</Notice> : !formEditor.draft ? <Spinner /> : (<>
-            <Tabs tabs={[{ id: "build", label: "Build" }, { id: "preview", label: "Preview" }]} active={formTab} onChange={setFormTab} />
-            <div className="grid grid-cols-1 xl:grid-cols-5 gap-4 dash-grid-5">
-              <div className={`xl:col-span-3 min-w-0 ${formTab === "preview" ? "hidden xl:block" : ""}`}><FormBuilder form={formEditor.draft} onChange={formEditor.setDraft} /></div>
-              <div className={`xl:col-span-2 min-w-0 ${formTab === "build" ? "hidden xl:block" : ""}`}><div className="xl:sticky" style={{ top: 96 }}><FormPreview form={formEditor.draft} titleVars={{ title: draft.title || doc.title }} /></div></div>
-            </div>
-            {formEditor.error && <Notice tone="danger">{formEditor.error}</Notice>}
-          </>)}
-        </div>
-      )}
-
       {posterSlug && (
         <div className="flex flex-col gap-2">
           <h3 className="text-base" style={{ color: T.ink, ...fontBody, fontWeight: 600 }}>Sidebar poster</h3>
           <p className="text-xs" style={{ color: T.muted, ...fontBody }}>An uploaded poster replaces the default one immediately (it is not part of the draft).</p>
           <TravelPosterEditor fixedSlug={posterSlug} />
+        </div>
+      )}
+      </>)}
+
+      {cfg.form && section === "form" && (
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <p className="text-xs" style={{ color: T.muted, ...fontBody }}>Edit the fields on the left; the preview shows how the form looks on the website.</p>
+            {sharedBy > 1 && <Button tone="outline" small icon={Copy} busy={busy === "custom"} onClick={makeCustomForm}>Use a separate form for this item</Button>}
+          </div>
+          {sharedBy > 1 && <Notice tone="warn">This form is shared by {sharedBy} {cfg.label.toLowerCase()}. Edits here change it for all of them.</Notice>}
+          {!formDoc ? <Notice tone="warn">No form is linked to this item.</Notice> : !formEditor.draft ? <Spinner /> : (<>
+            <div className="grid grid-cols-1 xl:grid-cols-5 gap-4 dash-grid-5">
+              <div className="xl:col-span-3 min-w-0"><FormBuilder form={formEditor.draft} onChange={formEditor.setDraft} /></div>
+              <div className="xl:col-span-2 min-w-0"><div className="xl:sticky" style={{ top: 96 }}><FormPreview form={formEditor.draft} titleVars={{ title: draft.title || doc.title }} /></div></div>
+            </div>
+            {formEditor.error && <Notice tone="danger">{formEditor.error}</Notice>}
+          </>)}
         </div>
       )}
     </div>
