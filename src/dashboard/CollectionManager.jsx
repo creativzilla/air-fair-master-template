@@ -14,6 +14,12 @@ import { imageSrc } from "../lib/cmsAdapters.js";
 import { supabase } from "../lib/supabase.js";
 import TravelPosterEditor from "../components/travel/TravelPosterEditor.jsx";
 
+// Items shown under their own heading in the "All" view. Display only: the
+// item keeps its kind, so its page URL, form and email routing don't change.
+const SUB_GROUPS = {
+  immigration_service: [{ id: "srrv", label: "Special Resident Retiree's Visa", test: d => d.slug.startsWith("special-resident-retirees") }],
+};
+
 export const COLLECTIONS = {
   immigration_service: { label: "Immigration services", singular: "immigration service", form: "own", poster: false, titleKey: "title" },
   visa_destination: { label: "Visa destinations", singular: "visa destination", form: "visa-inquiry", poster: "visa", titleKey: "title" },
@@ -275,7 +281,15 @@ export default function CollectionManager({ kinds, title, subtitle, role }) {
     return !q || d.title.toLowerCase().includes(q) || d.slug.includes(q);
   };
   const filtered = docsOfKind.filter(matches);
-  const sections = kinds.map(k => ({ kind: k, docs: (list.docs || []).filter(d => d.kind === k && matches(d)) }));
+  const sections = kinds.flatMap(k => {
+    const docs = (list.docs || []).filter(d => d.kind === k && matches(d));
+    const subs = SUB_GROUPS[k] || [];
+    const inSub = d => subs.some(g => g.test(d));
+    return [
+      { key: k, kind: k, label: COLLECTIONS[k].label, docs: docs.filter(d => !inSub(d)), canAdd: true },
+      ...subs.map(g => ({ key: g.id, kind: k, label: g.label, docs: docs.filter(g.test), canAdd: false })),
+    ];
+  });
   const openDoc = doc => { setKind(doc.kind); setSelectedId(doc.id); };
   const startNew = k => { setKind(k); setCreating(true); };
 
@@ -306,16 +320,16 @@ export default function CollectionManager({ kinds, title, subtitle, role }) {
       {list.docs === null ? <Spinner /> : view === "all" ? (
         <div className="flex flex-col gap-6">
           {sections.map(sec => (
-            <section key={sec.kind} aria-label={COLLECTIONS[sec.kind].label}>
+            <section key={sec.key} aria-label={sec.label}>
               <div className="flex items-center justify-between gap-3 mb-2">
                 <h2 className="text-xs font-semibold uppercase tracking-wide" style={{ color: T.muted, ...fontBody, letterSpacing: "0.06em" }}>
-                  {COLLECTIONS[sec.kind].label} <span style={{ fontWeight: 400 }}>({sec.docs.length})</span>
+                  {sec.label} <span style={{ fontWeight: 400 }}>({sec.docs.length})</span>
                 </h2>
-                {canCreate && <Button small tone="soft" icon={Plus} onClick={() => startNew(sec.kind)}>New {COLLECTIONS[sec.kind].singular}</Button>}
+                {canCreate && sec.canAdd && <Button small tone="soft" icon={Plus} onClick={() => startNew(sec.kind)}>New {COLLECTIONS[sec.kind].singular}</Button>}
               </div>
               <Panel className="overflow-hidden">
                 {sec.docs.map((doc, i) => <DocRow key={doc.id} doc={doc} last={i === sec.docs.length - 1} onOpen={openDoc} />)}
-                {sec.docs.length === 0 && <EmptyState>No {COLLECTIONS[sec.kind].label.toLowerCase()} match this view.</EmptyState>}
+                {sec.docs.length === 0 && <EmptyState>No {sec.label.toLowerCase()} match this view.</EmptyState>}
               </Panel>
             </section>
           ))}
