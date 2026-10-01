@@ -3,7 +3,7 @@
 // and testimonials. Services also get their form (builder + live preview)
 // and poster on the same screen; the item and its form publish together.
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Archive, ArchiveRestore, ArrowLeft, Copy, Plus, Search } from "lucide-react";
+import { Archive, ArchiveRestore, ArrowLeft, Check, Copy, Pencil, Plus, Search } from "lucide-react";
 import { T, fontBody, Badge, Button, EmptyState, FieldLabel, FilterPills, LabeledInput, LabeledSelect, Modal, Notice, PageTitle, Panel, Spinner, Tabs, inputStyle } from "./ui.jsx";
 import ContentEditor from "./ContentEditor.jsx";
 import NewsArticleForm, { CategoryField, DEFAULT_NEWS_CATEGORIES, displayDateFor, todayISO, uniqueSlug } from "./NewsArticleForm.jsx";
@@ -130,6 +130,8 @@ function ItemEditor({ docId, kind, role, forms, samples, onBack, onChanged, relo
   const formEditor = useDocumentEditor(formDoc?.id || null);
   // Items with a form get two tabs: Content and Form (builder + live preview).
   const [section, setSection] = useState("content");
+  // The Form tab opens on the preview; "Edit form" shows the builder next to it.
+  const [formEditing, setFormEditing] = useState(false);
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState("");
   const isAdmin = role === "admin";
@@ -223,15 +225,26 @@ function ItemEditor({ docId, kind, role, forms, samples, onBack, onChanged, relo
       {cfg.form && section === "form" && (
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <p className="text-xs" style={{ color: T.muted, ...fontBody }}>Edit the fields on the left; the preview shows how the form looks on the website.</p>
-            {sharedBy > 1 && <Button tone="outline" small icon={Copy} busy={busy === "custom"} onClick={makeCustomForm}>Use a separate form for this item</Button>}
+            <p className="text-xs" style={{ color: T.muted, ...fontBody }}>
+              {formEditing ? "Edit the fields; the preview updates as you type. Save draft or Publish (top) to keep your changes." : "This is the form visitors see on this page."}
+            </p>
+            <div className="flex gap-2 flex-wrap">
+              {sharedBy > 1 && <Button tone="outline" small icon={Copy} busy={busy === "custom"} onClick={makeCustomForm}>Use a separate form for this item</Button>}
+              {formDoc && formEditor.draft && (formEditing
+                ? <Button small icon={Check} onClick={() => setFormEditing(false)}>Done editing</Button>
+                : <Button small icon={Pencil} onClick={() => setFormEditing(true)}>Edit form</Button>)}
+            </div>
           </div>
           {sharedBy > 1 && <Notice tone="warn">This form is shared by {sharedBy} {cfg.label.toLowerCase()}. Edits here change it for all of them.</Notice>}
           {!formDoc ? <Notice tone="warn">No form is linked to this item.</Notice> : !formEditor.draft ? <Spinner /> : (<>
-            <div className="grid grid-cols-1 xl:grid-cols-5 gap-4 dash-grid-5">
-              <div className="xl:col-span-3 min-w-0"><FormBuilder form={formEditor.draft} onChange={formEditor.setDraft} /></div>
-              <div className="xl:col-span-2 min-w-0"><div className="xl:sticky" style={{ top: 96 }}><FormPreview form={formEditor.draft} titleVars={{ title: draft.title || doc.title }} /></div></div>
-            </div>
+            {formEditing ? (
+              <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 dash-grid-5">
+                <div className="lg:col-span-3 min-w-0"><FormBuilder form={formEditor.draft} onChange={formEditor.setDraft} /></div>
+                <div className="lg:col-span-2 min-w-0"><div className="lg:sticky" style={{ top: 96 }}><FormPreview form={formEditor.draft} titleVars={{ title: draft.title || doc.title }} /></div></div>
+              </div>
+            ) : (
+              <div className="max-w-3xl w-full"><FormPreview form={formEditor.draft} titleVars={{ title: draft.title || doc.title }} /></div>
+            )}
             {formEditor.error && <Notice tone="danger">{formEditor.error}</Notice>}
           </>)}
         </div>
