@@ -14,6 +14,7 @@ import VisaInquiryForm from "../components/visa/VisaInquiryForm.jsx";
 import VisaSupportCard from "../components/visa/VisaSupportCard.jsx";
 import RelatedServicesCard from "../components/visa/RelatedServicesCard.jsx";
 import PackageSidebarPoster from "../components/travel/PackageSidebarPoster.jsx";
+import SidebarAds from "../components/ads/SidebarAds.jsx";
 
 // Single reusable template for every visa country detail page. All content
 // comes from the destination's published CMS document (falling back to
@@ -66,7 +67,9 @@ export default function VisaCountryPage() {
         </div>
 
         <aside className="vcp2-sidebar tt-package-sidebar">
-          <PackageSidebarPoster pkg={country} posterFolder="visa-posters" storageSlug={`visa-${country.slug}`} />
+          {!country.adsHidden && (country.ads?.length
+            ? <SidebarAds ads={country.ads} title={country.title} />
+            : <PackageSidebarPoster pkg={country} posterFolder="visa-posters" storageSlug={`visa-${country.slug}`} />)}
           <VisaInquiryForm country={country} formConfig={country.inquiryForm} />
           <VisaSupportCard />
           <RelatedServicesCard items={country.relatedServices} />

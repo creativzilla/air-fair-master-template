@@ -14,7 +14,7 @@ import { PublishBar, friendlyError, previewUrlFor, useDocumentEditor, useDocumen
 import { archiveDocument, createDocument, docStatus, getDocument, listDocuments, saveDraft } from "./api.js";
 import { imageSrc } from "../lib/cmsAdapters.js";
 import { supabase } from "../lib/supabase.js";
-import TravelPosterEditor from "../components/travel/TravelPosterEditor.jsx";
+import AdsEditor from "./AdsEditor.jsx";
 
 // Items shown under their own heading in the "All" view. Display only: the
 // item keeps its kind, so its page URL, form and email routing don't change.
@@ -173,10 +173,9 @@ function ItemEditor({ docId, kind, role, forms, samples, onBack, onChanged, relo
 
   if (!doc || !draft) return editor.error ? <Notice tone="danger">{editor.error}</Notice> : <Spinner />;
 
-  const posterSlug = cfg.poster === "visa" ? `visa-${doc.slug}` : cfg.poster === "travel" ? doc.slug : null;
   // Publish the form together with the item only when it has changes.
   const companions = formDoc && formEditor.doc && (formEditor.dirty || docStatus(formEditor.doc) !== "Published") ? [formEditor.doc] : [];
-  const hidden = ["slug", "seo", "formKey", "_doc"];
+  const hidden = ["slug", "seo", "formKey", "_doc", "ads", "adsHidden"];
   const slugInput = <LabeledInput label="URL slug" hint={doc.published_version_id && !isAdmin ? "Only admins can change the URL of a published item." : previewUrlFor({ kind, slug: meta.slug })} disabled={!!doc.published_version_id && !isAdmin} value={meta.slug} onChange={slug => setMeta({ ...meta, slug: slugify(slug) })} />;
 
   return (
@@ -203,6 +202,8 @@ function ItemEditor({ docId, kind, role, forms, samples, onBack, onChanged, relo
           <LabeledInput label="Order in lists" type="number" value={meta.sort_order} onChange={v => setMeta({ ...meta, sort_order: v })} />
         </Panel>
 
+        {cfg.form && <AdsEditor kind={kind} slug={doc.slug} draft={draft} onChange={setDraft} />}
+
         <Panel className="p-6">
           <h3 className="text-base font-semibold mb-5" style={{ color: T.ink, ...fontBody }}>Content</h3>
           <ContentEditor value={draft} onChange={setDraft} samples={samples.byKind[kind] || []} hiddenKeys={hidden} />
@@ -216,13 +217,6 @@ function ItemEditor({ docId, kind, role, forms, samples, onBack, onChanged, relo
         </Panel>
       )}
 
-      {posterSlug && (
-        <div className="flex flex-col gap-2">
-          <h3 className="text-base" style={{ color: T.ink, ...fontBody, fontWeight: 600 }}>Sidebar poster</h3>
-          <p className="text-xs" style={{ color: T.muted, ...fontBody }}>An uploaded poster replaces the default one immediately (it is not part of the draft).</p>
-          <TravelPosterEditor fixedSlug={posterSlug} />
-        </div>
-      )}
       </>)}
 
       {cfg.form && section === "form" && (

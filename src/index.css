@@ -801,6 +801,20 @@ footer{background:#051931;color:#9fb2cc;border-top:1px solid rgba(255,255,255,.0
 .tt-sidebar-poster{display:block;width:100%;overflow:hidden;border-radius:16px;box-shadow:0 8px 22px rgba(16,45,104,.1)}
 .tt-sidebar-poster img{display:block;width:100%;height:auto;object-fit:contain}
 .tt-sidebar-poster:focus-visible{outline:3px solid #4B9B13;outline-offset:4px}
+/* Service ads: several images rotate (stacked in one cell, so the box takes the tallest image) */
+.tt-ads-slider{position:relative}
+.tt-ads-track{display:grid}
+.tt-ads-slide{grid-area:1 / 1;opacity:0;visibility:hidden;transform:translateX(12px);transition:opacity .6s ease,transform .6s ease,visibility 0s linear .6s}
+.tt-ads-slide.is-active{opacity:1;visibility:visible;transform:none;transition:opacity .6s ease,transform .6s ease,visibility 0s}
+.tt-ads-slide img,.tt-sidebar-poster .tt-ad-link img{display:block;width:100%;height:auto;object-fit:contain}
+.tt-ad-link{display:block}
+.tt-ad-link:focus-visible{outline:3px solid #4B9B13;outline-offset:-3px}
+.tt-ads-dots{position:absolute;left:0;right:0;bottom:10px;display:flex;justify-content:center;gap:6px}
+.tt-ads-dots button{width:8px;height:8px;border-radius:50%;border:0;padding:0;background:rgba(255,255,255,.65);box-shadow:0 0 0 1px rgba(16,45,104,.25);cursor:pointer;transition:width .3s ease,background .3s ease}
+.tt-ads-dots button.is-active{width:22px;border-radius:5px;background:#4B9B13}
+.tt-ads-dots button:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.svc-form-col .tt-sidebar-poster{margin-bottom:20px}
+@media (prefers-reduced-motion:reduce){.tt-ads-slide,.tt-ads-slide.is-active{transition:none;transform:none}}
 
 .tt-about-details{list-style:disc;margin:12px 0 0;padding-left:22px;font-size:14.5px;line-height:1.75;color:#5B6C80}
 .tt-about-details li{padding-left:3px;margin-bottom:3px}

@@ -14,6 +14,7 @@ import PackageInquiryForm from "../components/travel/PackageInquiryForm.jsx";
 import VisaSupportCard from "../components/visa/VisaSupportCard.jsx";
 import PackageRelatedCard from "../components/travel/PackageRelatedCard.jsx";
 import PackageSidebarPoster from "../components/travel/PackageSidebarPoster.jsx";
+import SidebarAds from "../components/ads/SidebarAds.jsx";
 
 // Single reusable template for every travel package detail page. All content
 // comes from the package's published CMS document (falling back to
@@ -66,7 +67,7 @@ export default function TravelPackageDetailPage() {
         </div>
 
         <aside className="vcp2-sidebar tt-package-sidebar">
-          <PackageSidebarPoster pkg={pkg} />
+          {!pkg.adsHidden && (pkg.ads?.length ? <SidebarAds ads={pkg.ads} title={pkg.title} /> : <PackageSidebarPoster pkg={pkg} />)}
           <PackageInquiryForm pkg={pkg} formConfig={pkg.inquiryForm} />
           <VisaSupportCard variant="travel" />
           <PackageRelatedCard related={pkg.relatedCard} />

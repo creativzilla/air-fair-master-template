@@ -5,6 +5,7 @@ import { submitWebsiteForm } from "../../lib/formSubmit.js";
 import { useFormGuard } from "../forms/FormGuard.jsx";
 import { FormBody, submitElementOf, useFormRunner } from "../forms/FormRenderer.jsx";
 import { safeRedirect } from "../forms/InquiryForm.jsx";
+import SidebarAds from "../ads/SidebarAds.jsx";
 
 // Renders the service's form from its published form document
 // (service.form = formView(...)): sections, fields, labels and messages.
@@ -56,6 +57,7 @@ export default function ServiceAssessmentForm({ service }) {
 
   return (
     <div className="svc-form-col" id="assessment-form">
+      {!service.adsHidden && service.ads?.length > 0 && <SidebarAds ads={service.ads} title={service.title} />}
       <div className="svc-form-card">
         {submitted ? (
           <div className="svc-success" role="status">

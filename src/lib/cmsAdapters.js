@@ -153,6 +153,13 @@ const docMeta = doc => ({ documentId: doc.document_id, versionId: doc.version_id
 // travelDestinations.js, news.js
 // ---------------------------------------------------------------------------
 
+// Ad images above a service's form (dashboard: service > Content > Ads).
+// adsHidden hides them, including the standard poster of visa/travel pages.
+function adsOf(c) {
+  const raw = Array.isArray(c.ads) ? c.ads : [];
+  return raw.map(ad => ({ src: imageSrc(ad?.image), alt: ad?.alt || "", href: ad?.href || "" })).filter(ad => ad.src);
+}
+
 export function immigrationService(index, doc) {
   const c = doc.content || {};
   return {
@@ -161,6 +168,8 @@ export function immigrationService(index, doc) {
     title: c.title ?? doc.title,
     heroImage: imageSrc(c.heroImage),
     aboutImage: c.aboutImage ? imageSrc(c.aboutImage) : undefined,
+    ads: adsOf(c),
+    adsHidden: !!c.adsHidden,
     form: linkedForm(index, doc),
     _doc: docMeta(doc),
   };
@@ -194,6 +203,8 @@ export function visaCountry(index, doc) {
     featuredImage: gallery[0],
     relatedServices: (c.relatedServices || []).map(item => ({ ...item, image: imageSrc(item.image) || undefined })),
     promoPoster: imageSrc(c.poster) || undefined,
+    ads: adsOf(c),
+    adsHidden: !!c.adsHidden,
     inquiryForm: { ...form, fields: form?.fields || [] },
     _doc: docMeta(doc),
   };
@@ -211,6 +222,8 @@ export function travelPackage(index, doc) {
     packageHighlights: (c.packageHighlights || []).map(item => ({ ...item, image: imageSrc(item.image) })),
     relatedCard: c.relatedCard ? { ...c.relatedCard, image: imageSrc(c.relatedCard.image) } : null,
     promoPoster: imageSrc(c.poster) || undefined,
+    ads: adsOf(c),
+    adsHidden: !!c.adsHidden,
     inquiryForm: { ...form, fields: form?.fields || [] },
     _doc: docMeta(doc),
   };
