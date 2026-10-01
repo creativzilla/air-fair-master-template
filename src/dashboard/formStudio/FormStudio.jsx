@@ -18,7 +18,7 @@ import {
   removeById, removeSection,
 } from "./tree.js";
 import { useFormDraft } from "./useFormDraft.js";
-import StudioInspector from "./StudioInspector.jsx";
+import StudioInspector, { FormSettings } from "./StudioInspector.jsx";
 import { PreviewCanvas } from "./FormPreviewPanel.jsx";
 
 const ICONS = {
@@ -230,6 +230,7 @@ export default function FormStudio({ docId, onClose, titleVars = {}, onPublished
   const [device, setDevice] = useState("desktop");
   const [mode, setMode] = useState("edit");
   const [panel, setPanel] = useState(null); // small screens: "library" | "inspector"
+  const [leftTab, setLeftTab] = useState("fields"); // left panel: "fields" | "settings"
   const [dropHint, setDropHint] = useState(null);
   const [problems, setProblems] = useState([]);
   const [publishing, setPublishing] = useState(false);
@@ -395,7 +396,15 @@ export default function FormStudio({ docId, onClose, titleVars = {}, onPublished
       <div className="flex-1 min-h-0 flex relative">
         {mode === "edit" && (
           <aside className={`studio-panel studio-left ${panel === "library" ? "open" : ""}`} style={{ backgroundColor: T.surface, borderRight: `1px solid ${T.border}` }} aria-label="Fields and elements">
-            <Library onAdd={type => { actions.add(type); }} onDragStart={onDragStart} />
+            <div className="flex shrink-0 px-3 pt-2 gap-4" role="tablist" aria-label="Left panel" style={{ borderBottom: `1px solid ${T.border}` }}>
+              {[["fields", "Fields"], ["settings", "Form settings"]].map(([id, label]) => (
+                <button key={id} type="button" role="tab" aria-selected={leftTab === id} onClick={() => setLeftTab(id)} className="pb-2.5 pt-1 text-sm -mb-px"
+                  style={{ color: leftTab === id ? T.ink : T.muted, fontWeight: leftTab === id ? 600 : 400, borderBottom: `2px solid ${leftTab === id ? T.accent : "transparent"}`, ...fontBody }}>{label}</button>
+              ))}
+            </div>
+            {leftTab === "fields"
+              ? <Library onAdd={type => { actions.add(type); }} onDragStart={onDragStart} />
+              : <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4"><FormSettings schema={schema} setSchema={setSchema} /></div>}
           </aside>
         )}
         <main className="flex-1 min-w-0 overflow-y-auto" onClick={() => setSelected(null)} style={{ padding: "24px 16px 80px" }}>

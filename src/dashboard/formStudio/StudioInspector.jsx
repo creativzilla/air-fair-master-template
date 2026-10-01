@@ -1,7 +1,7 @@
 // Right panel of the Form Studio: settings for the selected field, design
 // element, row or section, or the whole form when nothing is selected.
 import React, { useState } from "react";
-import { ArrowDown, ArrowUp, Copy, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Copy, MousePointerClick, Plus, Trash2 } from "lucide-react";
 import { T, fontBody, FieldLabel, ImagePickerButton, Notice, Tabs, ToggleRow, inputStyle } from "../ui.jsx";
 import {
   CHOICE_TYPES, KEY_PATTERN, elementId, inputFields, isInput, isMultiValue, isRow, isSingleCheckbox, normalizeOptions, toKey, typeInfo,
@@ -288,7 +288,7 @@ function SectionSettings({ section, schema, setSchema, numbered }) {
   </>;
 }
 
-function FormSettings({ schema, setSchema }) {
+export function FormSettings({ schema, setSchema }) {
   const set = (patch, key) => setSchema({ ...schema, ...patch }, key || `form:${Object.keys(patch).join(",")}`);
   const redirectBad = schema.successRedirect && !/^(\/(?!\/)|https:\/\/)/i.test(schema.successRedirect);
   return (
@@ -345,7 +345,15 @@ export default function StudioInspector({ schema, setSchema, selected, onSelect,
       </Shell>
     );
   }
-  return <Shell title="Form settings"><FormSettings schema={schema} setSchema={setSchema} /></Shell>;
+  return (
+    <Shell title="Settings">
+      <div className="flex flex-col items-center text-center gap-2 py-10 px-2">
+        <MousePointerClick size={22} style={{ color: T.muted }} />
+        <p className="text-sm font-medium" style={{ color: T.ink, ...fontBody }}>Nothing selected</p>
+        <p className="text-xs" style={{ color: T.muted, ...fontBody }}>Click a field, element or section on the form to edit it here. Form-wide settings are in the Form settings tab on the left.</p>
+      </div>
+    </Shell>
+  );
 }
 
 function Shell({ title, actions, onClose, children }) {
