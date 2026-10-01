@@ -283,7 +283,11 @@ export default function CollectionManager({ kinds, title, subtitle, role }) {
     const q = query.trim().toLowerCase();
     return !q || d.title.toLowerCase().includes(q) || d.slug.includes(q);
   };
-  const filtered = docsOfKind.filter(matches);
+  const subTabs = kinds.flatMap(k => (SUB_GROUPS[k] || []).map(g => ({ ...g, kind: k })));
+  const activeSub = subTabs.find(g => g.id === view) || null;
+  const inAnySub = d => (SUB_GROUPS[d.kind] || []).some(g => g.test(d));
+  const filtered = docsOfKind.filter(d => (activeSub ? activeSub.test(d) : !inAnySub(d)) && matches(d));
+  const viewLabel = activeSub ? activeSub.label : cfg.label;
   const sections = kinds.flatMap(k => {
     const docs = (list.docs || []).filter(d => d.kind === k && matches(d));
     const subs = SUB_GROUPS[k] || [];
@@ -312,12 +316,16 @@ export default function CollectionManager({ kinds, title, subtitle, role }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageTitle title={title} subtitle={subtitle} actions={canCreate && view !== "all" && <Button icon={Plus} onClick={() => setCreating(true)}>New {cfg.singular}</Button>} />
-      {grouped && <Tabs tabs={[{ id: "all", label: "All", count: (list.docs || []).length }, ...kinds.map(k => ({ id: k, label: COLLECTIONS[k].label, count: (list.docs || []).filter(d => d.kind === k).length }))]}
-        active={view} onChange={v => { setView(v); if (v !== "all") setKind(v); setArchived(null); }} />}
+      <PageTitle title={title} subtitle={subtitle} actions={canCreate && view !== "all" && !activeSub && <Button icon={Plus} onClick={() => setCreating(true)}>New {cfg.singular}</Button>} />
+      {grouped && <Tabs tabs={[
+        { id: "all", label: "All", count: (list.docs || []).length },
+        ...kinds.map(k => ({ id: k, label: COLLECTIONS[k].label, count: (list.docs || []).filter(d => d.kind === k && !inAnySub(d)).length })),
+        ...subTabs.map(g => ({ id: g.id, label: g.label, count: (list.docs || []).filter(d => d.kind === g.kind && g.test(d)).length })),
+      ]}
+        active={view} onChange={v => { setView(v); const sub = subTabs.find(g => g.id === v); if (sub) setKind(sub.kind); else if (v !== "all") setKind(v); setArchived(null); }} />}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <FilterPills options={["All", "Published", "Unpublished changes", "Draft"]} active={statusFilter} onChange={setStatusFilter} />
-        <div className="relative w-full sm:w-64"><Search size={14} style={{ color: T.muted, position: "absolute", left: 10, top: 10 }} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder={view === "all" ? "Search all services" : `Search ${cfg.label.toLowerCase()}`} className="w-full rounded-lg pl-8 pr-3 py-2 text-sm outline-none" style={inputStyle} /></div>
+        <div className="relative w-full sm:w-64"><Search size={14} style={{ color: T.muted, position: "absolute", left: 10, top: 10 }} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder={view === "all" ? "Search all services" : `Search ${viewLabel.toLowerCase()}`} className="w-full rounded-lg pl-8 pr-3 py-2 text-sm outline-none" style={inputStyle} /></div>
       </div>
       {list.error && <Notice tone="danger">{list.error}</Notice>}
       {list.docs === null ? <Spinner /> : view === "all" ? (
@@ -340,10 +348,10 @@ export default function CollectionManager({ kinds, title, subtitle, role }) {
       ) : (
         <Panel className="overflow-hidden">
           {filtered.map((doc, i) => <DocRow key={doc.id} doc={doc} last={i === filtered.length - 1} onOpen={openDoc} />)}
-          {filtered.length === 0 && <EmptyState>No {cfg.label.toLowerCase()} match this view.</EmptyState>}
+          {filtered.length === 0 && <EmptyState>No {viewLabel.toLowerCase()} match this view.</EmptyState>}
         </Panel>
       )}
-      {isAdmin && view !== "all" && (
+      {isAdmin && view !== "all" && !activeSub && (
         <div>
           {archived === null ? <button type="button" onClick={loadArchived} className="text-xs underline" style={{ color: T.muted, ...fontBody }}>Show archived {cfg.label.toLowerCase()}</button> : (
             <Panel className="p-4 flex flex-col gap-2">
