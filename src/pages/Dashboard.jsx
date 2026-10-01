@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { LayoutDashboard, File as FileEdit, Inbox, CalendarDays, Image as ImageIcon, Settings as SettingsIcon, ChevronRight, ChevronLeft, Bell, Plus, X, Clock, Search, Check, Briefcase, Trash2, GripVertical, Mail, CalendarPlus, Wallet, Users, Globe, UserPlus, FileText, Contact as Contact2, UserCog, ListChecks, Package, Lock, LogOut, Eye, EyeOff, Loader as Loader2, Menu as MenuIcon, Stamp, Newspaper, MessageSquareQuote, ShieldCheck, KeyRound, FolderOpen } from "lucide-react";
+import { LayoutDashboard, File as FileEdit, Inbox, CalendarDays, Image as ImageIcon, Settings as SettingsIcon, ChevronRight, ChevronLeft, Bell, Plus, X, Clock, Search, Check, Trash2, GripVertical, Mail, CalendarPlus, Wallet, Users, Globe, UserPlus, FileText, Contact as Contact2, UserCog, ListChecks, Lock, LogOut, Eye, EyeOff, Loader as Loader2, Menu as MenuIcon, Stamp, Newspaper, MessageSquareQuote, ShieldCheck, KeyRound, FolderOpen } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
-import { dbRowToService, serviceToDbRow, getPriceLabel } from "../lib/catalog.js";
 import { fetchSiteSettings, saveSiteSettings } from "../lib/content.js";
-import { T, fontDisplay, fontBody, fontMono, Badge, StageBadge, CategoryTag, LabeledInput, LabeledTextarea, LabeledSelect, ToggleRow, ImagePickerButton, GalleryEditor, Modal, Button, Notice } from "../dashboard/ui.jsx";
+import { T, fontDisplay, fontBody, fontMono, Badge, StageBadge, CategoryTag, LabeledInput, LabeledSelect, Modal, Button, Notice } from "../dashboard/ui.jsx";
 import { fetchMyProfile } from "../dashboard/api.js";
 import PagesEditor from "../dashboard/PagesEditor.jsx";
 import CollectionManager from "../dashboard/CollectionManager.jsx";
@@ -34,7 +33,6 @@ const NAV = [
   { id: "news", label: "News", icon: Newspaper, roles: CONTENT_ROLES },
   { id: "testimonials", label: "Testimonials", icon: MessageSquareQuote, roles: CONTENT_ROLES },
   { group: "Business" },
-  { id: "services", label: "Catalog", icon: Briefcase, moduleKey: "services", roles: CONTENT_ROLES, staffKey: "services" },
   { id: "form-emails", label: "Form Emails", icon: Mail, roles: ["admin"] },
   { id: "users", label: "Users", icon: ShieldCheck, roles: ["admin"] },
   { id: "employees", label: "Employees", icon: UserCog, moduleKey: "employees", roles: ["admin"] },
@@ -45,22 +43,12 @@ const NAV = [
 const ALL_MODULES = [
   { key: "pipeline", label: "Pipeline" }, { key: "bookings", label: "Calendar" },
   { key: "clients", label: "Clients" }, { key: "documents", label: "Documents" }, { key: "forms", label: "Forms" },
-  { key: "services", label: "Catalog" }, { key: "media", label: "Media" },
+  { key: "media", label: "Media" },
   { key: "edit-website", label: "Edit Website" }, { key: "employees", label: "Employees" },
   { key: "settings", label: "Settings" },
 ];
 
-const DEFAULT_EMPLOYEE_ACCESS = { pipeline: true, bookings: true, clients: true, documents: true, forms: true, services: false, media: false, "edit-website": false, employees: false, settings: false };
-
-const PRICING_TYPE_OPTIONS = [
-  { value: "fixed", label: "Fixed Price" }, { value: "starting", label: "Starting Price" },
-  { value: "range", label: "Price Range" }, { value: "quote", label: "Custom Quote" }, { value: "free", label: "Free" },
-];
-
-const PRICING_UNIT_OPTIONS = [
-  { value: "per person", label: "Per Person" }, { value: "per package", label: "Per Package" },
-  { value: "per night", label: "Per Night" }, { value: "one-time", label: "One-time" },
-];
+const DEFAULT_EMPLOYEE_ACCESS = { pipeline: true, bookings: true, clients: true, documents: true, forms: true, media: false, "edit-website": false, employees: false, settings: false };
 
 const BOOKING_STATUSES = ["Pending", "Confirmed", "Completed", "Cancelled"];
 
@@ -219,145 +207,6 @@ function Overview({ goTo, submissions, bookings, contacts, stages, currency, rol
 // "Edit Website" now edits the CMS pages (dashboard/PagesEditor.jsx).
 function EditWebsite({ role }) {
   return <PagesEditor role={role} />;
-}
-
-function ServiceForm({ draft, update, currency }) {
-  return (
-    <div className="flex flex-col gap-3.5">
-      <LabeledInput label="Service Name" value={draft.name} onChange={v => update({ name: v })} />
-      <LabeledInput label="Category" value={draft.category} onChange={v => update({ category: v })} />
-      <LabeledTextarea label="Short Description" rows={2} value={draft.shortDescription} onChange={v => update({ shortDescription: v })} />
-      <LabeledTextarea label="Full Description" rows={4} value={draft.fullDescription} onChange={v => update({ fullDescription: v })} />
-      <LabeledSelect label="Pricing Type" value={draft.pricingType} onChange={v => update({ pricingType: v })} options={PRICING_TYPE_OPTIONS} />
-      {draft.pricingType === "range" ? (<div className="grid grid-cols-2 gap-3"><LabeledInput label={`Min Price (${currency})`} value={draft.priceMin} onChange={v => update({ priceMin: v })} /><LabeledInput label={`Max Price (${currency})`} value={draft.priceMax} onChange={v => update({ priceMax: v })} /></div>) : (draft.pricingType !== "quote" && draft.pricingType !== "free") ? (<LabeledInput label={`Price (${currency})`} value={draft.price} onChange={v => update({ price: v })} />) : null}
-      <LabeledInput label="Duration" placeholder="e.g. 45 minutes, 3-5 business days" value={draft.duration} onChange={v => update({ duration: v })} />
-      <div><label className="text-xs block mb-1.5" style={{ color: T.muted, ...fontBody }}>Featured Image</label><div className="flex items-center gap-3"><img src={draft.image} alt="" className="w-20 h-14 object-cover rounded-lg" style={{ border: `1px solid ${T.border}` }} /><ImagePickerButton onPicked={v => update({ image: v })} /></div></div>
-      <GalleryEditor label="Gallery Images" images={draft.gallery} onChange={v => update({ gallery: v })} />
-      <LabeledInput label="CTA Button Label" value={draft.ctaLabel} onChange={v => update({ ctaLabel: v })} />
-      <LabeledInput label="CTA Action / Link" placeholder="/booking or https://..." value={draft.ctaLink} onChange={v => update({ ctaLink: v })} />
-      <ToggleRow label="Featured" checked={draft.featured} onChange={v => update({ featured: v })} />
-      <LabeledSelect label="Status" value={draft.status} onChange={v => update({ status: v })} options={[{ value: "Published", label: "Published" }, { value: "Draft", label: "Draft" }]} />
-    </div>
-  );
-}
-
-function ProductForm({ draft, update, currency }) {
-  return (
-    <div className="flex flex-col gap-3.5">
-      <LabeledInput label="Product / Package Name" value={draft.name} onChange={v => update({ name: v })} />
-      <LabeledInput label="Page Slug" placeholder="e.g. boracay-all-in-package" value={draft.slug} onChange={v => update({ slug: v })} />
-      <LabeledInput label="Category" value={draft.category} onChange={v => update({ category: v })} />
-      <LabeledTextarea label="Short Description" rows={2} value={draft.shortDescription} onChange={v => update({ shortDescription: v })} />
-      <LabeledTextarea label="Full Description" rows={4} value={draft.fullDescription} onChange={v => update({ fullDescription: v })} />
-      <div className="grid grid-cols-2 gap-3"><LabeledInput label={`Regular Price (${currency})`} value={draft.regularPrice} onChange={v => update({ regularPrice: v })} /><LabeledInput label={`Sale Price (${currency})`} placeholder="Optional" value={draft.salePrice} onChange={v => update({ salePrice: v })} /></div>
-      <LabeledSelect label="Pricing Unit" value={draft.pricingUnit} onChange={v => update({ pricingUnit: v })} options={PRICING_UNIT_OPTIONS} />
-      <div><label className="text-xs block mb-1.5" style={{ color: T.muted, ...fontBody }}>Featured Image</label><div className="flex items-center gap-3"><img src={draft.image} alt="" className="w-20 h-14 object-cover rounded-lg" style={{ border: `1px solid ${T.border}` }} /><ImagePickerButton onPicked={v => update({ image: v })} /></div></div>
-      <GalleryEditor label="Gallery Images" images={draft.gallery} onChange={v => update({ gallery: v })} />
-      <LabeledTextarea label="Inclusions" rows={2} value={draft.inclusions} onChange={v => update({ inclusions: v })} />
-      <LabeledTextarea label="Exclusions" rows={2} value={draft.exclusions} onChange={v => update({ exclusions: v })} />
-      <LabeledInput label="Availability" placeholder="e.g. Departures every Saturday" value={draft.availability} onChange={v => update({ availability: v })} />
-      <div className="grid grid-cols-2 gap-3"><LabeledInput label="Start Date" type="date" value={draft.startDate} onChange={v => update({ startDate: v })} /><LabeledInput label="End Date" type="date" value={draft.endDate} onChange={v => update({ endDate: v })} /></div>
-      <LabeledInput label="CTA Button Label" value={draft.ctaLabel} onChange={v => update({ ctaLabel: v })} />
-      <LabeledInput label="CTA Action / Link" placeholder="/booking or https://..." value={draft.ctaLink} onChange={v => update({ ctaLink: v })} />
-      <ToggleRow label="Featured" checked={draft.featured} onChange={v => update({ featured: v })} />
-      <LabeledSelect label="Status" value={draft.status} onChange={v => update({ status: v })} options={[{ value: "Published", label: "Published" }, { value: "Draft", label: "Draft" }]} />
-    </div>
-  );
-}
-
-function AddOfferingModal({ onClose, onChoose }) {
-  return (<div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: "rgba(21,26,34,0.45)" }}><div className="w-full max-w-lg rounded-2xl p-6 dash-modal-full" style={{ backgroundColor: T.surface }}><div className="flex items-center justify-between mb-5"><h2 className="text-base font-semibold" style={{ color: T.ink, ...fontBody }}>What would you like to add?</h2><button onClick={onClose} style={{ color: T.muted }}><X size={18} /></button></div><div className="grid grid-cols-2 gap-3 dash-grid-2"><button onClick={() => onChoose("service")} className="text-left rounded-xl p-4" style={{ border: `1px solid ${T.border}` }}><div className="w-9 h-9 rounded-lg flex items-center justify-center mb-3" style={{ backgroundColor: T.infoSoft }}><Briefcase size={16} style={{ color: T.info }} /></div><div className="text-sm font-medium mb-1" style={{ color: T.ink, ...fontBody }}>Service</div><p className="text-xs" style={{ color: T.muted, ...fontBody }}>For work performed for a customer — visa processing, consultation, booking assistance, immigration processing.</p></button><button onClick={() => onChoose("product")} className="text-left rounded-xl p-4" style={{ border: `1px solid ${T.border}` }}><div className="w-9 h-9 rounded-lg flex items-center justify-center mb-3" style={{ backgroundColor: T.tealSoft }}><Package size={16} style={{ color: T.teal }} /></div><div className="text-sm font-medium mb-1" style={{ color: T.ink, ...fontBody }}>Product / Package</div><p className="text-xs" style={{ color: T.muted, ...fontBody }}>For packaged or predefined offers — tour packages, insurance packages, physical or digital products.</p></button></div></div></div>);
-}
-
-const emptyServiceDraft = { type: "service", name: "", category: "", shortDescription: "", fullDescription: "", pricingType: "starting", price: "", priceMin: "", priceMax: "", duration: "", image: "https://picsum.photos/seed/newservice/300/200", gallery: [], ctaLabel: "Learn More", ctaLink: "", featured: false, status: "Draft" };
-const emptyProductDraft = { type: "product", name: "", slug: "", category: "", shortDescription: "", fullDescription: "", regularPrice: "", salePrice: "", pricingUnit: "per person", image: "https://picsum.photos/seed/newproduct/300/200", gallery: [], inclusions: "", exclusions: "", availability: "", startDate: "", endDate: "", ctaLabel: "Book Now", ctaLink: "", featured: false, status: "Draft" };
-
-function Catalog({ services, onSaveService, onDeleteService, categories, currency, role }) {
-  const [tab, setTab] = useState("all");
-  const [query, setQuery] = useState("");
-  const [activeId, setActiveId] = useState(null);
-  const [draft, setDraft] = useState(null);
-  const [showChooser, setShowChooser] = useState(false);
-  const [savedFlash, setSavedFlash] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState("");
-
-  const filtered = services.filter(it => {
-    const matchesTab = tab === "all" || it.type === tab;
-    const q = query.toLowerCase();
-    const matchesSearch = !q || it.name.toLowerCase().includes(q) || (it.category || "").toLowerCase().includes(q);
-    return matchesTab && matchesSearch;
-  });
-
-  const openItem = (item) => { setActiveId(item.id); setDraft({ ...item }); setShowChooser(false); };
-  const openNew = (type) => { setActiveId("new"); setDraft(type === "service" ? { ...emptyServiceDraft } : { ...emptyProductDraft }); setShowChooser(false); };
-  const updateDraft = (patch) => setDraft(prev => ({ ...prev, ...patch }));
-
-  const handleSave = async () => {
-    setSaving(true); setSavedFlash(false); setSaveError("");
-    try {
-      await onSaveService(draft, activeId === "new" ? null : activeId);
-      setSavedFlash(true); setTimeout(() => setSavedFlash(false), 1200);
-      setActiveId(null); setDraft(null);
-    } catch (err) { setSaveError(/category/i.test(err?.message || "") ? "Category is required." : (err?.message || "Could not save.")); } finally { setSaving(false); }
-  };
-  const handleDelete = async (id) => {
-    if (!window.confirm("Delete this item from the catalog?")) return;
-    try { await onDeleteService(id); if (activeId === id) { setActiveId(null); setDraft(null); } } catch (err) { console.error("Failed to delete service:", err); }
-  };
-
-  const tabs = [{ id: "all", label: "All" }, { id: "service", label: "Services" }, { id: "product", label: "Products" }];
-  const editorPanel = !draft ? (<div className="h-full flex items-center justify-center text-center px-8 py-16"><p className="text-sm" style={{ color: T.muted, ...fontBody }}>Select an item to edit, or add a new offering.</p></div>) : (
-    <div className="p-5 flex flex-col gap-4">
-      <div className="flex items-center justify-between"><span className="text-sm font-medium" style={{ color: T.ink, ...fontBody }}>{activeId === "new" ? "New " : "Edit "}{draft.type === "service" ? "Service" : "Product / Package"}</span><button onClick={() => { setActiveId(null); setDraft(null); }} style={{ color: T.muted }}><X size={16} /></button></div>
-      {draft.type === "service" ? <ServiceForm draft={draft} update={updateDraft} currency={currency} /> : <ProductForm draft={draft} update={updateDraft} currency={currency} />}
-      <button onClick={handleSave} disabled={saving} className="mt-2 px-4 py-2 rounded-lg text-sm flex items-center justify-center gap-1.5" style={{ backgroundColor: T.accent, color: "#fff", ...fontBody, opacity: saving ? 0.7 : 1 }}>{savedFlash ? <><Check size={14} /> Saved</> : saving ? "Saving..." : "Save"}</button>
-      {saveError && <Notice tone="danger">{saveError}</Notice>}
-    </div>
-  );
-
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div><h1 className="text-2xl mb-1" style={{ ...fontDisplay, color: T.ink }}>Catalog</h1><p className="text-sm" style={{ color: T.muted, ...fontBody }}>Manage the products, services, packages, and offers available to your customers.</p></div>
-        <button onClick={() => setShowChooser(true)} className="px-4 py-2 rounded-lg text-sm flex items-center gap-1.5" style={{ backgroundColor: T.accent, color: "#fff", ...fontBody }}><Plus size={14} /> Add Offering</button>
-      </div>
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex gap-2">{tabs.map(t => (<button key={t.id} onClick={() => setTab(t.id)} className="px-3 py-1.5 rounded-full text-xs" style={{ ...fontBody, backgroundColor: tab === t.id ? T.ink : T.surface, color: tab === t.id ? "#fff" : T.muted, border: `1px solid ${tab === t.id ? T.ink : T.border}` }}>{t.label}</button>))}</div>
-        <div className="relative w-full sm:w-56"><Search size={14} style={{ color: T.muted, position: "absolute", left: 10, top: 9 }} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search catalog" className="w-full rounded-lg pl-8 pr-3 py-1.5 text-sm outline-none" style={{ border: `1px solid ${T.border}`, backgroundColor: T.surface, color: T.ink, ...fontBody }} /></div>
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 dash-grid-5">
-        <div className="lg:col-span-3 rounded-xl overflow-hidden" style={{ backgroundColor: T.surface, border: `1px solid ${T.border}` }}>
-          {activeId === "new" && <div className="dash-catalog-mobile-editor" style={{ backgroundColor: T.surface, borderBottom: `1px solid ${T.border}` }}>{editorPanel}</div>}
-          {filtered.map((it, i) => (
-            <React.Fragment key={it.id}>
-              <div className="flex items-center gap-4 px-5 py-4" style={{ borderBottom: i < filtered.length - 1 && activeId !== it.id ? `1px solid ${T.border}` : "none" }}>
-                <GripVertical size={15} style={{ color: T.border }} />
-                <img src={it.image} alt="" className="w-14 h-10 object-cover rounded-md" style={{ border: `1px solid ${T.border}` }} />
-                <button onClick={() => openItem(it)} className="flex-1 text-left min-w-0">
-                  <div className="text-sm truncate" style={{ color: T.ink, ...fontBody }}>{it.name}</div>
-                  <div className="flex items-center gap-2 mt-1 flex-wrap">
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium flex items-center gap-1" style={{ backgroundColor: it.type === "service" ? T.infoSoft : T.tealSoft, color: it.type === "service" ? T.info : T.teal, ...fontBody }}>{it.type === "service" ? <Briefcase size={10} /> : <Package size={10} />}{it.type === "service" ? "Service" : "Product"}</span>
-                    {it.category && <CategoryTag category={it.category} categories={categories} />}
-                    <span className="text-xs" style={{ color: T.muted, ...fontBody }}>{getPriceLabel(it, currency)}</span>
-                    <Badge status={it.status} />
-                  </div>
-                </button>
-                <button onClick={() => openItem(it)} className="text-xs px-2.5 py-1 rounded-md shrink-0" style={{ backgroundColor: T.accentSoft, color: T.accent, ...fontBody }}>Edit</button>
-                {role === "admin" && <button onClick={() => handleDelete(it.id)} style={{ color: T.muted }} className="shrink-0" aria-label="Delete"><Trash2 size={15} /></button>}
-              </div>
-              {activeId === it.id && <div className="dash-catalog-mobile-editor" style={{ backgroundColor: T.surface, borderTop: `1px solid ${T.border}`, borderBottom: i < filtered.length - 1 ? `1px solid ${T.border}` : "none" }}>{editorPanel}</div>}
-            </React.Fragment>
-          ))}
-          {filtered.length === 0 && <div className="px-5 py-10 text-center text-sm" style={{ color: T.muted, ...fontBody }}>No items match this view yet.</div>}
-        </div>
-        <div className="lg:col-span-2 rounded-xl overflow-y-auto dash-mobile-full dash-catalog-desktop-editor" style={{ backgroundColor: T.surface, border: `1px solid ${T.border}`, maxHeight: 720 }}>
-          {editorPanel}
-        </div>
-      </div>
-      {showChooser && <AddOfferingModal onClose={() => setShowChooser(false)} onChoose={openNew} />}
-    </div>
-  );
 }
 
 // Forms: submissions inbox + form builder (dashboard/FormsModule.jsx).
@@ -676,7 +525,7 @@ function Settings({ pipelineStages, setPipelineStages, pipelineStageRows, setPip
       supabase.from("pipeline_stages").update({ sort_order: index }).eq("id", rowB.id).then(({ error }) => { if (error) console.error("Failed to reorder stage:", error); });
     }
   };
-  const MODULE_INFO = [{ key: "pipeline", label: "Pipeline", desc: "Kanban board for tracking leads through your sales stages." }, { key: "bookings", label: "Calendar", desc: "Scheduled meetings/appointments with clients." }, { key: "employees", label: "Employees", desc: "Internal staff, task assignment, and pipeline automation." }, { key: "services", label: "Catalog", desc: "Manage the products, services, and packages you offer clients." }];
+  const MODULE_INFO = [{ key: "pipeline", label: "Pipeline", desc: "Kanban board for tracking leads through your sales stages." }, { key: "bookings", label: "Calendar", desc: "Scheduled meetings/appointments with clients." }, { key: "employees", label: "Employees", desc: "Internal staff, task assignment, and pipeline automation." }];
   return (
     <div className="flex flex-col gap-6">
       <div><h1 className="text-2xl mb-1" style={{ ...fontDisplay, color: T.ink }}>Settings</h1><p className="text-sm" style={{ color: T.muted, ...fontBody }}>Business info, branding, and site-wide details.</p></div>
@@ -865,11 +714,10 @@ export default function Dashboard() {
   const [employees, setEmployees] = useState([]);
   const [employeeTasks, setEmployeeTasks] = useState([]);
   const [stageTasks, setStageTasks] = useState([]);
-  const [services, setServices] = useState([]);
   const [pipelineStages, setPipelineStages] = useState(["New Lead", "Contacted", "Qualified", "Proposal Sent", "Booked Appointment", "Close"]);
   const [pipelineStageRows, setPipelineStageRows] = useState([]);
   const [currency, setCurrency] = useState("₱");
-  const [modules, setModules] = useState({ pipeline: true, bookings: true, employees: true, services: true });
+  const [modules, setModules] = useState({ pipeline: true, bookings: true, employees: true });
   const [chatWidgetCode, setChatWidgetCode] = useState("");
   const [siteSettings, setSiteSettings] = useState(null);
   const [profiles, setProfiles] = useState([]);
@@ -888,7 +736,6 @@ export default function Dashboard() {
         supabase.from("employees").select("*").order("created_at", { ascending: false }),
         supabase.from("employee_tasks").select("*").order("created_at", { ascending: false }),
         supabase.from("stage_task_templates").select("*").order("created_at", { ascending: false }),
-        supabase.from("services").select("*").order("sort_order", { ascending: true }),
         supabase.from("pipeline_stages").select("*").order("sort_order", { ascending: true }),
         fetchSiteSettings(),
         supabase.from("profiles").select("id,email,full_name,role"),
@@ -902,7 +749,6 @@ export default function Dashboard() {
       if (employeesRes.data) setEmployees(employeesRes.data.map(r => ({ id: r.id, userId: r.user_id, name: r.name, email: r.email, role: r.role, allowedModules: r.allowed_modules || { ...DEFAULT_EMPLOYEE_ACCESS } })));
       if (tasksRes.data) setEmployeeTasks(tasksRes.data.map(mapTask));
       if (stageTasksRes.data) setStageTasks(stageTasksRes.data.map(r => ({ id: r.id, stage: r.stage, title: r.title })));
-      if (servicesRes.data) setServices(servicesRes.data.map(dbRowToService));
       if (stagesRes.data && stagesRes.data.length > 0) { setPipelineStages(stagesRes.data.map(r => r.name)); setPipelineStageRows(stagesRes.data); }
       if (profilesRes.data) setProfiles(profilesRes.data);
       if (settingsRes) {
@@ -944,27 +790,9 @@ export default function Dashboard() {
     setPage("overview");
   };
 
-  // Pipeline filter options: every category a lead actually uses, plus the Catalog's.
-  const categories = Array.from(new Set([...contacts.map(c => c.category), ...services.map(s => s.category)].filter(Boolean)));
+  // Pipeline filter options: every category a lead actually uses.
+  const categories = Array.from(new Set(contacts.map(c => c.category).filter(Boolean)));
 
-  const handleSaveService = async (draft, existingId) => {
-    const dbRow = serviceToDbRow(draft);
-    if (existingId) {
-      const { error } = await supabase.from("services").update(dbRow).eq("id", existingId);
-      if (error) throw error;
-      setServices(prev => prev.map(s => s.id === existingId ? { ...draft, id: existingId } : s));
-    } else {
-      const { data, error } = await supabase.from("services").insert(dbRow).select().single();
-      if (error) throw error;
-      setServices(prev => [...prev, { ...draft, id: data.id }]);
-    }
-  };
-
-  const handleDeleteService = async (id) => {
-    const { error } = await supabase.from("services").delete().eq("id", id);
-    if (error) throw error;
-    setServices(prev => prev.filter(s => s.id !== id));
-  };
 
   const handleConvertToCase = async (submission) => {
     const category = inferCategory(submission.type || "", categories);
@@ -1059,7 +887,6 @@ export default function Dashboard() {
     "cms-services": <CollectionManager kinds={["immigration_service", "visa_destination", "travel_package"]} title="Services" subtitle="Everything on each service page — text, images, SEO and its form — on one screen." role={role} />,
     news: <CollectionManager kinds={["news_article"]} title="News" subtitle="Stories (badge “Homepage”) appear in the homepage “News & Current Events” section in list order; guides appear on the News page. The section's heading is edited in Pages → Home." role={role} />,
     testimonials: <CollectionManager kinds={["testimonial"]} title="Testimonials" subtitle="Client quotes shown on the homepage (the first three are displayed)." role={role} />,
-    services: <Catalog services={services} onSaveService={handleSaveService} onDeleteService={handleDeleteService} categories={categories} currency={currency} role={role} />,
     forms: <Forms role={role} stages={pipelineStages} goTo={setPage} onConvertToCase={handleConvertToCase} />,
     pipeline: <Contacts contacts={contacts} setContacts={setContacts} bookings={bookings} employees={employees} onStageChange={handleStageChange} onUpdateContact={handleUpdateContact} onOpenLead={setLeadPanel} onNewLead={() => setLeadPanel("new")} stages={pipelineStages} categories={categories} currency={currency} />,
     clients: <ClientsDirectory contacts={contacts} bookings={bookings} goTo={setPage} categories={categories} stages={pipelineStages} currency={currency} onOpenDocuments={id => { setDocumentsContactId(id); setPage("documents"); }} onOpenLead={setLeadPanel} onNewLead={() => setLeadPanel("new")} />,

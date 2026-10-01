@@ -14,7 +14,7 @@ import './index.css'
 import './components/NewsEvents.css'
 import './pages/NewsPage.css'
 import './pages/NewsArticlePage.css'
-import Website, { PackageDetailPage } from './pages/Website.jsx'
+import Website from './pages/Website.jsx'
 import PreviewBanner from './components/PreviewBanner.jsx'
 import { whenContentReady } from './lib/cms.js'
 
@@ -41,7 +41,6 @@ const routes = [
   { path: '/', Component: Website },
   { path: '/news', load: () => import('./pages/NewsPage.jsx') },
   { path: '/news/:slug', load: () => import('./pages/NewsArticlePage.jsx') },
-  { path: '/package/:slug', Component: PackageDetailPage },
   { path: '/philippine-immigration-services', load: () => import('./pages/PhilippineImmigrationServices.jsx') },
   { path: '/philippine-immigration-services/:serviceSlug', load: () => import('./pages/ImmigrationServicePage.jsx') },
   { path: '/visa-assistance/international-tourist-visa', load: () => import('./pages/InternationalVisaAssistancePage.jsx') },

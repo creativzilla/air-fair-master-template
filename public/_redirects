@@ -8,6 +8,6 @@
 /visa-assistance/*                   /app.html   200
 /philippine-immigration-services     /app.html   200
 /philippine-immigration-services/*   /app.html   200
-/package/*                           /app.html   200
+/package/*                           /travel-tours   301
 /dashboard                           /app.html   200
 /newsletter/*                        /app.html   200
