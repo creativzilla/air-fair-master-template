@@ -272,6 +272,11 @@ function DocRow({ doc, last, onOpen }) {
 }
 
 export default function CollectionManager({ kinds, title, subtitle, role }) {
+  // Reset collection state when navigating between Services, News and Testimonials.
+  return <CollectionManagerView key={kinds.join(",")} kinds={kinds} title={title} subtitle={subtitle} role={role} />;
+}
+
+function CollectionManagerView({ kinds, title, subtitle, role }) {
   const grouped = kinds.length > 1;
   const [kind, setKind] = useState(kinds[0]);
   // "all" = every kind on one page under its own heading; otherwise one kind.

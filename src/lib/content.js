@@ -16,11 +16,13 @@ export async function fetchSiteSettings() {
 export async function saveSiteSettings(settings) {
   const supabase = await getSupabase();
   // Try to update the first row; if none exists, insert.
-  const { data: existing } = await supabase
+  const { data: existing, error: lookupError } = await supabase
     .from("site_settings")
     .select("id")
+    .order("updated_at", { ascending: false })
     .limit(1)
     .maybeSingle();
+  if (lookupError) throw lookupError;
 
   if (existing) {
     const { data, error } = await supabase
@@ -28,7 +30,7 @@ export async function saveSiteSettings(settings) {
       .update({ ...settings, updated_at: new Date().toISOString() })
       .eq("id", existing.id)
       .select()
-      .maybeSingle();
+      .single();
     if (error) throw error;
     return data;
   }
@@ -37,7 +39,7 @@ export async function saveSiteSettings(settings) {
     .from("site_settings")
     .insert(settings)
     .select()
-    .maybeSingle();
+    .single();
   if (error) throw error;
   return data;
 }
