@@ -81,7 +81,7 @@ function MiniCalendar({ bookings }) {
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
-function Overview({ goTo, submissions, bookings, contacts, stages, currency, role }) {
+function Overview({ goTo, submissions, bookings, contacts, stages, currency, role, calendar = false }) {
   const [livePages, setLivePages] = useState(null);
   useEffect(() => {
     supabase.from("cms_published").select("document_id", { count: "exact", head: true }).in("kind", ["page", "immigration_service", "visa_destination", "travel_package", "news_article"])
@@ -99,12 +99,12 @@ function Overview({ goTo, submissions, bookings, contacts, stages, currency, rol
   const greeting = hour < 12 ? "Good morning!" : hour < 18 ? "Good afternoon!" : "Good evening!";
   const stats = [
     { label: "New Inquiries", value: String(newInquiries).padStart(2, "0"), sub: `${thisWeek} received this week`, icon: Mail, link: true, target: "forms" },
-    { label: "Upcoming Bookings", value: String(upcomingList.length).padStart(2, "0"), sub: upcomingList[0] ? `Next: ${upcomingList[0].date} · ${upcomingList[0].time || "time TBD"}` : "Nothing scheduled", icon: CalendarDays, link: true, target: "bookings" },
+    calendar && { label: "Upcoming Bookings", value: String(upcomingList.length).padStart(2, "0"), sub: upcomingList[0] ? `Next: ${upcomingList[0].date} · ${upcomingList[0].time || "time TBD"}` : "Nothing scheduled", icon: CalendarDays, link: true, target: "bookings" },
     { label: "Active Deals", value: String(active.length).padStart(2, "0"), sub: `${currency}${activeTotal.toLocaleString()} in pipeline`, icon: Wallet, link: true, target: "pipeline" },
     { label: "Pages Live", value: livePages === null ? "—" : String(livePages).padStart(2, "0"), sub: canEditSite ? "Edit website" : "Pages & services published", icon: Globe, link: canEditSite, target: "edit-website" },
-  ];
+  ].filter(Boolean);
   const quickActions = [
-    { label: "Add Booking", target: "bookings", icon: CalendarPlus },
+    ...(calendar ? [{ label: "Add Booking", target: "bookings", icon: CalendarPlus }] : []),
     { label: "View Inquiries", target: "forms", icon: Mail },
     { label: "Open Pipeline", target: "pipeline", icon: UserPlus },
     ...(canEditSite ? [{ label: "Upload Image", target: "media", icon: FileText }] : []),
@@ -115,7 +115,7 @@ function Overview({ goTo, submissions, bookings, contacts, stages, currency, rol
         <h1 className="text-2xl mb-1 flex items-center gap-2" style={{ ...fontDisplay, color: T.ink }}>{greeting} <span>👋</span></h1>
         <p className="text-sm" style={{ color: T.muted, ...fontBody }}>Here's what's happening today.</p>
       </div>
-      <div className="dash-overview-stats">
+      <div className="dash-overview-stats" style={stats.length === 3 ? { gridTemplateColumns: "repeat(3, minmax(0, 1fr))" } : undefined}>
         {stats.map((s, i) => {
           const Icon = s.icon;
           const tints = [{ bg: T.accentSoft, fg: T.accent }, { bg: T.infoSoft, fg: T.info }, { bg: T.tealSoft, fg: T.teal }, { bg: T.warnSoft, fg: T.warn }];
@@ -141,7 +141,7 @@ function Overview({ goTo, submissions, bookings, contacts, stages, currency, rol
           ))}
         </div>
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 dash-grid-3">
+      <div className={`grid grid-cols-1 ${calendar ? "lg:grid-cols-3 dash-grid-3" : ""} gap-5`}>
         <div className="rounded-2xl" style={{ backgroundColor: T.surface, border: `1px solid ${T.border}` }}>
           <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: `1px solid ${T.border}` }}>
             <h2 className="text-sm font-semibold" style={{ color: T.ink, ...fontBody }}>Recent Submissions</h2>
@@ -158,6 +158,7 @@ function Overview({ goTo, submissions, bookings, contacts, stages, currency, rol
             {submissions.length === 0 && <div className="px-5 py-8 text-center text-sm" style={{ color: T.muted, ...fontBody }}>No submissions yet.</div>}
           </div>
         </div>
+        {calendar && (<>
         <div className="rounded-2xl" style={{ backgroundColor: T.surface, border: `1px solid ${T.border}` }}>
           <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: `1px solid ${T.border}` }}>
             <h2 className="text-sm font-semibold" style={{ color: T.ink, ...fontBody }}>Upcoming Bookings</h2>
@@ -199,6 +200,7 @@ function Overview({ goTo, submissions, bookings, contacts, stages, currency, rol
             <MiniCalendar bookings={bookings} />
           </div>
         </div>
+        </>)}
       </div>
     </div>
   );
@@ -717,7 +719,8 @@ export default function Dashboard() {
   const [pipelineStages, setPipelineStages] = useState(["New Lead", "Contacted", "Qualified", "Proposal Sent", "Booked Appointment", "Close"]);
   const [pipelineStageRows, setPipelineStageRows] = useState([]);
   const [currency, setCurrency] = useState("₱");
-  const [modules, setModules] = useState({ pipeline: true, bookings: true, employees: true });
+  // Calendar stays hidden unless the saved settings turn it on (no flash while loading).
+  const [modules, setModules] = useState({ pipeline: true, bookings: false, employees: true });
   const [chatWidgetCode, setChatWidgetCode] = useState("");
   const [siteSettings, setSiteSettings] = useState(null);
   const [profiles, setProfiles] = useState([]);
@@ -882,7 +885,7 @@ export default function Dashboard() {
   const newCount = submissions.filter(s => s.status === "New").length;
 
   const pageComponents = {
-    overview: <Overview goTo={setPage} submissions={submissions} bookings={bookings} contacts={contacts} stages={pipelineStages} currency={currency} role={role} />,
+    overview: <Overview goTo={setPage} submissions={submissions} bookings={bookings} contacts={contacts} stages={pipelineStages} currency={currency} role={role} calendar={!!modules.bookings} />,
     "edit-website": <EditWebsite role={role} />,
     "cms-services": <CollectionManager kinds={["immigration_service", "visa_destination", "travel_package"]} title="Services" subtitle="Everything on each service page — text, images, SEO and its form — on one screen." role={role} />,
     news: <CollectionManager kinds={["news_article"]} title="News" subtitle="Stories (badge “Homepage”) appear in the homepage “News & Current Events” section in list order; guides appear on the News page. The section's heading is edited in Pages → Home." role={role} />,
