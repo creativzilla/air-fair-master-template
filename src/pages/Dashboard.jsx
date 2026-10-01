@@ -27,7 +27,6 @@ const NAV = [
   { id: "cms-services", label: "Services", icon: Stamp, roles: CONTENT_ROLES },
   { id: "news", label: "News", icon: Newspaper, roles: CONTENT_ROLES },
   { id: "testimonials", label: "Testimonials", icon: MessageSquareQuote, roles: CONTENT_ROLES },
-  { id: "media", label: "Media", icon: ImageIcon, roles: CONTENT_ROLES, staffKey: "media" },
   { group: "Clients" },
   { id: "forms", label: "Forms", icon: Inbox, roles: ALL_ROLES, staffKey: "forms" },
   { id: "pipeline", label: "Pipeline", icon: Users, moduleKey: "pipeline", roles: ALL_ROLES, staffKey: "pipeline" },
@@ -39,6 +38,7 @@ const NAV = [
   { id: "employees", label: "Employees", icon: UserCog, moduleKey: "employees", roles: ["admin"] },
   { id: "users", label: "Users", icon: ShieldCheck, roles: ["admin"] },
   { id: "form-emails", label: "Form Emails", icon: Mail, roles: ["admin"] },
+  { id: "media", label: "Media", icon: ImageIcon, roles: CONTENT_ROLES, staffKey: "media" },
   { id: "settings", label: "Settings", icon: SettingsIcon, roles: ["admin"] },
 ];
 
