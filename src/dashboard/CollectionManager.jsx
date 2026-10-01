@@ -231,8 +231,25 @@ function ItemEditor({ docId, kind, role, forms, samples, onBack, onChanged, relo
   );
 }
 
+function DocRow({ doc, last, onOpen }) {
+  const thumb = thumbnailOf(doc.draft);
+  return (
+    <button type="button" onClick={() => onOpen(doc)} className="w-full flex items-center gap-4 px-5 py-3.5 text-left hover:opacity-90" style={{ borderBottom: last ? "none" : `1px solid ${T.border}` }}>
+      {thumb ? <img src={thumb} alt="" className="w-14 h-10 object-cover rounded-md shrink-0" style={{ border: `1px solid ${T.border}` }} /> : <span className="w-14 h-10 rounded-md shrink-0" style={{ backgroundColor: T.bg, border: `1px solid ${T.border}` }} />}
+      <div className="flex-1 min-w-0">
+        <div className="text-sm truncate" style={{ color: T.ink, ...fontBody }}>{doc.title}</div>
+        <div className="flex items-center gap-2 mt-1 flex-wrap"><Badge status={docStatus(doc)} /><Flags content={doc.draft} /><span className="text-xs truncate" style={{ color: T.muted, ...fontBody }}>{previewUrlFor(doc)}</span></div>
+      </div>
+      <span className="text-xs px-2.5 py-1 rounded-md shrink-0" style={{ backgroundColor: T.accentSoft, color: T.accent, ...fontBody }}>Edit</span>
+    </button>
+  );
+}
+
 export default function CollectionManager({ kinds, title, subtitle, role }) {
+  const grouped = kinds.length > 1;
   const [kind, setKind] = useState(kinds[0]);
+  // "all" = every kind on one page under its own heading; otherwise one kind.
+  const [view, setView] = useState(grouped ? "all" : kinds[0]);
   const list = useDocumentList(kinds);
   const [forms, setForms] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -252,11 +269,15 @@ export default function CollectionManager({ kinds, title, subtitle, role }) {
 
   const docsOfKind = useMemo(() => (list.docs || []).filter(d => d.kind === kind), [list.docs, kind]);
   const samples = useMemo(() => ({ byKind: list.samplesByKind, docs: docsOfKind }), [list.samplesByKind, docsOfKind]);
-  const filtered = docsOfKind.filter(d => {
+  const matches = d => {
     if (statusFilter !== "All" && docStatus(d) !== statusFilter) return false;
     const q = query.trim().toLowerCase();
     return !q || d.title.toLowerCase().includes(q) || d.slug.includes(q);
-  });
+  };
+  const filtered = docsOfKind.filter(matches);
+  const sections = kinds.map(k => ({ kind: k, docs: (list.docs || []).filter(d => d.kind === k && matches(d)) }));
+  const openDoc = doc => { setKind(doc.kind); setSelectedId(doc.id); };
+  const startNew = k => { setKind(k); setCreating(true); };
 
   const loadArchived = async () => {
     const { data } = await supabase.from("cms_documents").select("id,kind,slug,title,updated_at").eq("kind", kind).eq("is_archived", true).order("updated_at", { ascending: false });
@@ -274,32 +295,38 @@ export default function CollectionManager({ kinds, title, subtitle, role }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageTitle title={title} subtitle={subtitle} actions={canCreate && <Button icon={Plus} onClick={() => setCreating(true)}>New {cfg.singular}</Button>} />
-      {kinds.length > 1 && <Tabs tabs={kinds.map(k => ({ id: k, label: COLLECTIONS[k].label, count: (list.docs || []).filter(d => d.kind === k).length }))} active={kind} onChange={k => { setKind(k); setArchived(null); }} />}
+      <PageTitle title={title} subtitle={subtitle} actions={canCreate && view !== "all" && <Button icon={Plus} onClick={() => setCreating(true)}>New {cfg.singular}</Button>} />
+      {grouped && <Tabs tabs={[{ id: "all", label: "All", count: (list.docs || []).length }, ...kinds.map(k => ({ id: k, label: COLLECTIONS[k].label, count: (list.docs || []).filter(d => d.kind === k).length }))]}
+        active={view} onChange={v => { setView(v); if (v !== "all") setKind(v); setArchived(null); }} />}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <FilterPills options={["All", "Published", "Unpublished changes", "Draft"]} active={statusFilter} onChange={setStatusFilter} />
-        <div className="relative w-full sm:w-64"><Search size={14} style={{ color: T.muted, position: "absolute", left: 10, top: 10 }} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder={`Search ${cfg.label.toLowerCase()}`} className="w-full rounded-lg pl-8 pr-3 py-2 text-sm outline-none" style={inputStyle} /></div>
+        <div className="relative w-full sm:w-64"><Search size={14} style={{ color: T.muted, position: "absolute", left: 10, top: 10 }} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder={view === "all" ? "Search all services" : `Search ${cfg.label.toLowerCase()}`} className="w-full rounded-lg pl-8 pr-3 py-2 text-sm outline-none" style={inputStyle} /></div>
       </div>
       {list.error && <Notice tone="danger">{list.error}</Notice>}
-      {list.docs === null ? <Spinner /> : (
+      {list.docs === null ? <Spinner /> : view === "all" ? (
+        <div className="flex flex-col gap-6">
+          {sections.map(sec => (
+            <section key={sec.kind} aria-label={COLLECTIONS[sec.kind].label}>
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <h2 className="text-xs font-semibold uppercase tracking-wide" style={{ color: T.muted, ...fontBody, letterSpacing: "0.06em" }}>
+                  {COLLECTIONS[sec.kind].label} <span style={{ fontWeight: 400 }}>({sec.docs.length})</span>
+                </h2>
+                {canCreate && <Button small tone="soft" icon={Plus} onClick={() => startNew(sec.kind)}>New {COLLECTIONS[sec.kind].singular}</Button>}
+              </div>
+              <Panel className="overflow-hidden">
+                {sec.docs.map((doc, i) => <DocRow key={doc.id} doc={doc} last={i === sec.docs.length - 1} onOpen={openDoc} />)}
+                {sec.docs.length === 0 && <EmptyState>No {COLLECTIONS[sec.kind].label.toLowerCase()} match this view.</EmptyState>}
+              </Panel>
+            </section>
+          ))}
+        </div>
+      ) : (
         <Panel className="overflow-hidden">
-          {filtered.map((doc, i) => {
-            const thumb = thumbnailOf(doc.draft);
-            return (
-              <button key={doc.id} type="button" onClick={() => setSelectedId(doc.id)} className="w-full flex items-center gap-4 px-5 py-3.5 text-left hover:opacity-90" style={{ borderBottom: i < filtered.length - 1 ? `1px solid ${T.border}` : "none" }}>
-                {thumb ? <img src={thumb} alt="" className="w-14 h-10 object-cover rounded-md shrink-0" style={{ border: `1px solid ${T.border}` }} /> : <span className="w-14 h-10 rounded-md shrink-0" style={{ backgroundColor: T.bg, border: `1px solid ${T.border}` }} />}
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm truncate" style={{ color: T.ink, ...fontBody }}>{doc.title}</div>
-                  <div className="flex items-center gap-2 mt-1 flex-wrap"><Badge status={docStatus(doc)} /><Flags content={doc.draft} /><span className="text-xs truncate" style={{ color: T.muted, ...fontBody }}>{previewUrlFor(doc)}</span></div>
-                </div>
-                <span className="text-xs px-2.5 py-1 rounded-md shrink-0" style={{ backgroundColor: T.accentSoft, color: T.accent, ...fontBody }}>Edit</span>
-              </button>
-            );
-          })}
+          {filtered.map((doc, i) => <DocRow key={doc.id} doc={doc} last={i === filtered.length - 1} onOpen={openDoc} />)}
           {filtered.length === 0 && <EmptyState>No {cfg.label.toLowerCase()} match this view.</EmptyState>}
         </Panel>
       )}
-      {isAdmin && (
+      {isAdmin && view !== "all" && (
         <div>
           {archived === null ? <button type="button" onClick={loadArchived} className="text-xs underline" style={{ color: T.muted, ...fontBody }}>Show archived {cfg.label.toLowerCase()}</button> : (
             <Panel className="p-4 flex flex-col gap-2">
