@@ -365,7 +365,7 @@ export default function FormStudio({ docId, onClose, titleVars = {}, onPublished
           {Object.entries(DEVICES).map(([key, d]) => { const Icon = d.icon; return <ToolButton key={key} label={`${d.label} preview`} active={device === key} onClick={() => setDevice(key)}><Icon size={15} /></ToolButton>; })}
         </div>
         <ToolButton label="Fields and elements" active={panel === "library"} onClick={() => setPanel(p => (p === "library" ? null : "library"))}><PanelLeft size={16} /><span className="lg:hidden">Add</span></ToolButton>
-        <ToolButton label="Settings panel" active={panel === "inspector"} onClick={() => setPanel(p => (p === "inspector" ? null : "inspector"))}><PanelRight size={16} /><span className="lg:hidden">Settings</span></ToolButton>
+        {selected && <ToolButton label="Settings panel" active={panel === "inspector"} onClick={() => setPanel(p => (p === "inspector" ? null : "inspector"))}><PanelRight size={16} /><span className="lg:hidden">Settings</span></ToolButton>}
         <Button tone="outline" small icon={mode === "edit" ? Eye : Pencil} onClick={() => { setMode(m => (m === "edit" ? "preview" : "edit")); setSelected(null); }}>{mode === "edit" ? "Preview" : "Back to editing"}</Button>
         <Button small icon={Send} busy={publishing} disabled={draft.status === "loading" || draft.status === "conflict"} onClick={publish}>Publish</Button>
       </div>
@@ -416,7 +416,7 @@ export default function FormStudio({ docId, onClose, titleVars = {}, onPublished
           </div>
           {mode === "edit" && <p className="text-center text-[11px] mt-4 flex items-center justify-center gap-1.5" style={{ color: T.muted }}><MousePointerClick size={12} /> Click an item to edit it. Del deletes, Ctrl+D duplicates, Ctrl+Z undoes.</p>}
         </main>
-        {mode === "edit" && (
+        {mode === "edit" && selected && (
           <aside className={`studio-panel studio-right ${panel === "inspector" ? "open" : ""}`} style={{ backgroundColor: T.surface, borderLeft: `1px solid ${T.border}` }} aria-label="Settings">
             <StudioInspector schema={schema} setSchema={setSchema} selected={selected} onSelect={setSelected} actions={actions} />
           </aside>
