@@ -118,12 +118,12 @@ See [form-emails-deploy.md](form-emails-deploy.md) for the ordered steps and rol
 
 ## Tests
 
-- `npm run test:email`: 36 unit tests with an in-memory database and a fake
+- `npm run test:email`: 50 unit tests with an in-memory database and a fake
   mailer (routing, recipient restrictions, spam guards, rate limits, retries,
   scheduled runs, idempotency, duplicates, newsletter double opt-in, template
   choice (override / default / off / built-in), variable safety, test sends).
 - `npm run typecheck:functions`: Deno type-check of the Edge Function.
 - `npm run test:email:e2e`: runs the real Edge Function under Deno against a
   local fake Supabase and a Resend sink, with network access limited to
-  localhost (22 checks, including a new package using its category default, an
+  localhost (25 checks, including a new package using its category default, an
   override, a category switched off and admin-only test sends). Sends nothing.

@@ -60,6 +60,13 @@ export interface SubmissionInput {
 
 type Result<T> = { ok: true; value: T } | { ok: false; error: string };
 
+// { line1: "...", city: "..." }: at most 10 short text parts, nothing nested.
+function isFlatTextObject(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const entries = Object.entries(value as Record<string, unknown>);
+  return entries.length <= 10 && entries.every(([k, v]) => /^[A-Za-z0-9_]{1,32}$/.test(k) && (v === null || (typeof v === "string" && v.length <= 300)));
+}
+
 const str = (value: unknown, max: number) => (typeof value === "string" ? value.trim().slice(0, max) : "");
 
 function cleanRawData(input: unknown): Result<Record<string, unknown>> {
@@ -75,6 +82,7 @@ function cleanRawData(input: unknown): Result<Record<string, unknown>> {
       if (value.length > LIMITS.textValue) return { ok: false, error: `"${key}" is too long.` };
       out[key] = value;
     } else if (Array.isArray(value) && value.length <= LIMITS.listItems && value.every(item => typeof item === "string" && item.length <= 500)) out[key] = value;
+    else if (isFlatTextObject(value)) out[key] = value; // e.g. an address: checked against the form by the schema
     else return { ok: false, error: `"${key}" has an unsupported value.` };
   }
   if (JSON.stringify(out).length > LIMITS.rawDataBytes) return { ok: false, error: "The form is too large." };

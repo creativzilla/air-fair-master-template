@@ -660,6 +660,29 @@ footer{background:#051931;color:#9fb2cc;border-top:1px solid rgba(255,255,255,.0
 .svc-success-actions{display:flex;flex-direction:column;gap:10px}
 .svc-success-actions a{justify-content:center;text-decoration:none}
 
+/* Form Studio elements: two-column rows, design elements, extra field types */
+.svc-field .svc-field-label{font-size:12.5px;font-weight:600;color:#3d4c58}
+.svc-field-help{font-size:12px;color:#8b98a4;line-height:1.45}
+.svc-form-row{grid-column:1 / -1;display:grid;gap:14px;grid-template-columns:repeat(2,minmax(0,1fr))}
+.svc-form-row-1{grid-template-columns:1fr}
+.svc-form-col-stack{display:flex;flex-direction:column;gap:14px;min-width:0}
+.svc-form-heading{color:#102B57;font-weight:700;margin:4px 0 0;line-height:1.35}
+.svc-form-heading-lg{font-size:17px}
+.svc-form-heading-md{font-size:14.5px}
+.svc-form-text{font-size:13.5px;color:#5B6C80;line-height:1.6;margin:0;white-space:pre-line}
+.svc-form-text a{color:#2F720E;text-decoration:underline}
+.svc-form-divider{border:0;border-top:1px solid #E3E8ED;margin:4px 0;width:100%}
+.svc-form-spacer-sm{height:4px}
+.svc-form-spacer-md{height:16px}
+.svc-form-spacer-lg{height:32px}
+.svc-form-image img{max-width:100%;height:auto;border-radius:12px;display:inline-block}
+.svc-form-submit-slot .svc-submit-btn{margin-top:0}
+.svc-address{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.svc-address-full{grid-column:1 / -1;display:flex;flex-direction:column}
+/* Phone layout forced in the dashboard preview (device = mobile) */
+.fr-device-mobile .svc-form-grid,.fr-device-mobile .svc-form-row,.fr-device-mobile .svc-address{grid-template-columns:1fr}
+.fr-device-mobile .svc-field.svc-field-full{grid-column:1}
+
 @media(min-width:640px){
   .svc-about-grid{grid-template-columns:.9fr 1.1fr;gap:28px;align-items:center}
 }
@@ -685,6 +708,7 @@ footer{background:#051931;color:#9fb2cc;border-top:1px solid rgba(255,255,255,.0
   .svc-form-grid{grid-template-columns:1fr}
   .svc-form-card{padding:22px 18px}
   .svc-field.svc-field-full{grid-column:1}
+  .svc-form-row,.svc-address{grid-template-columns:1fr}
   .svc-field input[type=text],.svc-field input[type=email],.svc-field input[type=tel],.svc-field input[type=number],.svc-field input[type=date],.svc-field select,.svc-field textarea{font-size:16px}
 }
 

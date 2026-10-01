@@ -3,11 +3,13 @@
 // and testimonials. Services also get their form (builder + live preview)
 // and poster on the same screen; the item and its form publish together.
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Archive, ArchiveRestore, ArrowLeft, Check, Copy, Pencil, Plus, Search } from "lucide-react";
+import { Archive, ArchiveRestore, ArrowLeft, Copy, Pencil, Plus, Search } from "lucide-react";
 import { T, fontBody, Badge, Button, EmptyState, FieldLabel, FilterPills, LabeledInput, LabeledSelect, Modal, Notice, PageTitle, Panel, Spinner, Tabs, inputStyle } from "./ui.jsx";
 import ContentEditor from "./ContentEditor.jsx";
 import NewsArticleForm, { CategoryField, DEFAULT_NEWS_CATEGORIES, displayDateFor, todayISO, uniqueSlug } from "./NewsArticleForm.jsx";
-import { FormBuilder, FormPreview } from "./FormBuilder.jsx";
+import FormPreviewPanel from "./formStudio/FormPreviewPanel.jsx";
+// The Form Studio is only loaded when an admin opens it.
+const FormStudio = React.lazy(() => import("./formStudio/FormStudio.jsx"));
 import { PublishBar, friendlyError, previewUrlFor, useDocumentEditor, useDocumentList } from "./DocumentWorkflow.jsx";
 import { archiveDocument, createDocument, docStatus, getDocument, listDocuments, saveDraft } from "./api.js";
 import { imageSrc } from "../lib/cmsAdapters.js";
@@ -131,7 +133,7 @@ function ItemEditor({ docId, kind, role, forms, samples, onBack, onChanged, relo
   // Items with a form get two tabs: Content and Form (builder + live preview).
   const [section, setSection] = useState("content");
   // The Form tab opens on the preview; "Edit form" shows the builder next to it.
-  const [formEditing, setFormEditing] = useState(false);
+  const [studioOpen, setStudioOpen] = useState(false);
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState("");
   const isAdmin = role === "admin";
@@ -226,27 +228,28 @@ function ItemEditor({ docId, kind, role, forms, samples, onBack, onChanged, relo
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <p className="text-xs" style={{ color: T.muted, ...fontBody }}>
-              {formEditing ? "Edit the fields; the preview updates as you type. Save draft or Publish (top) to keep your changes." : "This is the form visitors see on this page."}
+              {formEditor.doc && docStatus(formEditor.doc) === "Unpublished changes"
+                ? "Preview of the form's latest draft. Publish it in the Form Studio (or publish this page) to put it live."
+                : "This is the form visitors see on this page."}
             </p>
             <div className="flex gap-2 flex-wrap">
-              {sharedBy > 1 && <Button tone="outline" small icon={Copy} busy={busy === "custom"} onClick={makeCustomForm}>Use a separate form for this item</Button>}
-              {formDoc && formEditor.draft && (formEditing
-                ? <Button small icon={Check} onClick={() => setFormEditing(false)}>Done editing</Button>
-                : <Button small icon={Pencil} onClick={() => setFormEditing(true)}>Edit form</Button>)}
+              {sharedBy > 1 && isAdmin && <Button tone="outline" small icon={Copy} busy={busy === "custom"} onClick={makeCustomForm}>Use a separate form for this item</Button>}
+              {formDoc && isAdmin && <Button small icon={Pencil} onClick={() => setStudioOpen(true)}>Edit form</Button>}
             </div>
           </div>
-          {sharedBy > 1 && <Notice tone="warn">This form is shared by {sharedBy} {cfg.label.toLowerCase()}. Edits here change it for all of them.</Notice>}
+          {!isAdmin && <Notice>Only admins can change forms.</Notice>}
+          {sharedBy > 1 && <Notice tone="warn">This form is shared by {sharedBy} {cfg.label.toLowerCase()}. Edits change it for all of them.</Notice>}
           {!formDoc ? <Notice tone="warn">No form is linked to this item.</Notice> : !formEditor.draft ? <Spinner /> : (<>
-            {formEditing ? (
-              <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 dash-grid-5">
-                <div className="lg:col-span-3 min-w-0"><FormBuilder form={formEditor.draft} onChange={formEditor.setDraft} /></div>
-                <div className="lg:col-span-2 min-w-0"><div className="lg:sticky" style={{ top: 96 }}><FormPreview form={formEditor.draft} titleVars={{ title: draft.title || doc.title }} /></div></div>
-              </div>
-            ) : (
-              <div className="max-w-3xl w-full"><FormPreview form={formEditor.draft} titleVars={{ title: draft.title || doc.title }} /></div>
-            )}
+            <div className="max-w-3xl w-full"><FormPreviewPanel form={formEditor.draft} titleVars={{ title: draft.title || doc.title }} /></div>
             {formEditor.error && <Notice tone="danger">{formEditor.error}</Notice>}
           </>)}
+          {studioOpen && formDoc && (
+            <React.Suspense fallback={<Spinner label="Opening the Form Studio..." />}>
+              <FormStudio docId={formDoc.id} titleVars={{ title: draft.title || doc.title }}
+                onPublished={async () => { await formEditor.reload(); await reloadForms(); }}
+                onClose={async () => { setStudioOpen(false); await formEditor.reload(); await reloadForms(); }} />
+            </React.Suspense>
+          )}
         </div>
       )}
     </div>

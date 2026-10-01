@@ -4,6 +4,7 @@
 // Supabase content without any markup or styling changes.
 
 import { optimizedSrc } from "./optimizedImages.js";
+import { inputFields, normalizeSchema } from "../../supabase/functions/_shared/forms/schema.ts";
 
 const isPlainObject = value => value !== null && typeof value === "object" && !Array.isArray(value);
 
@@ -104,14 +105,15 @@ export function pageView(index, slug) {
   };
 }
 
+// The published form: its schema (normalized: every element has a stable id)
+// plus the texts the website shows around it.
 export function formView(formDoc) {
   if (!formDoc) return null;
   const c = formDoc.content || {};
-  const sections = (c.sections || []).map(section => ({
-    ...section,
-    fields: (section.fields || []).map(field => ({ ...field, id: field.name })),
-  }));
+  const schema = normalizeSchema(c);
+  const sections = schema.sections;
   return {
+    schema,
     key: formDoc.slug,
     documentId: formDoc.document_id,
     versionId: formDoc.version_id,
@@ -124,8 +126,10 @@ export function formView(formDoc) {
     successTitle: c.successTitle,
     successMessage: c.successMessage,
     successActions: c.successActions || [],
+    successRedirect: c.successRedirect || "",
     sections,
-    fields: sections.flatMap(section => section.fields),
+    // Every input field in order (including those inside two-column rows).
+    fields: inputFields(schema),
   };
 }
 

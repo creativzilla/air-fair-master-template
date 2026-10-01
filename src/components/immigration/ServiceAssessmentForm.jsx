@@ -1,77 +1,64 @@
-import React, { useState } from "react";
+import React, { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Briefcase, Lock, ShieldCheck } from "lucide-react";
-import { FormSubmitError, submitWebsiteForm } from "../../lib/formSubmit.js";
+import { submitWebsiteForm } from "../../lib/formSubmit.js";
 import { useFormGuard } from "../forms/FormGuard.jsx";
-import { isFieldVisible, validateFieldValue } from "./DynamicFormField.jsx";
-import FormSection from "./FormSection.jsx";
+import { FormBody, submitElementOf, useFormRunner } from "../forms/FormRenderer.jsx";
+import { safeRedirect } from "../forms/InquiryForm.jsx";
 
 // Renders the service's form from its published form document
 // (service.form = formView(...)): sections, fields, labels and messages.
 export default function ServiceAssessmentForm({ service }) {
   const config = service.form;
-  const sections = config.sections || [];
-  const [values, setValues] = useState({});
-  const [errors, setErrors] = useState({});
-  const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const [submitError, setSubmitError] = useState("");
+  const runner = useFormRunner(config.schema);
+  const { values, errors, onChange, submitting, submitted, submitError } = runner;
   const { honeypot, guard } = useFormGuard();
+  const submitEl = submitElementOf(config.schema);
+  const redirect = safeRedirect(config.successRedirect);
 
-  const handleFieldChange = (name, value) => {
-    setValues(prev => ({ ...prev, [name]: value }));
-    setErrors(prev => (prev[name] ? { ...prev, [name]: null } : prev));
-  };
+  useEffect(() => { if (submitted && redirect) window.location.assign(redirect); }, [submitted, redirect]);
 
-  const handleSubmit = async event => {
+  const handleSubmit = event => {
     event.preventDefault();
-    setSubmitError("");
-
-    const visibleFields = sections.flatMap(section => section.fields).filter(field => isFieldVisible(field, values));
-    const nextErrors = {};
-    visibleFields.forEach(field => {
-      const message = validateFieldValue(field, values[field.name]);
-      if (message) nextErrors[field.name] = message;
-    });
-
-    if (Object.keys(nextErrors).length > 0) {
-      setErrors(nextErrors);
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      await submitWebsiteForm({
-        form: config,
-        formId: `immigration-${service.slug}`,
-        serviceType: "immigration",
-        formType: `immigration_${service.slug}`,
-        source: service._doc,
-        fields: visibleFields,
-        values,
-        metadata: {
-          service_id: service.slug,
-          service_slug: service.slug,
-          service_name: service.title,
-          service_category: service.category || "Philippine Immigration Services",
-        },
-        guard: guard(),
-      });
-      setSubmitted(true);
-    } catch (err) {
-      setSubmitError(err instanceof FormSubmitError ? err.message : "Something went wrong submitting your assessment. Please try again or contact us directly.");
-    } finally {
-      setSubmitting(false);
-    }
+    runner.run((fields, vals, submissionId) => submitWebsiteForm({
+      form: config,
+      formId: `immigration-${service.slug}`,
+      serviceType: "immigration",
+      formType: `immigration_${service.slug}`,
+      source: service._doc,
+      fields,
+      values: vals,
+      submissionId,
+      metadata: {
+        service_id: service.slug,
+        service_slug: service.slug,
+        service_name: service.title,
+        service_category: service.category || "Philippine Immigration Services",
+      },
+      guard: guard(),
+    }), "Something went wrong submitting your assessment. Please try again or contact us directly.");
   };
 
   const [primaryAction, secondaryAction] = config.successActions || [];
+
+  const footer = (
+    <>
+      {honeypot}
+      <button className="green-button svc-submit-btn" type="submit" disabled={submitting}>
+        {submitting ? "Submitting..." : submitEl?.text || config.submitLabel || "Submit for Assessment"} {!submitting && <ArrowRight size={15} />}
+      </button>
+      {submitError && <p className="svc-submit-error" role="alert">{submitError}</p>}
+      <p className="svc-privacy-note">
+        <Lock size={12} /> {config.privacyNote || "Your information is secure and will only be used to assist with your inquiry."}
+      </p>
+    </>
+  );
 
   return (
     <div className="svc-form-col" id="assessment-form">
       <div className="svc-form-card">
         {submitted ? (
-          <div className="svc-success">
+          <div className="svc-success" role="status">
             <ShieldCheck size={40} />
             <h3>{config.successTitle}</h3>
             <p>{config.successMessage}</p>
@@ -89,7 +76,7 @@ export default function ServiceAssessmentForm({ service }) {
             </div>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} noValidate>
+          <form onSubmit={handleSubmit} noValidate aria-busy={submitting || undefined}>
             <div className="svc-form-head">
               <h3>
                 <span className="svc-form-icon">
@@ -99,26 +86,7 @@ export default function ServiceAssessmentForm({ service }) {
               </h3>
               {config.description && <p>{config.description}</p>}
             </div>
-
-            {sections.map((section, index) => (
-              <FormSection
-                key={section.id}
-                section={section}
-                index={index}
-                values={values}
-                errors={errors}
-                onFieldChange={handleFieldChange}
-              />
-            ))}
-
-            {honeypot}
-            <button className="green-button svc-submit-btn" type="submit" disabled={submitting}>
-              {submitting ? "Submitting..." : config.submitLabel || "Submit for Assessment"} {!submitting && <ArrowRight size={15} />}
-            </button>
-            {submitError && <p className="svc-submit-error">{submitError}</p>}
-            <p className="svc-privacy-note">
-              <Lock size={12} /> {config.privacyNote || "Your information is secure and will only be used to assist with your inquiry."}
-            </p>
+            <FormBody schema={config.schema} values={values} errors={errors} onChange={onChange} footer={footer} numbered={config.layout === "sections"} />
           </form>
         )}
       </div>

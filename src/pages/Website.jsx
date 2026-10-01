@@ -4,6 +4,9 @@ import { fetchSiteSettings } from "../lib/content.js";
 import { useForm, useGlobalContent, useHomepageTravelCards, useImmigrationCards, usePage, useTestimonials, useVisaCountries } from "../lib/cms.js";
 import { imageSrc } from "../lib/cmsAdapters.js";
 import { FormSubmitError, submitWebsiteForm, subscribeToNewsletter } from "../lib/formSubmit.js";
+import { FormElementView, submitElementOf, useFormRunner } from "../components/forms/FormRenderer.jsx";
+import { safeRedirect } from "../components/forms/InquiryForm.jsx";
+import { elementId, isInput, isRow, visibleIds, walk } from "../../supabase/functions/_shared/forms/schema.ts";
 import { toDestinationCard } from "../lib/visaCountries.js";
 import { getIcon } from "../components/immigration/icons.js";
 import VisaDestinationCard from "../components/visa/VisaDestinationCard.jsx";
@@ -373,26 +376,40 @@ function Testimonials({ fields }) {
 
 function Contact({ fields, settings }) {
   const form = useForm(fields.formKey || "website-contact");
-  const formFields = form?.fields || [];
-  const [values, setValues] = useState({});
-  const [sent, setSent] = useState(false);
+  const runner = useFormRunner(form?.schema);
+  const { values, errors, onChange, submitted: sent, submitError: sendError } = runner;
   const { honeypot, guard } = useFormGuard();
-  const [sendError, setSendError] = useState("");
-  const update = (key, value) => setValues(prev => ({ ...prev, [key]: value }));
-  const submit = async event => {
+  const submitEl = submitElementOf(form?.schema);
+  const redirect = safeRedirect(form?.successRedirect);
+  useEffect(() => { if (sent && redirect) window.location.assign(redirect); }, [sent, redirect]);
+  const submit = event => {
     event.preventDefault();
-    setSendError("");
-    try {
-      await submitWebsiteForm({ form, formId: "contact-home", serviceType: "general", formType: "website_inquiry", fields: formFields, values, guard: guard() });
-      setSent(true);
-    } catch (err) {
-      // Stay on the form so the visitor can retry.
-      setSendError(err instanceof FormSubmitError ? err.message : "We couldn't send your message. Please try again.");
-    }
+    runner.run((formFields, vals, submissionId) => submitWebsiteForm({
+      form, formId: "contact-home", serviceType: "general", formType: "website_inquiry", fields: formFields, values: vals, submissionId, guard: guard(),
+    }), "We couldn't send your message. Please try again.");
   };
-  return <section id="contact" className="contact-section"><div className="section-shell contact-layout"><div><h2>{fields.heading}</h2><p>{fields.body}</p><div className="contact-detail"><Phone size={16} /> {settings.contact_phone || fallbackSettings.contact_phone}</div><div className="contact-detail"><Mail size={16} /> {settings.contact_email || fallbackSettings.contact_email}</div><div className="contact-detail"><MapPin size={16} /> {settings.address || fallbackSettings.address}</div></div>{sent ? <div className="sent-card"><ShieldCheck size={38} /><h3>{form?.successTitle}</h3><p>{form?.successMessage}</p></div> : <form className="contact-form" onSubmit={submit}>{formFields.map(field => field.type === "textarea"
-    ? <textarea key={field.name} aria-label={field.label || field.placeholder} rows="4" required={field.required || undefined} placeholder={field.placeholder} value={values[field.name] || ""} onChange={e => update(field.name, e.target.value)} />
-    : <input key={field.name} aria-label={field.label || field.placeholder} required={field.required || undefined} type={field.type === "email" ? "email" : undefined} placeholder={field.placeholder} value={values[field.name] || ""} onChange={e => update(field.name, e.target.value)} />)}{honeypot}<button className="yellow-button" type="submit">{form?.submitLabel} <ArrowRight size={14} /></button>{sendError && <p className="form-send-error" role="alert">{sendError}</p>}</form>}</div></section>;
+  return <section id="contact" className="contact-section"><div className="section-shell contact-layout"><div><h2>{fields.heading}</h2><p>{fields.body}</p><div className="contact-detail"><Phone size={16} /> {settings.contact_phone || fallbackSettings.contact_phone}</div><div className="contact-detail"><Mail size={16} /> {settings.contact_email || fallbackSettings.contact_email}</div><div className="contact-detail"><MapPin size={16} /> {settings.address || fallbackSettings.address}</div></div>{sent ? <div className="sent-card"><ShieldCheck size={38} /><h3>{form?.successTitle}</h3><p>{form?.successMessage}</p></div> : <form className="contact-form" onSubmit={submit}>{form?.schema && <ContactFields schema={form.schema} values={values} errors={errors} onChange={onChange} />}{honeypot}<button className="yellow-button" type="submit" disabled={runner.submitting}>{submitEl?.text || form?.submitLabel} <ArrowRight size={14} /></button>{sendError && <p className="form-send-error" role="alert">{sendError}</p>}</form>}</div></section>;
+}
+
+// Homepage contact form: text-style fields keep their compact look (no visible
+// label, placeholder only); other field types and design elements use the
+// standard form markup.
+const COMPACT_TYPES = new Set(["text", "email", "tel", "number", "date", "textarea"]);
+function ContactFields({ schema, values, errors, onChange }) {
+  const visible = visibleIds(schema, values);
+  const els = walk(schema).filter(l => !isRow(l.el) && visible.has(l.id) && (!l.parentId || visible.has(l.parentId))).map(l => l.el).filter(el => el.type !== "submit");
+  return els.map(field => {
+    const id = elementId(field);
+    if (!isInput(field) || !COMPACT_TYPES.has(field.type)) return <FormElementView key={id} el={field} values={values} errors={errors} onChange={onChange} />;
+    const common = {
+      id: `field-${id}`, "aria-label": field.label || field.placeholder, required: field.required || undefined, placeholder: field.placeholder,
+      value: values[field.name] ?? "", onChange: e => onChange(field.name, e.target.value), "aria-invalid": errors[field.name] ? true : undefined,
+    };
+    const input = field.type === "textarea"
+      ? <textarea {...common} rows="4" />
+      : <input {...common} type={field.type === "email" ? "email" : field.type === "tel" ? "tel" : field.type === "number" ? "number" : field.type === "date" ? "date" : undefined} />;
+    return errors[field.name] ? <React.Fragment key={id}>{input}<p className="form-send-error" role="alert">{field.label}: {errors[field.name]}</p></React.Fragment> : <React.Fragment key={id}>{input}</React.Fragment>;
+  });
 }
 
 export function Footer({ settings }) {

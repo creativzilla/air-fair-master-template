@@ -265,6 +265,49 @@ const sub = (kind, over = {}) => ({
     assert.equal(T.form_submissions.length, before[1]);
   });
 
+  // ---------------------------------------------------------------- Form Studio schemas
+  const studio = (raw, extra = {}) => ({ id: uuid(), form_type: "studio-apply", form_key: "studio-apply", source_page: "/apply", name: "", email: "studio@example.com", phone: "",
+    attachments: [], document_id: null, form_version_id: "99999999-9999-4999-8999-999999999999", raw_data: raw, ...extra });
+  await check("studio form: answers by field id, mapped name/email, published version id", async () => {
+    const s = studio({ clientName: "Rosa Diaz", contactEmail: "Rosa@Example.com", service: "tour" });
+    const r = await post({ action: "submit_form", submission: s, guard: human }, ip());
+    assert.equal(r.status, 200, await r.text());
+    const row = T.form_submissions.find(x => x.id === s.id);
+    assert.deepEqual(row.answers, { f_who: "Rosa Diaz", f_mail: "Rosa@Example.com", f_svc: "tour" });
+    assert.equal(row.name, "Rosa Diaz");
+    assert.equal(row.email, "rosa@example.com");
+    const published = T.cms_published.find(p => p.slug === "studio-apply");
+    assert.equal(row.form_version_id, published.version_id, "server records the live version");
+  });
+  await check("studio form: unknown field / bad choice / missing conditional file -> 400, nothing saved", async () => {
+    const before = T.form_submissions.length;
+    const base = { clientName: "Rosa", contactEmail: "rosa2@example.com" };
+    assert.equal((await post({ action: "submit_form", submission: studio({ ...base, service: "tour", role: "admin" }), guard: human }, ip())).status, 400);
+    assert.equal((await post({ action: "submit_form", submission: studio({ ...base, service: "spa" }), guard: human }, ip())).status, 400);
+    const r = await post({ action: "submit_form", submission: studio({ ...base, service: "visa" }), guard: human }, ip());
+    assert.equal(r.status, 400);
+    assert.deepEqual((await r.json()).fields, { passport: "Please attach a file." });
+    assert.equal(T.form_submissions.length, before);
+  });
+  await check("studio form: upload checked against the stored file's real size", async () => {
+    const path = "submissions/2026-10/abcdef12-passport.pdf";
+    const attachment = { field: "passport", path, name: "passport.pdf", size: 900, type: "application/pdf" };
+    const raw = { clientName: "Rosa", contactEmail: "rosa3@example.com", service: "visa", passport: "passport.pdf" };
+    state.storage[path] = { size: 3 * 1024 * 1024, mimetype: "application/pdf" };
+    const big = await post({ action: "submit_form", submission: studio(raw, { attachments: [attachment] }), guard: human }, ip());
+    assert.equal(big.status, 400);
+    assert.match((await big.json()).error, /larger than 2 MB/);
+    state.storage[path] = { size: 1200, mimetype: "application/pdf" };
+    const s = studio(raw, { attachments: [attachment] });
+    const ok = await post({ action: "submit_form", submission: s, guard: human }, ip());
+    assert.equal(ok.status, 200, await ok.text());
+    const row = T.form_submissions.find(x => x.id === s.id);
+    assert.equal(row.answers.f_doc.file, path);
+    assert.equal(row.attachments[0].size, 1200);
+    const staff = state.resendCalls.at(-2).body;
+    assert.ok(!JSON.stringify(staff).includes(path), "private file path never emailed");
+  });
+
   // ---------------------------------------------------------------- safety net
   await check("no request ever left the machine", async () => {
     assert.ok(!/blocked external request|NotCapable|Requires net access/i.test(log), log.slice(-500));

@@ -132,8 +132,8 @@ select vault.delete_secret(id) from vault.secrets where name = 'form_submit_anon
 ## Checks before each deploy
 
 ```
-npm run test:email            # 36 unit tests, in-memory, no email
+npm run test:email            # 50 unit tests, in-memory, no email
 npm run typecheck:functions   # Deno type-check of the Edge Function
-npm run test:email:e2e        # real function under Deno, fake Supabase + Resend sink; network limited to localhost (22 checks)
+npm run test:email:e2e        # real function under Deno, fake Supabase + Resend sink; network limited to localhost (25 checks)
 ```
 (`deno` must be on PATH, or set `DENO_BIN`.)

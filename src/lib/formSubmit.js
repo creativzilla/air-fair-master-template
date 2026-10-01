@@ -25,7 +25,7 @@ async function uploadAttachment(file) {
   return path;
 }
 
-function newId() {
+export function newId() {
   if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
   const bytes = new Uint8Array(16);
   globalThis.crypto.getRandomValues(bytes);
@@ -37,7 +37,14 @@ function newId() {
 
 // A problem the visitor can fix or should know about (invalid input, too many
 // submissions, service unavailable); its message is safe to show.
-export class FormSubmitError extends Error {}
+// fieldErrors: { [field key]: message } when the server rejected specific answers.
+export class FormSubmitError extends Error {
+  constructor(message, fieldErrors) {
+    super(message);
+    this.name = "FormSubmitError";
+    this.fieldErrors = fieldErrors || null;
+  }
+}
 
 const UNAVAILABLE = "We couldn't send this right now. Please try again in a few minutes, or contact us by phone or email.";
 
@@ -55,8 +62,9 @@ async function callFormFunction(supabase, body) {
   const status = error.context?.status;
   if (error.name === "FunctionsHttpError" && status && status !== 404 && status < 500) {
     let message = "";
-    try { message = (await error.context.json())?.error || ""; } catch { /* no body */ }
-    throw new FormSubmitError(message || "Please check the form and try again.");
+    let fields = null;
+    try { const body = await error.context.json(); message = body?.error || ""; fields = body?.fields || null; } catch { /* no body */ }
+    throw new FormSubmitError(message || "Please check the form and try again.", fields);
   }
   return "unavailable";
 }
@@ -74,44 +82,49 @@ async function callFormFunction(supabase, body) {
  * values    { [field.name]: value }
  * metadata  extra context stored in raw_data
  * guard     from useFormGuard(): hidden spam field + time to fill
+ * submissionId  optional: reuse the same id when retrying, so it's saved once
  */
-export async function submitWebsiteForm({ form, formId, serviceType, formType, source = {}, fields, values, metadata = {}, guard = {} }) {
+export async function submitWebsiteForm({ form, formId, serviceType, formType, source = {}, fields, values, metadata = {}, guard = {}, submissionId }) {
   const payload = {};
   const attachments = [];
-  const failedUploads = [];
+  const mapped = {};
 
   for (const field of fields) {
     const value = values[field.name];
+    if (field.type === "hidden") continue; // the server fills it from the form
     if (field.type === "file") {
       if (!value) continue;
       try {
         const path = await uploadAttachment(value);
         attachments.push({ field: field.name, path, name: value.name, size: value.size, type: value.type });
       } catch {
-        failedUploads.push(field.name);
+        throw new FormSubmitError(`We couldn't upload "${value.name}". Please try again, or send it to us by email after submitting.`);
       }
       payload[field.name] = value.name;
       continue;
     }
-    if (value !== undefined && value !== "" && value !== null) payload[field.name] = value;
+    const clean = typeof value === "string" ? value.trim() : value;
+    if (clean === undefined || clean === "" || clean === null || (Array.isArray(clean) && !clean.length)) continue;
+    if ((field.type === "consent" || (field.type === "checkbox" && !field.options?.length)) && clean !== true) continue;
+    payload[field.name] = clean;
+    if (field.mapTo && typeof clean === "string") mapped[field.mapTo] = clean;
   }
 
   const sourcePage = typeof window !== "undefined" ? window.location.pathname : "";
   const row = {
-    id: newId(),
+    id: submissionId || newId(),
     form_type: formType,
     form_key: form?.key || null,
     document_id: source.documentId || null,
     form_version_id: form?.versionId || null,
     source_page: sourcePage,
     attachments,
-    name: payload.fullName || payload.name || "",
-    email: payload.email || "",
-    phone: payload.phone || "",
+    name: mapped.fullName || payload.fullName || payload.name || "",
+    email: mapped.email || payload.email || "",
+    phone: mapped.phone || payload.phone || "",
     raw_data: {
       ...payload,
       ...metadata,
-      ...(failedUploads.length ? { attachment_upload_failed: failedUploads } : {}),
       // Identifiers: the Edge Function derives these itself; they're kept here
       // for the direct-save fallback (copied into columns by a DB trigger).
       form_id: formId,

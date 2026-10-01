@@ -9,6 +9,7 @@ import {
   type Answer, type AutoReplyTemplate,
 } from "./templates.ts";
 import { isToken } from "./tokens.ts";
+import { checkSubmission, fileProblem, formatAnswer, inputFields, normalizeSchema, type FormSchema } from "./schema.ts";
 import type { Mailer } from "./resend.ts";
 
 export type OutboxKind = "staff_notification" | "client_confirmation" | "newsletter_confirmation" | "test_email";
@@ -66,7 +67,10 @@ export interface Store {
   // The category default (form_id null) and the override for this form, if any.
   getAutoReplyTemplates(serviceType: ServiceType, formId: string): Promise<{ serviceDefault: TemplateRow | null; formOverride: TemplateRow | null }>;
   getBusinessName(): Promise<string>;
-  getPublishedForm(formKey: string): Promise<{ content: Record<string, unknown> } | null>;
+  // The live (published) form: content plus the version it came from.
+  getPublishedForm(formKey: string): Promise<{ content: Record<string, unknown>; versionId: string | null } | null>;
+  // Size and type of an uploaded attachment, as stored (not as claimed by the browser).
+  getAttachmentInfo(path: string): Promise<{ size: number; type: string } | null>;
   getItemName(kind: string, slug: string): Promise<string | null>;
   rateLimitHit(bucket: string, keyHash: string, windowSeconds: number, max: number): Promise<boolean>;
   insertSubmission(row: Record<string, unknown>): Promise<{ inserted: boolean; createdAt: string }>;
@@ -116,7 +120,7 @@ export const RATE_LIMITS = {
 const META_KEYS = new Set([
   "service_id", "service_slug", "service_name", "service_category", "country_name", "country_slug", "visa_type",
   "package_name", "package_slug", "source_page", "submitted_at", "attachment_upload_failed", "form_id", "service_type", "source",
-  "agreed_to_privacy_policy", "fullName", "name", "email", "phone",
+  "agreed_to_privacy_policy", "fullName", "name", "email", "phone", "mapped_service", "mapped_message",
 ]);
 
 const ok = (body: Record<string, unknown> = {}): Reply => ({ status: 200, body: { ok: true, ...body } });
@@ -125,11 +129,8 @@ const minutesAgo = (now: Date, minutes: number) => new Date(now.getTime() - minu
 
 export const referenceFor = (id: string) => `AF-${id.replace(/-/g, "").slice(0, 6).toUpperCase()}`;
 
-function formFields(content: Record<string, unknown>): Array<{ name: string; label: string; options?: unknown }> {
-  const direct = Array.isArray(content.fields) ? content.fields : [];
-  const sections = Array.isArray(content.sections) ? content.sections : [];
-  const nested = sections.flatMap(section => (section && Array.isArray((section as { fields?: unknown[] }).fields) ? (section as { fields: unknown[] }).fields : []));
-  return [...direct, ...nested].filter(f => f && typeof (f as { name?: unknown }).name === "string") as Array<{ name: string; label: string; options?: unknown }>;
+function formFields(content: Record<string, unknown>) {
+  return inputFields(normalizeSchema(content as FormSchema)).filter(f => typeof f.name === "string");
 }
 
 function displayValue(value: unknown, options?: unknown): string {
@@ -144,16 +145,21 @@ function displayValue(value: unknown, options?: unknown): string {
   return optionLabel(value ?? "").slice(0, 2000);
 }
 
+// Answers for the staff email, labelled from the published form. Fields marked
+// sensitive and file uploads (which are private) are left out; the email only
+// says how many files were attached.
 export function buildAnswers(rawData: Record<string, unknown>, content: Record<string, unknown>): Answer[] {
   const fields = formFields(content);
   const seen = new Set<string>();
   const answers: Answer[] = [];
   for (const field of fields) {
-    seen.add(field.name);
-    if (META_KEYS.has(field.name)) continue;
-    const value = rawData[field.name];
+    const name = field.name as string;
+    seen.add(name);
+    if (META_KEYS.has(name) || field.sensitive || field.type === "file") continue;
+    const value = rawData[name];
     if (value === undefined || value === null || value === "") continue;
-    answers.push({ label: field.label || humanizeSlug(field.name), value: displayValue(value, field.options) });
+    const shown = typeof value === "object" && !Array.isArray(value) ? formatAnswer(field, value) : displayValue(value, field.options);
+    if (shown) answers.push({ label: field.label || humanizeSlug(name), value: shown.slice(0, 2000) });
   }
   for (const [key, value] of Object.entries(rawData)) {
     if (seen.has(key) || META_KEYS.has(key) || value === undefined || value === null || value === "") continue;
@@ -239,18 +245,51 @@ export async function handleSubmitForm(deps: Deps, body: { submission?: unknown;
   const form = await store.getPublishedForm(s.form_key);
   if (!form) return fail(400, "This form is not available.");
 
+  // Check every answer against the PUBLISHED form (types, required, choices,
+  // conditions, files). Browser-supplied field definitions are never used.
+  const schema = normalizeSchema(form.content as FormSchema);
+  const result = checkSubmission(schema, s.raw_data, s.attachments);
+  if (result.unknownKeys.length) return fail(400, "This form was updated. Please reload the page and fill it in again.");
+  if (!result.ok) {
+    const fields = inputFields(schema);
+    const [key, message] = Object.entries(result.errors)[0];
+    const label = fields.find(f => f.name === key)?.label || key;
+    return { status: 400, body: { ok: false, error: `${label}: ${message}`, fields: result.errors } };
+  }
+  // Uploaded files: size and type as actually stored, against the field's rules.
+  for (const a of s.attachments) {
+    const info = await store.getAttachmentInfo(a.path);
+    if (!info) return fail(400, "An attached file couldn't be found. Please attach it again.");
+    const field = inputFields(schema).find(f => f.name === a.field);
+    const problem = field && fileProblem(field, { name: a.name, size: info.size, type: info.type });
+    if (problem) return fail(400, `${field?.label || a.field}: ${problem}`);
+    a.size = info.size;
+    a.type = info.type;
+  }
+
+  // Contact details: fields mapped in the Studio win; otherwise the usual keys.
+  const v = result.values;
+  const email = result.mapped.email || (typeof v.email === "string" ? v.email : "") || s.email;
+  if (!isValidEmail(email)) return fail(400, "Please enter a valid email address.");
+  const name = (result.mapped.fullName || String(v.fullName ?? v.name ?? "") || s.name).slice(0, 200);
+  const phone = (result.mapped.phone || String(v.phone ?? "") || s.phone).slice(0, 60);
+
   // Identifiers, routing and template all come from the server's own derivation.
   const { formId, serviceType } = deriveIdentifiers(s.form_type, s.form_key);
-  const rawData = { ...s.raw_data, form_id: formId, service_type: serviceType, source: s.source_page, source_page: s.source_page };
+  const rawData: Record<string, unknown> = {
+    ...result.values, ...result.context, form_id: formId, service_type: serviceType, source: s.source_page, source_page: s.source_page,
+  };
+  if (result.mapped.service) rawData.mapped_service = result.mapped.service.slice(0, 300);
+  if (result.mapped.message) rawData.mapped_message = result.mapped.message.slice(0, 5000);
   const { inserted, createdAt } = await store.insertSubmission({
-    id: s.id, form_type: s.form_type, form_key: s.form_key, document_id: s.document_id, form_version_id: s.form_version_id,
-    source_page: s.source_page, attachments: s.attachments, name: s.name, email: s.email, phone: s.phone, raw_data: rawData,
-    form_id: formId, service_type: serviceType, source: s.source_page,
+    id: s.id, form_type: s.form_type, form_key: s.form_key, document_id: s.document_id, form_version_id: form.versionId,
+    source_page: s.source_page, attachments: s.attachments, name, email: normalizeEmail(email), phone, raw_data: rawData,
+    answers: result.answers, form_id: formId, service_type: serviceType, source: s.source_page,
   });
 
   const drafts = await planFormEmails(deps, {
     id: s.id, createdAt, formId, serviceType, rawData, content: form.content,
-    name: s.name, email: s.email, phone: s.phone, sourcePage: s.source_page, attachmentsCount: s.attachments.length,
+    name, email: normalizeEmail(email), phone, sourcePage: s.source_page, attachmentsCount: s.attachments.length,
   });
   // Same submission id again (browser retry): the dedupe keys already exist,
   // so no new emails are queued.

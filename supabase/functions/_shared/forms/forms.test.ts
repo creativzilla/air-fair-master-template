@@ -25,8 +25,25 @@ const FORMS: Record<string, Record<string, unknown>> = {
   "website-contact": { fields: [{ name: "name", label: "Name" }, { name: "email", label: "Email" }, { name: "message", label: "Message" }] },
   "visa-inquiry": { fields: [{ name: "fullName", label: "Full name" }, { name: "travelDate", label: "Travel date" }, { name: "travelers", label: "Travelers", options: [{ value: "2", label: "2 travelers" }] }] },
   "travel-inquiry": { fields: [{ name: "fullName", label: "Full name" }, { name: "packageType", label: "Package type" }] },
-  "immigration-9g-working-visa": { sections: [{ fields: [{ name: "companyName", label: "Company name" }, { name: "hasEmployer", label: "Has employer" }] }] },
+  "immigration-9g-working-visa": { sections: [{ fields: [{ name: "fullName", label: "Full name" }, { name: "companyName", label: "Company name" }, { name: "hasEmployer", label: "Has employer" }] }] },
 };
+// A form built in the Form Studio: ids, a two-column row, mapped contact fields,
+// a conditional file upload, a sensitive field and design elements.
+FORMS["studio-form"] = {
+  schemaVersion: 2, title: "Studio form",
+  sections: [{ id: "s1", title: "", fields: [
+    { id: "h", type: "heading", text: "About you" },
+    { id: "r", type: "row", columns: 2, children: [
+      [{ id: "f_who", type: "text", name: "clientName", label: "Your name", required: true, mapTo: "fullName" }],
+      [{ id: "f_mail", type: "email", name: "contactEmail", label: "Email address", required: true, mapTo: "email" }],
+    ] },
+    { id: "f_svc", type: "select", name: "service", label: "Service", required: true, options: [{ label: "Visa help", value: "visa" }, { label: "Tours", value: "tour" }], mapTo: "service" },
+    { id: "f_doc", type: "file", name: "passport", label: "Passport copy", required: true, file: { accept: [".pdf"], maxMB: 2 }, showWhen: { fieldId: "f_svc", equals: "visa" } },
+    { id: "f_pass", type: "text", name: "passportNumber", label: "Passport number", sensitive: true },
+    { id: "f_msg", type: "textarea", name: "notes", label: "Message", mapTo: "message" },
+  ] }],
+};
+
 const ITEMS: Record<string, string> = {
   "travel_package:bali-indonesia": "Bali, Indonesia",
   "visa_destination:japan": "Japan Tourist Visa",
@@ -56,7 +73,9 @@ class MemoryStore implements Store {
     };
   }
   async getBusinessName() { return "Air Fair Travel & Immigration"; }
-  async getPublishedForm(key: string) { return FORMS[key] ? { content: FORMS[key] } : null; }
+  attachmentInfo: Record<string, { size: number; type: string }> = {};
+  async getPublishedForm(key: string) { return FORMS[key] ? { content: FORMS[key], versionId: "00000000-0000-4000-8000-0000000000v1".replace("v1", "01") } : null; }
+  async getAttachmentInfo(path: string) { return this.attachmentInfo[path] ?? null; }
   async getItemName(kind: string, slug: string) { return ITEMS[`${kind}:${slug}`] ?? null; }
   async rateLimitHit(bucket: string, key: string, windowSeconds: number, max: number) {
     const since = this.clock.t - windowSeconds * 1000;
@@ -217,7 +236,8 @@ test("recipient restrictions: request fields can't choose recipient, sender or t
 
 test("client email never echoes the visitor's free text; HTML is escaped", async () => {
   const { deps, mailer } = setup();
-  await submit(deps, submission("contact", { name: "<script>alert(1)</script> Bob", raw_data: { name: "x", message: "Buy cheap pills at http://spam.test" } }));
+  // The name comes from the form's own name field (server-side), not the browser's name column.
+  await submit(deps, submission("contact", { name: "ignored", raw_data: { name: "<script>alert(1)</script> Bob", message: "Buy cheap pills at http://spam.test" } }));
   const client = mailer.calls.find(c => c.message.tags.kind === "client_confirmation")!.message;
   const staff = mailer.calls.find(c => c.message.tags.kind === "staff_notification")!.message;
   assert.ok(!client.html.includes("spam.test") && !client.text.includes("spam.test"));
@@ -590,4 +610,71 @@ test("send test is rate limited per admin", async () => {
   let last;
   for (let i = 0; i < 11; i++) last = await handleSendTemplateTest(deps, { service_type: "general", subject: "S", body: "B", to: "inbox@example.test" }, admin);
   assert.equal(last!.status, 429);
+});
+
+// ---------------------------------------------------------------------------
+// Form Studio schemas: server-side validation against the published form
+// ---------------------------------------------------------------------------
+const studioSub = (raw: Record<string, unknown>, overrides: Record<string, unknown> = {}) => ({
+  id: crypto.randomUUID(), form_type: "studio-form", form_key: "studio-form", source_page: "/apply",
+  name: "browser name", email: "ana@example.com", phone: "", attachments: [], document_id: null, form_version_id: null, raw_data: raw, ...overrides,
+});
+
+test("studio form: answers stored by field id, contact fields mapped, server version id used", async () => {
+  const { deps, store, mailer } = setup();
+  const reply = await submit(deps, studioSub({ clientName: "Ana Cruz", contactEmail: "Ana@Example.com", service: "tour", passportNumber: "P1234567", notes: "Two adults" },
+    { form_version_id: "11111111-1111-4111-8111-111111111111" }));
+  assert.equal(reply.status, 200, JSON.stringify(reply.body));
+  const row = store.submissions[0];
+  assert.deepEqual(row.answers, { f_who: "Ana Cruz", f_mail: "Ana@Example.com", f_svc: "tour", f_pass: "P1234567", f_msg: "Two adults" });
+  assert.equal(row.name, "Ana Cruz", "name from the field mapped to Full name");
+  assert.equal(row.email, "ana@example.com", "email from the mapped field, normalised");
+  assert.equal(row.form_version_id, "00000000-0000-4000-8000-000000000001", "the published version, not what the browser claimed");
+  const raw = row.raw_data as Record<string, unknown>;
+  assert.equal(raw.mapped_service, "tour");
+  assert.equal(raw.mapped_message, "Two adults");
+  const staff = mailer.calls.find(c => c.message.tags.kind === "staff_notification")!.message;
+  assert.ok(staff.html.includes("Your name") && staff.html.includes("Tours"), "labels and choice labels from the schema");
+  assert.ok(!staff.html.includes("P1234567"), "sensitive fields are not emailed");
+  assert.deepEqual(mailer.calls.find(c => c.message.tags.kind === "client_confirmation")!.message.to, "ana@example.com");
+});
+
+test("studio form: unknown fields, missing required answers and bad choices are refused; nothing saved", async () => {
+  const { deps, store } = setup();
+  const base = { clientName: "Ana", contactEmail: "ana@example.com" };
+  const unknown = await submit(deps, studioSub({ ...base, service: "tour", isAdmin: "true" }));
+  assert.equal(unknown.status, 400);
+  assert.match(String(unknown.body.error), /reload the page/);
+  const badChoice = await submit(deps, studioSub({ ...base, service: "cruise" }));
+  assert.equal(badChoice.status, 400);
+  assert.match(String(badChoice.body.error), /^Service: Choose from the listed options/);
+  const missingFile = await submit(deps, studioSub({ ...base, service: "visa" }));
+  assert.equal(missingFile.status, 400);
+  assert.deepEqual(missingFile.body.fields, { passport: "Please attach a file." }, "required because the condition shows it");
+  assert.equal(store.submissions.length, 0);
+});
+
+test("studio form: uploads are checked against the stored file, not the browser's claim", async () => {
+  const { deps, store } = setup();
+  const path = "submissions/2026-10/abcdef12-passport.pdf";
+  const attachment = { field: "passport", path, name: "passport.pdf", size: 1000, type: "application/pdf" };
+  const raw = { clientName: "Ana", contactEmail: "ana@example.com", service: "visa", passport: "passport.pdf" };
+  const missing = await submit(deps, studioSub(raw, { attachments: [attachment] }));
+  assert.match(String(missing.body.error), /couldn't be found/);
+  store.attachmentInfo[path] = { size: 5 * 1024 * 1024, type: "application/pdf" };
+  const tooBig = await submit(deps, studioSub(raw, { attachments: [attachment] }));
+  assert.match(String(tooBig.body.error), /Passport copy: File is larger than 2 MB/);
+  store.attachmentInfo[path] = { size: 1500, type: "application/pdf" };
+  const ok = await submit(deps, studioSub(raw, { attachments: [attachment] }));
+  assert.equal(ok.status, 200, JSON.stringify(ok.body));
+  const row = store.submissions[0];
+  assert.deepEqual((row.answers as Record<string, unknown>).f_doc, { file: path, name: "passport.pdf", size: 1000, type: "application/pdf" });
+  assert.equal((row.attachments as Array<{ size: number }>)[0].size, 1500, "stored size recorded");
+});
+
+test("studio form: answers to fields hidden by a condition are dropped", async () => {
+  const { deps, store } = setup();
+  await submit(deps, studioSub({ clientName: "Ana", contactEmail: "ana@example.com", service: "tour", passport: "sneaky.pdf" }));
+  assert.equal(store.submissions.length, 1);
+  assert.ok(!("passport" in (store.submissions[0].raw_data as Record<string, unknown>)));
 });

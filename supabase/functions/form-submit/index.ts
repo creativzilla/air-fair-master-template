@@ -62,8 +62,18 @@ const store: Store = {
     return (data?.business_name as string) || "Air Fair Travel & Immigration";
   },
   async getPublishedForm(formKey) {
-    const { data } = await db.from("cms_published").select("content").eq("kind", "form").eq("slug", formKey).maybeSingle();
-    return data ? { content: (data.content ?? {}) as Record<string, unknown> } : null;
+    const { data } = await db.from("cms_published").select("content, version_id").eq("kind", "form").eq("slug", formKey).maybeSingle();
+    return data ? { content: (data.content ?? {}) as Record<string, unknown>, versionId: (data.version_id as string | null) ?? null } : null;
+  },
+  async getAttachmentInfo(path) {
+    // Size and type as stored by Supabase Storage (the browser's claim isn't trusted).
+    const slash = path.lastIndexOf("/");
+    const { data, error } = await db.storage.from("form-attachments").list(path.slice(0, slash), { search: path.slice(slash + 1), limit: 5 });
+    if (error) throw new Error(error.message);
+    const file = (data ?? []).find(f => f.name === path.slice(slash + 1));
+    if (!file) return null;
+    const meta = (file.metadata ?? {}) as { size?: number; mimetype?: string };
+    return { size: Number(meta.size ?? 0), type: String(meta.mimetype ?? "") };
   },
   async getItemName(kind, slug) {
     const { data } = await db.from("cms_published").select("title, content").eq("kind", kind).eq("slug", slug).maybeSingle();

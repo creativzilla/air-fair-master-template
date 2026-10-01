@@ -17,7 +17,15 @@ function createFake() {
         { kind: "form", slug: "website-contact", title: "Contact", content: { fields: [{ name: "name", label: "Name" }, { name: "email", label: "Email" }, { name: "message", label: "Message" }] } },
         { kind: "form", slug: "visa-inquiry", title: "Visa inquiry", content: { fields: [{ name: "fullName", label: "Full name" }, { name: "travelDate", label: "Travel date" }] } },
         { kind: "form", slug: "travel-inquiry", title: "Travel inquiry", content: { fields: [{ name: "fullName", label: "Full name" }, { name: "packageType", label: "Package type" }] } },
-        { kind: "form", slug: "immigration-consultation", title: "Consultation", content: { sections: [{ fields: [{ name: "helpNeeded", label: "Help needed" }] }] } },
+        { kind: "form", slug: "immigration-consultation", title: "Consultation", content: { sections: [{ fields: [{ name: "fullName", label: "Full name" }, { name: "helpNeeded", label: "Help needed" }] }] } },
+        // Built in the Form Studio: ids, a row, mapped contact fields, a conditional upload.
+        { kind: "form", slug: "studio-apply", title: "Studio form", content: { schemaVersion: 2, sections: [{ id: "s1", fields: [
+          { id: "r1", type: "row", columns: 2, children: [
+            [{ id: "f_who", type: "text", name: "clientName", label: "Your name", required: true, mapTo: "fullName" }],
+            [{ id: "f_mail", type: "email", name: "contactEmail", label: "Email address", required: true, mapTo: "email" }]] },
+          { id: "f_svc", type: "select", name: "service", label: "Service", required: true, options: [{ label: "Visa help", value: "visa" }, { label: "Tours", value: "tour" }] },
+          { id: "f_doc", type: "file", name: "passport", label: "Passport copy", required: true, file: { accept: [".pdf"], maxMB: 2 }, showWhen: { fieldId: "f_svc", equals: "visa" } },
+        ] }] } },
         { kind: "travel_package", slug: "bali-indonesia", title: "Bali, Indonesia", content: { title: "Bali, Indonesia" } },
         { kind: "visa_destination", slug: "japan", title: "Japan Tourist Visa", content: { title: "Japan Tourist Visa" } },
         { kind: "immigration_service", slug: "consultation", title: "Immigration-Related Consultation", content: { title: "Immigration-Related Consultation" } },
@@ -30,6 +38,10 @@ function createFake() {
       email_templates: [],   // seeded by run.cjs from DEFAULT_AUTO_REPLIES (same as the migration)
     },
   };
+  // Published forms carry the version they came from.
+  state.tables.cms_published.forEach((row, i) => { row.version_id ??= `00000000-0000-4000-8000-${String(i + 1).padStart(12, "0")}`; });
+  // Uploaded attachments (Storage): path -> { size, mimetype }
+  state.storage = {};
   const uniqueKeys = { form_submissions: "id", email_outbox: "dedupe_key", newsletter_subscribers: "email" };
   const tokens = { "admin-token": "u-admin", "staff-token": "u-staff" };
 
@@ -106,6 +118,16 @@ function createFake() {
       if (url.pathname === "/auth/v1/user") {
         const token = (req.headers.authorization || "").replace(/^Bearer /, "");
         return tokens[token] ? send(200, { id: tokens[token], aud: "authenticated" }) : send(401, { message: "invalid token" });
+      }
+      // --- Storage: list objects (used to check uploaded attachments) ---
+      const listMatch = url.pathname.match(/^\/storage\/v1\/object\/list\/([\w-]+)$/);
+      if (listMatch) {
+        const { prefix = "", search = "" } = body ? JSON.parse(body) : {};
+        const dir = prefix.replace(/\/$/, "");
+        const found = Object.entries(state.storage)
+          .filter(([p]) => p.startsWith(dir + "/") && p.slice(dir.length + 1).includes(search) && !p.slice(dir.length + 1).includes("/"))
+          .map(([p, meta]) => ({ name: p.slice(dir.length + 1), id: p, metadata: { size: meta.size, mimetype: meta.mimetype } }));
+        return send(200, found);
       }
       // --- RPC ---
       const rpcMatch = url.pathname.match(/^\/rest\/v1\/rpc\/(\w+)$/);
