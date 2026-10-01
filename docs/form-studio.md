@@ -106,7 +106,7 @@ included; formula-safe escaping; UTF-8 BOM).
 - Uploads: anonymous uploads only under `submissions/` in the private
   `form-attachments` bucket; team reads via signed URLs.
 - Rate limits, honeypot and minimum fill time unchanged.
-- Recommended: apply `supabase/pending/lock_direct_form_inserts.sql` so every
+- Direct-save lockdown (applied 2026-10-01 as migration 20261001130000) every
   submission goes through the function's checks.
 
 ## Deployment
