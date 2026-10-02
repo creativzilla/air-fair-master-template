@@ -1,7 +1,7 @@
 // Add or edit a CRM lead (contacts row) from Pipeline or Clients: walk-in,
 // phone and referral clients no longer need a website form to exist.
 import React, { useMemo, useState } from "react";
-import { CalendarDays, FileText, FolderOpen, Inbox, Trash2 } from "lucide-react";
+import { CalendarDays, FileText, FolderOpen, Inbox, Mail, Trash2 } from "lucide-react";
 import { T, fontBody, Badge, Button, Drawer, FieldLabel, LabeledInput, LabeledSelect, LabeledTextarea, Notice, formatDateTime, inputStyle } from "./ui.jsx";
 import { supabase } from "../lib/supabase.js";
 
@@ -27,7 +27,7 @@ function friendly(err) {
   return msg;
 }
 
-export default function LeadDrawer({ lead, contacts, stages, employees, bookings, role, onClose, onSaved, onDeleted, goTo, onOpenDocuments }) {
+export default function LeadDrawer({ lead, contacts, stages, employees, bookings, role, onClose, onSaved, onDeleted, goTo, onOpenDocuments, onOpenEmail }) {
   const isNew = !lead;
   const [form, setForm] = useState({
     name: lead?.name || "", email: lead?.email || "", phone: lead?.phone || "",
@@ -88,6 +88,7 @@ export default function LeadDrawer({ lead, contacts, stages, employees, bookings
       <div className="flex flex-col gap-5">
         {!isNew && (
           <div className="flex gap-2 flex-wrap">
+            {onOpenEmail && <><Button tone="soft" small icon={Mail} disabled={!lead.email} onClick={() => onOpenEmail(lead.id, true)}>Send Email</Button><Button tone="outline" small onClick={() => onOpenEmail(lead.id)}>Email history</Button></>}
             <Button tone="soft" small icon={FolderOpen} onClick={() => onOpenDocuments(lead.id)}>Documents</Button>
             {lead.submissionId && <Button tone="outline" small icon={Inbox} onClick={() => goTo("forms")}>From a website form</Button>}
             <Button tone="outline" small icon={CalendarDays} onClick={() => goTo("bookings")}>Calendar</Button>

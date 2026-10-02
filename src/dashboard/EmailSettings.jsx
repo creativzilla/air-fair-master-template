@@ -2,7 +2,7 @@
 // switch, and a log of recent emails with retry. Admin only (RLS enforces it).
 import React, { useEffect, useState } from "react";
 import { RefreshCw, Save } from "lucide-react";
-import { T, fontBody, Badge, Button, FieldLabel, LabeledInput, Notice, Panel, ToggleRow, formatDateTime } from "./ui.jsx";
+import { T, fontBody, Badge, Button, FieldLabel, LabeledInput, LabeledSelect, Notice, Panel, ToggleRow, formatDateTime } from "./ui.jsx";
 import { supabase } from "../lib/supabase.js";
 
 const SENDER = "Air Fair Travel & Immigration <no-reply@airfairtravel.com>";
@@ -16,6 +16,12 @@ const SERVICE_INBOXES = [
 const STATUS_LABEL = { pending: "Queued", sending: "Sending", retry: "Will retry", sent: "Sent", failed: "Failed", skipped: "Not sent" };
 const STATUS_BADGE = { pending: "Pending", sending: "Pending", retry: "Pending", sent: "Confirmed", failed: "Cancelled", skipped: "Cancelled" };
 const KIND_LABEL = { staff_notification: "Staff", client_confirmation: "Client", newsletter_confirmation: "Newsletter", test_email: "Test" };
+
+const COPY_MODES = [
+  { value: "cc", label: "CC: visible copy to the sending staff member" },
+  { value: "bcc", label: "BCC: hidden copy to the sending staff member" },
+  { value: "off", label: "Off: no automatic sender copy" },
+];
 
 const clean = value => (value || "").trim().toLowerCase() || null;
 
@@ -59,8 +65,10 @@ export default function EmailSettings() {
       test_redirect_to: clean(form.test_redirect_to),
       ...Object.fromEntries(SERVICE_INBOXES.map(([key]) => [key, clean(form[key])])),
       sending_enabled: !!form.sending_enabled,
+      // Only once the sender-copy migration has added the column.
+      ...("inbox_sender_copy" in form ? { inbox_sender_copy: COPY_MODES.some(o => o.value === form.inbox_sender_copy) ? form.inbox_sender_copy : "cc" } : {}),
     };
-    const bad = Object.entries(patch).find(([key, value]) => key !== "sending_enabled" && value && !EMAIL.test(value));
+    const bad = Object.entries(patch).find(([key, value]) => !["sending_enabled", "inbox_sender_copy"].includes(key) && value && !EMAIL.test(value));
     if (bad) { setError(`"${bad[1]}" isn't a valid email address.`); return; }
     if (patch.sending_enabled && !patch.staff_inbox) { setError("Enter the monitored staff inbox before turning sending on."); return; }
     setBusy("save");
@@ -113,6 +121,16 @@ export default function EmailSettings() {
           <LabeledInput label="Test mode: send everything to" value={form.test_redirect_to} onChange={test_redirect_to => set({ test_redirect_to })}
             placeholder="Leave empty for normal sending"
             hint="While set, every email (staff and client) goes only to this address, marked [TEST]. Use it to try the forms without emailing clients." />
+
+          {"inbox_sender_copy" in form && <div className="flex flex-col gap-2">
+            <LabeledSelect label="Email Inbox: copy to the sender" value={form.inbox_sender_copy || "cc"}
+              onChange={inbox_sender_copy => set({ inbox_sender_copy })} options={COPY_MODES} />
+            <p className="text-xs" style={{ color: T.muted, ...fontBody }}>
+              Applies only to emails staff send or reply to from the Email Inbox; the copy goes to the sender's own account email.
+              Website form auto-replies and staff notifications are not affected. Replies still return to the dashboard conversation.
+            </p>
+            {(form.inbox_sender_copy || "cc") === "cc" && <Notice tone="warn">CC shows the staff member's email address to the client, and the client's Reply All will include it. Choose BCC to keep it hidden.</Notice>}
+          </div>}
 
           <ToggleRow label="Send emails" checked={form.sending_enabled} onChange={sending_enabled => set({ sending_enabled })} />
           {form.test_redirect_to && <Notice tone="warn">Test mode is on: clients won't receive emails.</Notice>}

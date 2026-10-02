@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "test:email": "node --test \"supabase/functions/_shared/forms/*.test.ts\"",
     "typecheck:functions": "deno check --node-modules-dir=none supabase/functions/form-submit/index.ts",
-    "test:email:e2e": "node scripts/form-function-e2e/run.cjs"
+    "test:email:e2e": "node scripts/form-function-e2e/run.cjs",
+    "test:inbox": "node --test \"supabase/functions/_shared/inbox/*.test.ts\"",
+    "test:inbox:db": "node scripts/test-email-inbox-db.mjs"
   },
   "dependencies": {
     "@fontsource/poppins": "^5.3.0",

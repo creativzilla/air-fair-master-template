@@ -152,7 +152,7 @@ function Answers({ row, onOpenFile }) {
   );
 }
 
-function SubmissionDrawer({ row, lead, stages, onClose, onUpdated, onCreateLead, goTo }) {
+function SubmissionDrawer({ row, lead, stages, onClose, onUpdated, onCreateLead, goTo, onOpenEmail }) {
   const [notes, setNotes] = useState(row.notes || "");
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
@@ -180,7 +180,7 @@ function SubmissionDrawer({ row, lead, stages, onClose, onUpdated, onCreateLead,
         <div className="flex flex-col gap-1.5">
           <div className="text-xs" style={{ color: T.muted, ...fontBody }}>{formLabel(row)} · {formatDateTime(row.created_at)}</div>
           <div className="flex gap-2 flex-wrap">
-            {row.email && <a href={`mailto:${row.email}?subject=${encodeURIComponent("Re: your inquiry with Air Fair Travel & Immigration")}`}><Button tone="outline" small icon={Mail}>{row.email}</Button></a>}
+            {row.email && onOpenEmail && <Button tone="outline" small icon={Mail} disabled={!lead} onClick={() => onOpenEmail(lead.id, true)}>{lead ? "Send Email" : "Create a lead to send email"}</Button>}
             {row.phone && <a href={`tel:${row.phone}`}><Button tone="outline" small icon={Phone}>{row.phone}</Button></a>}
           </div>
         </div>
@@ -268,7 +268,7 @@ async function exportCsv(filters) {
 }
 
 // ---------------------------------------------------------------- inbox
-function SubmissionsInbox({ stages, goTo, onConvertToCase }) {
+function SubmissionsInbox({ stages, goTo, onConvertToCase, onOpenEmail }) {
   const [status, setStatus] = useState("All");
   const [family, setFamily] = useState("all");
   const [formKey, setFormKey] = useState("");
@@ -355,7 +355,7 @@ function SubmissionsInbox({ stages, goTo, onConvertToCase }) {
           </div>
         </div>
       )}
-      {open && <SubmissionDrawer key={open.id} row={open} lead={leads[open.id]} stages={stages} goTo={goTo} onClose={() => setOpenId(null)}
+      {open && <SubmissionDrawer onOpenEmail={onOpenEmail} key={open.id} row={open} lead={leads[open.id]} stages={stages} goTo={goTo} onClose={() => setOpenId(null)}
         onUpdated={updated => setRows(prev => prev.map(r => (r.id === updated.id ? updated : r)))}
         onCreateLead={async row => { await onConvertToCase({ id: row.id, name: row.name, email: row.email, type: row.form_type }); await load(); }} />}
     </div>
@@ -392,14 +392,14 @@ function FormsLibrary() {
 }
 
 // "Forms" module: submissions inbox (default) and, for admins, the forms list.
-export default function FormsModule({ role, stages, goTo, onConvertToCase }) {
+export default function FormsModule({ role, stages, goTo, onConvertToCase, onOpenEmail }) {
   const [tab, setTab] = useState("submissions");
   const canBuild = role === "admin";
   return (
     <div className="flex flex-col gap-6">
       <PageTitle title="Forms" subtitle="Every enquiry from the website, and the forms visitors fill in." actions={<Button tone="soft" icon={Users} onClick={() => goTo("pipeline")}>Open Pipeline</Button>} />
       {canBuild && <Tabs tabs={[{ id: "submissions", label: "Submissions" }, { id: "builder", label: "Form builder" }]} active={tab} onChange={setTab} />}
-      {tab === "submissions" || !canBuild ? <SubmissionsInbox stages={stages} goTo={goTo} onConvertToCase={onConvertToCase} /> : <FormsLibrary />}
+      {tab === "submissions" || !canBuild ? <SubmissionsInbox onOpenEmail={onOpenEmail} stages={stages} goTo={goTo} onConvertToCase={onConvertToCase} /> : <FormsLibrary />}
     </div>
   );
 }

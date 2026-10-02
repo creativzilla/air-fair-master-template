@@ -14,6 +14,7 @@ import UsersAdmin from "../dashboard/UsersAdmin.jsx";
 import ClientDocuments from "../dashboard/ClientDocuments.jsx";
 import LeadDrawer, { mapContactRow } from "../dashboard/LeadEditor.jsx";
 import { applySeo } from "../lib/seo.js";
+import EmailInbox from "../dashboard/EmailInbox.jsx";
 import FormEmails from "../dashboard/FormEmails.jsx";
 
 // Sidebar. `roles` = who may open it; `moduleKey` = can be switched off in
@@ -25,6 +26,7 @@ const NAV = [
   { id: "overview", label: "Dashboard", icon: LayoutDashboard, roles: ALL_ROLES },
   { group: "Clients" },
   { id: "clients", label: "Clients", icon: Contact2, roles: ALL_ROLES, staffKey: "clients" },
+  { id: "email-inbox", label: "Email Inbox", icon: Mail, roles: ALL_ROLES, staffKey: "email-inbox" },
   { id: "pipeline", label: "Pipeline", icon: Users, moduleKey: "pipeline", roles: ALL_ROLES, staffKey: "pipeline" },
   { id: "forms", label: "Forms", icon: Inbox, roles: ALL_ROLES, staffKey: "forms" },
   { id: "documents", label: "Documents", icon: FolderOpen, roles: ALL_ROLES, staffKey: "documents" },
@@ -45,12 +47,13 @@ const NAV = [
 const ALL_MODULES = [
   { key: "pipeline", label: "Pipeline" }, { key: "bookings", label: "Calendar" },
   { key: "clients", label: "Clients" }, { key: "documents", label: "Documents" }, { key: "forms", label: "Forms" },
+  { key: "email-inbox", label: "Email Inbox" },
   { key: "media", label: "Media" },
   { key: "edit-website", label: "Edit Website" }, { key: "employees", label: "Employees" },
   { key: "settings", label: "Settings" },
 ];
 
-const DEFAULT_EMPLOYEE_ACCESS = { pipeline: true, bookings: true, clients: true, documents: true, forms: true, media: false, "edit-website": false, employees: false, settings: false };
+const DEFAULT_EMPLOYEE_ACCESS = { "email-inbox": false, pipeline: true, bookings: true, clients: true, documents: true, forms: true, media: false, "edit-website": false, employees: false, settings: false };
 
 const BOOKING_STATUSES = ["Pending", "Confirmed", "Completed", "Cancelled"];
 
@@ -739,6 +742,8 @@ export default function Dashboard() {
   const [siteSettings, setSiteSettings] = useState(null);
   const [profiles, setProfiles] = useState([]);
   const [documentsContactId, setDocumentsContactId] = useState(null);
+  const [emailContext, setEmailContext] = useState({ contactId: null, compose: false, key: 0 });
+  const openEmail = (contactId, compose = false) => { setEmailContext({ contactId, compose, key: Date.now() }); setLeadPanel(null); setPage("email-inbox"); };
   const [leadPanel, setLeadPanel] = useState(null); // null | "new" | contact id
   const [loaded, setLoaded] = useState(false);
 
@@ -897,10 +902,11 @@ export default function Dashboard() {
   // Staff see the modules ticked on their employee record (Employees → Dashboard Access).
   const myEmployee = session ? employees.find(e => e.userId === session.user.id) : null;
   const staffAccess = myEmployee?.allowedModules || DEFAULT_EMPLOYEE_ACCESS;
+  const canEmail = ["admin", "editor"].includes(role) || (role === "staff" && !!myEmployee?.allowedModules?.clients && !!myEmployee?.allowedModules?.["email-inbox"]);
   const visibleNav = useMemo(() => {
-    const allowed = NAV.filter(n => n.group || (n.roles.includes(role) && (!n.moduleKey || modules[n.moduleKey]) && (role !== "staff" || !n.staffKey || staffAccess[n.staffKey])));
+    const allowed = NAV.filter(n => n.group || (n.roles.includes(role) && (n.id !== "email-inbox" || canEmail) && (!n.moduleKey || modules[n.moduleKey]) && (role !== "staff" || !n.staffKey || staffAccess[n.staffKey])));
     return allowed.filter((n, i) => !n.group || (allowed[i + 1] && !allowed[i + 1].group));
-  }, [role, modules, staffAccess]);
+  }, [role, modules, staffAccess, canEmail]);
   const navItems = visibleNav.filter(n => !n.group);
   const currentPage = navItems.some(n => n.id === page) ? page : "overview";
   const activeLabel = navItems.find(n => n.id === currentPage)?.label ?? "";
@@ -912,7 +918,7 @@ export default function Dashboard() {
     "cms-services": <CollectionManager kinds={["immigration_service", "visa_destination", "travel_package"]} title="Services" subtitle="Everything on each service page — text, images, SEO and its form — on one screen." role={role} />,
     news: <CollectionManager kinds={["news_article"]} title="News" subtitle="Stories (badge “Homepage”) appear in the homepage “News & Current Events” section in list order; guides appear on the News page. The section's heading is edited in Pages → Home." role={role} />,
     testimonials: <CollectionManager kinds={["testimonial"]} title="Testimonials" subtitle="Client quotes shown on the homepage (the first three are displayed)." role={role} />,
-    forms: <Forms role={role} stages={pipelineStages} goTo={setPage} onConvertToCase={handleConvertToCase} />,
+    forms: <Forms onOpenEmail={canEmail ? openEmail : null} role={role} stages={pipelineStages} goTo={setPage} onConvertToCase={handleConvertToCase} />,
     pipeline: <Contacts contacts={contacts} setContacts={setContacts} bookings={bookings} employees={employees} onStageChange={handleStageChange} onUpdateContact={handleUpdateContact} onOpenLead={setLeadPanel} onNewLead={() => setLeadPanel("new")} stages={pipelineStages} categories={categories} currency={currency} stageRows={pipelineStageRows} onStagesSaved={handleStagesSaved} role={role} />,
     clients: <ClientsDirectory contacts={contacts} bookings={bookings} goTo={setPage} categories={categories} stages={pipelineStages} currency={currency} onOpenDocuments={id => { setDocumentsContactId(id); setPage("documents"); }} onOpenLead={setLeadPanel} onNewLead={() => setLeadPanel("new")} />,
     documents: <ClientDocuments contacts={contacts} role={role} selectedContactId={documentsContactId} onSelectContact={setDocumentsContactId} />,
@@ -921,6 +927,9 @@ export default function Dashboard() {
     media: <Media role={role} />,
     users: profile ? <UsersAdmin me={profile} /> : null,
     "form-emails": <FormEmails />,
+    "email-inbox": canEmail ? <EmailInbox key={emailContext.key} contacts={contacts} userId={session?.user.id} initialContactId={emailContext.contactId} initialCompose={emailContext.compose} onOpenLead={setLeadPanel}
+      onContextUsed={() => setEmailContext(c => (c.contactId || c.compose ? { ...c, contactId: null, compose: false } : c))}
+      isAdmin={role === "admin"} /> : null,
     settings: <Settings pipelineStages={pipelineStages} pipelineStageRows={pipelineStageRows} onStagesSaved={handleStagesSaved} currency={currency} setCurrency={setCurrency} modules={modules} setModules={setModules} chatWidgetCode={chatWidgetCode} setChatWidgetCode={setChatWidgetCode} settings={siteSettings} onSaveSettings={handleSaveSettings} goTo={setPage} />,
   };
 
@@ -1013,7 +1022,7 @@ export default function Dashboard() {
         </div>
         <div className={`flex-1 min-h-0 dash-content-pad px-8 py-8 ${currentPage === "pipeline" ? "dash-pipeline-content overflow-hidden" : "overflow-auto"}`} style={{ paddingBottom: currentPage === "pipeline" ? 24 : 80 }}>{!loaded ? <div className="flex items-center justify-center py-20"><Loader2 size={22} className="animate-spin" style={{ color: T.muted }} /></div> : pageComponents[currentPage]}</div>
       </div>
-      {leadPanel && <LeadDrawer key={leadPanel} lead={leadPanel === "new" ? null : contacts.find(c => c.id === leadPanel)} contacts={contacts} stages={pipelineStages} employees={employees} bookings={bookings} role={role}
+      {leadPanel && <LeadDrawer onOpenEmail={canEmail ? openEmail : null} key={leadPanel} lead={leadPanel === "new" ? null : contacts.find(c => c.id === leadPanel)} contacts={contacts} stages={pipelineStages} employees={employees} bookings={bookings} role={role}
         onClose={() => setLeadPanel(null)} onSaved={handleLeadSaved} onDeleted={handleLeadDeleted}
         goTo={id => { setLeadPanel(null); setPage(id); }} onOpenDocuments={id => { setLeadPanel(null); setDocumentsContactId(id); setPage("documents"); }} />}
       {/* Mobile bottom tab bar */}

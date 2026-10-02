@@ -19,6 +19,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { DEFAULT_SETTINGS, type EmailSettings } from "../_shared/forms/routing.ts";
 import { createResendMailer } from "../_shared/forms/resend.ts";
 import { randomToken, sha256Hex } from "../_shared/forms/tokens.ts";
+import { providerMessageId, resendClient } from "../_shared/inbox/core.ts";
 import {
   handleNewsletterConfirm, handleNewsletterSubscribe, handleNewsletterUnsubscribe, handleProcessDue, handleProcessOutbox, handleSendTemplateTest,
   handleSubmitForm, type Deps, type OutboxDraft, type OutboxRow, type Store, type Subscriber, type TemplateRow,
@@ -109,6 +110,18 @@ const store: Store = {
   },
   async updateOutbox(id, patch) {
     must(await db.from("email_outbox").update(patch).eq("id", id));
+    // The additive inbox trigger mirrors only new client confirmations. Failure
+    // to enrich headers must never alter the existing send/retry outcome.
+    if (patch.status === "sent" && patch.provider_message_id) {
+      try {
+        const linked = await db.from("email_messages").select("id").eq("outbox_id", id).maybeSingle();
+        if (linked.data) {
+          const full = await resendClient(Deno.env.get("RESEND_API_KEY") || "")(`/emails/${encodeURIComponent(patch.provider_message_id)}`);
+          const rfc = providerMessageId(full?.message_id);
+          if (rfc) await db.from("email_messages").update({ rfc_message_id: rfc }).eq("id", linked.data.id);
+        }
+      } catch { /* Inbox reply processing also reconciles missing Message-IDs. */ }
+    }
   },
   async resetFailedOutbox() {
     const rows = must(await db.from("email_outbox").update({ status: "retry", attempts: 0, next_attempt_at: new Date().toISOString() })

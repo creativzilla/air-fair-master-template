@@ -1,0 +1,12 @@
+# Inbound authenticates the raw payload using Resend/Svix signatures.
+[functions.resend-inbound]
+verify_jwt = false
+
+# inbox-send verifies the user's JWT with auth.getUser and enforces DB access.
+# Disabling gateway JWT verification supports Supabase's newer signing keys.
+[functions.inbox-send]
+verify_jwt = false
+
+# mailbox-verify checks the user's JWT with auth.getUser and requires is_admin().
+[functions.mailbox-verify]
+verify_jwt = false
