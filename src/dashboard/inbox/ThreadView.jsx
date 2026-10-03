@@ -14,7 +14,7 @@ const FINAL_EVENTS = ["delivered", "opened", "clicked", "bounced", "complained",
 const STATUS = { queued: "Queued", sending: "Sending", retry: "Not sent yet", unknown: "Unknown — check Resend", received: "Received" };
 export const statusLabel = m => m.status === "sent" ? DELIVERY[m.provider_event] || "Accepted by Resend" : STATUS[m.status] || m.status;
 // Internal attribution: the recorded sender only, never guessed.
-export const senderLabel = m => m.direction === "incoming" ? m.from_email
+export const senderLabel = m => m.direction === "incoming" ? (m.headers?.["x-airfair-source"] === "website-form" ? `${m.from_email} · website inquiry` : m.from_email)
   : m.outbox_id ? "Airfair auto-reply" : m.sender_name || m.sender_email || "Unknown staff";
 const split = v => [...new Set(String(v || "").split(",").map(a => a.trim().toLowerCase()).filter(Boolean))];
 // Recipients actually sent (frozen payload) when available, else those stored at queue time.

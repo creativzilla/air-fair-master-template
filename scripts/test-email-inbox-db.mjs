@@ -20,7 +20,7 @@ insert into email_settings(id) values(1);
 create function auth_role() returns text language sql security definer as $$ select coalesce((select role from profiles where id=auth.uid() and is_active),'none') $$;
 create function is_admin() returns boolean language sql stable security definer as $$ select auth_role()='admin' $$;
 create table employees(id uuid primary key default gen_random_uuid(),user_id uuid,allowed_modules jsonb);
-create table form_submissions(id uuid primary key,email text);
+create table form_submissions(id uuid primary key,email text,created_at timestamptz not null default now());
 create table contacts(id uuid primary key,submission_id uuid,email text,name text,created_at timestamptz default now());
 create table email_outbox(id uuid primary key default gen_random_uuid(),dedupe_key text unique,kind text,status text,submission_id uuid,reply_to text,to_email text,subject text,body_text text,provider_message_id text,sent_at timestamptz,last_error text);
 insert into profiles values ('00000000-0000-0000-0000-000000000001','admin',true,'Admin','admin@example.com'),('00000000-0000-0000-0000-000000000002','staff',true,'Staff','staff@example.com'),('00000000-0000-0000-0000-000000000009','admin',true,null,'second@example.com');
@@ -29,7 +29,7 @@ insert into auth.users values ('00000000-0000-0000-0000-000000000001','Admin.Acc
 insert into employees(user_id,allowed_modules) values('00000000-0000-0000-0000-000000000002','{"clients":true,"email-inbox":false}');
 insert into contacts(id,email) values('00000000-0000-0000-0000-000000000003','customer@example.com');
 `);
-const migrations=['20261002100000_email_inbox.sql','20261002120000_email_inbox_short_reply_to.sql','20261002140000_email_inbox_provider_status.sql','20261002160000_email_inbox_sender_copy.sql','20261002180000_email_inbox_compose_recipients.sql','20261002200000_email_inbox_mailbox.sql','20261003100000_email_shared_mailboxes.sql'];
+const migrations=['20261002100000_email_inbox.sql','20261002120000_email_inbox_short_reply_to.sql','20261002140000_email_inbox_provider_status.sql','20261002160000_email_inbox_sender_copy.sql','20261002180000_email_inbox_compose_recipients.sql','20261002200000_email_inbox_mailbox.sql','20261003100000_email_shared_mailboxes.sql','20261003120000_email_form_inquiries.sql'];
 for (const f of migrations)
   await db.exec(await readFile(new URL(`../supabase/migrations/${f}`,import.meta.url),'utf8'));
 const owner=()=>db.exec('reset role');
@@ -325,6 +325,44 @@ assert.equal(moved.status,'pending');assert.equal(moved.sending_verified_at,null
 await user(staff);
 assert.equal((await db.query('select id from email_mailboxes where id=$1',[travel.id])).rows.length,0);
 await assert.rejects(db.query('select * from email_mailbox_verifications'),/permission denied/);
+await owner();
+// ---------------- Website inquiries land in Inbox ----------------
+await owner();
+const subA='00000000-0000-0000-0000-0000000000a1', subB='00000000-0000-0000-0000-0000000000b2';
+await db.query("insert into form_submissions(id,email,created_at) values($1,'John.Smith@Example.com',now()-interval '1 minute'),($2,'nora@example.com',now()-interval '1 minute')",[subA,subB]);
+await db.query("insert into contacts(id,email,name,submission_id) values('00000000-0000-0000-0000-0000000000c3','john.smith@example.com','john smith',$1)",[subA]);
+// Same statement as form-submit: staff notification + client auto-reply.
+const outboxPair=(sub,clientStatus)=>db.query(`insert into email_outbox(dedupe_key,kind,status,submission_id,reply_to,to_email,subject,body_text) values
+  ($1,'staff_notification','pending',$3,'john.smith@example.com','admin@airfairtravel.com','New Visa inquiry: john smith','Name: john smith\nService: Visa'),
+  ($2,'client_confirmation',$4,$3,'admin@airfairtravel.com','john.smith@example.com','We received your Visa inquiry','Thanks')
+  on conflict (dedupe_key) do nothing`,[`form:${sub}:staff`,`form:${sub}:client`,sub,clientStatus]);
+await outboxPair(subA,'pending');
+const convA=(await rpc1('select * from email_conversations where submission_id=$1',[subA]));
+assert.ok(convA,'conversation exists');assert.equal(convA.contact_id,'00000000-0000-0000-0000-0000000000c3','linked to the lead');
+assert.equal(convA.subject,'We received your Visa inquiry','replies keep the client-facing subject');
+const msgsA=(await db.query('select direction,from_email,subject,body_text,headers from email_messages where conversation_id=$1 order by created_at,id',[convA.id])).rows;
+assert.deepEqual(msgsA.map(m=>m.direction),['incoming','outgoing'],'inquiry first, then the auto-reply');
+assert.equal(msgsA[0].from_email,'john.smith@example.com');assert.equal(msgsA[0].subject,'New Visa inquiry: john smith');
+assert.match(msgsA[0].body_text,/Service: Visa/);assert.equal(msgsA[0].headers['x-airfair-source'],'website-form');
+assert.ok(convA.last_incoming_at,'counts as incoming');
+// Duplicate submission insert does nothing (ON CONFLICT DO NOTHING never fires AFTER INSERT).
+await outboxPair(subA,'pending');
+assert.equal((await rpc1("select count(*)::int n from email_messages where conversation_id=$1 and direction='incoming'",[convA.id])).n,1);
+// Auto-reply off/skipped: the inquiry still appears.
+await outboxPair(subB,'skipped');
+const convB=await rpc1('select * from email_conversations where submission_id=$1',[subB]);
+assert.ok(convB,'created by the inquiry itself');assert.equal(convB.subject,'New Visa inquiry: john smith');
+assert.equal((await rpc1("select count(*)::int n from email_messages where conversation_id=$1 and direction='incoming'",[convB.id])).n,1);
+// Unread in Inbox for every user who can read the default mailbox, until each opens it.
+for (const who of [admin,staff,second]) {
+  await user(who);
+  const row=(await list('inbox')).find(r=>r.id===convA.id);
+  assert.ok(row,'in Inbox');assert.equal(row.unread,true);assert.equal(row.contact_name,'john smith');
+  assert.ok((await db.query('select inbox_folder_counts() c')).rows[0].c.inbox_unread>=2);
+}
+await user(admin);await db.query('insert into email_read_state values($1,$2,now())',[convA.id,admin]);
+assert.equal((await list('inbox')).find(r=>r.id===convA.id).unread,false);
+await user(staff);assert.equal((await list('inbox')).find(r=>r.id===convA.id).unread,true,'read state is per user');
 await owner();
 console.log('Inbox database checks passed: RLS, permissions, durable deduplication, thread matching, unassigned messages, queue idempotency, form auto-reply link and preserved staff/newsletter routing.');
 await db.close();

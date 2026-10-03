@@ -911,6 +911,20 @@ export default function Dashboard() {
   const currentPage = navItems.some(n => n.id === page) ? page : "overview";
   const activeLabel = navItems.find(n => n.id === currentPage)?.label ?? "";
   const newCount = submissions.filter(s => s.status === "New").length;
+  // Unread Email Inbox conversations for the signed-in user (only mailboxes they can read).
+  const [inboxUnread, setInboxUnread] = useState(0);
+  useEffect(() => {
+    if (!canEmail || !session) { setInboxUnread(0); return; }
+    let active = true;
+    const load = async () => {
+      if (document.hidden) return;
+      const { data } = await supabase.rpc("inbox_folder_counts");
+      if (active && data) setInboxUnread(data.inbox_unread || 0);
+    };
+    load();
+    const timer = setInterval(load, 30000);
+    return () => { active = false; clearInterval(timer); };
+  }, [canEmail, session, page]);
 
   const pageComponents = {
     overview: <Overview goTo={setPage} submissions={submissions} bookings={bookings} contacts={contacts} stages={pipelineStages} currency={currency} role={role} calendar={!!modules.bookings} />,
@@ -953,7 +967,7 @@ export default function Dashboard() {
     if (n.group) return (!collapsed || isMobile) ? <div key={`g-${n.group}`} className="px-3 pt-4 pb-1 text-[10px] uppercase" style={{ color: T.sidebarText, letterSpacing: "0.08em", opacity: 0.7, ...fontBody }}>{n.group}</div> : <div key={`g-${n.group}`} className="mx-3 my-2" style={{ borderTop: "1px solid #1F3A52" }} />;
     const Icon = n.icon;
     const active = currentPage === n.id;
-    return (<button key={n.id} onClick={() => onPick(n.id)} className={`flex items-center gap-3 px-3 ${isMobile ? "py-2.5" : "py-2"} rounded-lg text-sm text-left`} style={{ backgroundColor: active ? T.sidebarActiveBg : "transparent", color: active ? T.sidebarTextActive : T.sidebarText, fontWeight: active ? 500 : 400 }} title={collapsed && !isMobile ? n.label : undefined}><Icon size={isMobile ? 18 : 17} />{(!collapsed || isMobile) && <span>{n.label}</span>}{n.id === "forms" && newCount > 0 && (!collapsed || isMobile) && <span className="ml-auto text-[10px] px-1.5 rounded-full" style={{ backgroundColor: T.danger, color: "#fff" }}>{newCount}</span>}</button>);
+    return (<button key={n.id} onClick={() => onPick(n.id)} className={`flex items-center gap-3 px-3 ${isMobile ? "py-2.5" : "py-2"} rounded-lg text-sm text-left`} style={{ backgroundColor: active ? T.sidebarActiveBg : "transparent", color: active ? T.sidebarTextActive : T.sidebarText, fontWeight: active ? 500 : 400 }} title={collapsed && !isMobile ? n.label : undefined}><Icon size={isMobile ? 18 : 17} />{(!collapsed || isMobile) && <span>{n.label}</span>}{n.id === "forms" && newCount > 0 && (!collapsed || isMobile) && <span className="ml-auto text-[10px] px-1.5 rounded-full" style={{ backgroundColor: T.danger, color: "#fff" }}>{newCount}</span>}{n.id === "email-inbox" && inboxUnread > 0 && (!collapsed || isMobile) && <span className="ml-auto text-[10px] px-1.5 rounded-full" style={{ backgroundColor: T.danger, color: "#fff" }} aria-label={`${inboxUnread} unread conversations`}>{inboxUnread}</span>}</button>);
   });
 
   return (
