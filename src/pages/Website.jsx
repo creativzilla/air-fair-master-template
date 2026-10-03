@@ -1,11 +1,21 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ArrowRight, Award, CheckCircle2, ChevronLeft, ChevronRight, Compass, Facebook, FileCheck, Globe, Headphones, Heart, Instagram, Landmark, Linkedin, Lock, LogOut, Mail, MapPin, MessageCircle, Phone, Plane, PlayCircle, RefreshCw, Scale, Search, ShieldCheck, Star, Ticket, IdCard, Users, X, Menu, Check, CalendarDays } from "lucide-react";
-import { supabase } from "../lib/supabase.js";
-import { useParams } from "react-router-dom";
-import { dbRowToService, getPriceLabel } from "../lib/catalog.js";
-import { fetchPublishedPages, fetchPublishedTestimonials, fetchSiteSettings } from "../lib/content.js";
+import React, { useEffect, useRef, useState } from "react";
+import { ArrowRight, ChevronLeft, ChevronRight, Facebook, Instagram, Linkedin, Mail, MapPin, Phone, Plane, Search, ShieldCheck, Star, X, Menu, Check } from "lucide-react";
+import { fetchSiteSettings } from "../lib/content.js";
+import { useForm, useGlobalContent, useHomepageTravelCards, useImmigrationCards, usePage, useTestimonials, useVisaCountries } from "../lib/cms.js";
+import { imageSrc } from "../lib/cmsAdapters.js";
+import { FormSubmitError, submitWebsiteForm, subscribeToNewsletter } from "../lib/formSubmit.js";
+import { FormElementView, submitElementOf, useFormRunner } from "../components/forms/FormRenderer.jsx";
+import { safeRedirect } from "../components/forms/InquiryForm.jsx";
+import { elementId, isInput, isRow, visibleIds, walk } from "../../supabase/functions/_shared/forms/schema.ts";
+import { toDestinationCard } from "../lib/visaCountries.js";
+import { getIcon } from "../components/immigration/icons.js";
+import VisaDestinationCard from "../components/visa/VisaDestinationCard.jsx";
+import NewsEvents from "../components/NewsEvents.jsx";
+import { useAutoplay } from "../lib/useAutoplay.js";
+import { useFormGuard } from "../components/forms/FormGuard.jsx";
+import { applyOrganizationJsonLd, applySeo, collectSsrJsonLd, collectSsrSeo, organizationJsonLd } from "../lib/seo.js";
 
-const colors = {
+export const colors = {
   green: "#4B9B13",
   greenDark: "#2F720E",
   greenSoft: "#EFF9D9",
@@ -18,7 +28,19 @@ const colors = {
   white: "#FFFFFF",
 };
 
-const fallbackSettings = {
+// Code defaults, overlaid with the Settings snapshot that prerendered pages
+// embed (<script type="application/json" id="af-settings">; set directly on
+// globalThis while prerendering), so the first paint shows the live values.
+function embeddedSettings() {
+  if (globalThis.__AF_SETTINGS__) return globalThis.__AF_SETTINGS__;
+  try {
+    const block = typeof document !== "undefined" && document.getElementById("af-settings");
+    return block ? JSON.parse(block.textContent) : {};
+  } catch {
+    return {};
+  }
+}
+export const fallbackSettings = {
   business_name: "Air Fair Travel & Immigration",
   contact_email: "airfairtravelandours@gmail.com",
   contact_phone: "+63 906-331-7785",
@@ -30,142 +52,124 @@ const fallbackSettings = {
   seo_description: "Expert visa, immigration, and travel services for Filipinos heading abroad.",
   currency_symbol: "₱",
   chat_widget_code: "",
+  ...embeddedSettings(),
 };
 
-const heroSlides = [
-  {
-    tag: "Most Requested", icon: Landmark,
-    headline: "Special Resident ", highlight: "Retiree's Visa",
-    subheading: "Retire where the tropics feel like home.",
-    description: "Live in the Philippines permanently — unlimited travel, no annual reporting, and government discounts.",
-    features: ["Lifetime Residency", "PRA-Accredited Process", "Trusted by Retirees"],
-    cta: "Start Your SRRV Application",
-    image: "https://images.unsplash.com/photo-1509233725247-49e657c54213?auto=format&fit=crop&w=1600&q=80",
-  },
-  {
-    tag: "Work Visa", icon: BriefcaseIcon,
-    headline: "9G Working ", highlight: "Visa",
-    subheading: "Build your career on Philippine soil.",
-    description: "Legally work for a Philippine-registered company, with full DOLE and Bureau of Immigration processing handled for you.",
-    features: ["Employer Coordination", "DOLE & BI Compliant", "Renewal Assistance"],
-    cta: "Start Your 9G Work Visa",
-    image: "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&w=1600&q=80",
-  },
-  {
-    tag: "Family & Marriage", icon: Users,
-    headline: "13A ", highlight: "Spousal Visa",
-    subheading: "Build your future together in the Philippines.",
-    description: "Permanent residency for foreign spouses of Filipino citizens — from conditional status to permanent, with expert guidance every step of the way.",
-    features: ["Expert Guidance", "Hassle-Free Processing", "Trusted by Thousands"],
-    cta: "Start Your 13A Visa Process",
-    image: "https://images.unsplash.com/photo-1638548725690-af8d0fab0653?auto=format&fit=crop&w=1600&q=80",
-  },
-  {
-    tag: "Short-Term Stay", icon: Ticket,
-    headline: "Tourist Visa ", highlight: "Extension",
-    subheading: "Stay longer, stress less.",
-    description: "Extend your stay in the Philippines without leaving the country — we handle the Bureau of Immigration queue.",
-    features: ["No Need to Leave PH", "Fast BI Processing", "Flexible Extensions"],
-    cta: "Extend My Tourist Visa",
-    image: "https://images.unsplash.com/photo-1663271784319-ecc97ce8d4aa?auto=format&fit=crop&w=1600&q=80",
-  },
-  {
-    tag: "Required for Long-Stay", icon: IdCard,
-    headline: "ACR I-Card ", highlight: "Registration",
-    subheading: "Your legal stay, officially documented.",
-    description: "The biometric ID required for foreign nationals staying more than 59 days — application and renewal, handled.",
-    features: ["Biometric ID Handled", "Required Compliance", "Renewal Reminders"],
-    cta: "Apply for ACR I-Card",
-    image: "https://images.unsplash.com/photo-1581553673739-c4906b5d0de8?auto=format&fit=crop&w=1600&q=80",
-  },
-];
-
-const heroFeatureIcons = [ShieldCheck, FileCheck, Users];
-
-const heroTrustStrip = [
-  { icon: Plane, label: "Travel" },
-  { icon: Users, label: "Family" },
-  { icon: Compass, label: "Opportunity" },
-  { icon: Heart, label: "A Brighter Tomorrow" },
-];
-
-const accreditations = [
-  { icon: Landmark, label: "Philippine Retirement Authority" },
-  { icon: ShieldCheck, label: "Bureau of Immigration" },
-  { icon: Award, label: "Dept. of Labor and Employment" },
-];
-
-const serviceShowcase = [
-  { name: "Special Resident Retiree's Visa", tag: "Most Requested", description: "Permanent residency for retirees, with unlimited travel and no annual reporting.", icon: Landmark, image: "https://images.unsplash.com/photo-1509233725247-49e657c54213?auto=format&fit=crop&w=800&q=80", slug: "srrv" },
-  { name: "Pre-Arranged Working Visa (9G)", tag: "Work Visa", description: "Full DOLE and Bureau of Immigration processing for foreign employees.", icon: BriefcaseIcon, image: "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&w=800&q=80", slug: "9g-working-visa" },
-  { name: "13A Spousal Visa", tag: "Family & Marriage", description: "Permanent residency for foreign spouses of Filipino citizens.", icon: Users, image: "https://images.unsplash.com/photo-1591604466107-ec97de577aff?auto=format&fit=crop&w=800&q=80", slug: "13a-spousal-visa" },
-  { name: "Tourist Visa Extension", tag: "Short-Term Stay", description: "Extend your stay in the Philippines without leaving the country.", icon: Ticket, image: "https://images.unsplash.com/photo-1663271784319-ecc97ce8d4aa?auto=format&fit=crop&w=800&q=80", slug: "tourist-visa-extension" },
-  { name: "ACR I-Card Registration", tag: "Required for Long-Stay", description: "Biometric ID application and renewal for foreign nationals staying 59+ days.", icon: IdCard, image: "https://images.unsplash.com/photo-1581553673739-c4906b5d0de8?auto=format&fit=crop&w=800&q=80", slug: "acr-i-card" },
-  { name: "In-House Legal Counsel", tag: "Expert Guidance", description: "One-on-one consultation with our in-house immigration lawyer on your case.", icon: Scale, image: "https://images.unsplash.com/photo-1780733064275-d1ade9b83a3d?auto=format&fit=crop&w=800&q=80", slug: "legal-consultation" },
-];
-
-const additionalServices = [
-  { icon: Globe, code: "Dual Citizenship (RA 9225)", text: "Guided re-acquisition of Filipino citizenship for former natural-born citizens.", color: "green", badge: "Popular" },
-  { icon: LogOut, code: "Emigration Clearance (ECC)", text: "Fast-tracked ECC processing for foreign nationals who have stayed 6 months or longer.", color: "blue" },
-  { icon: AlertTriangle, code: "Overstay Resolution", text: "Fine computation and Motion for Reconsideration filing for visa violations.", color: "amber" },
-  { icon: RefreshCw, code: "SRRV ID Renewal", text: "Annual Philippine Retirement Authority renewal handled on your behalf.", color: "green" },
-  { icon: MessageCircle, code: "Free Visa Consultation", text: "A one-on-one review of your documents and eligibility before you apply.", color: "green" },
-  { icon: ShieldCheck, code: "Immigration Processing", text: "End-to-end assistance for any immigrant visa or permanent residence application.", color: "blue" },
-];
-
-function BriefcaseIcon(props) {
-  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" {...props}><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18M10 12v2h4v-2" /></svg>;
+// Applies a page's SEO title/description (plus Open Graph/Twitter tags,
+// canonical URL and share image) from the CMS; "{businessName}" in a title is
+// replaced with the business name from Settings. Pages without their own
+// description use the site default from Settings.
+export function useSeo({ title, description, image, type, noindex } = {}, settings) {
+  const businessName = settings?.business_name || fallbackSettings.business_name;
+  const resolvedTitle = title ? title.replace("{businessName}", businessName) : "";
+  const resolvedDescription = description || settings?.seo_description || fallbackSettings.seo_description;
+  if (import.meta.env.SSR) collectSsrSeo({ title: resolvedTitle, description: resolvedDescription, image, type, noindex });
+  useEffect(() => {
+    applySeo({ title: resolvedTitle, description: resolvedDescription, image, type, noindex });
+  }, [resolvedTitle, resolvedDescription, image, type, noindex]);
 }
 
-function SectionTitle({ eyebrow, title, description, light = false }) {
+function ServiceCard({ icon: Icon, title, desc, slug }) {
+  return <a className="immigration-card" href={slug ? `/philippine-immigration-services/${slug}` : "#contact"}>
+    <div className="immigration-card-icon-tile"><Icon size={42} strokeWidth={1.8} /></div>
+    <div className="immigration-card-content">
+      <h3>{title}</h3>
+      <p>{desc}</p>
+    </div>
+  </a>;
+}
+
+export function SectionTitle({ eyebrow, title, description, light = false }) {
   return <div className="section-title" style={{ color: light ? colors.white : colors.ink }}>
-    {eyebrow && <span className="eyebrow">{eyebrow}</span>}
+
     <h2>{title}</h2>
     {description && <p>{description}</p>}
   </div>;
 }
 
+// Shown only while a page's content is still loading for the first time and
+// no fallback exists (e.g. an item created in the dashboard). Same markup as
+// the package page's existing loading state.
+export function PageLoading() {
+  return <div className="section-shell" style={{ padding: "120px 0", textAlign: "center", color: colors.text }} role="status"><p>Loading...</p></div>;
+}
+
+// light: the white version for dark backgrounds (footer).
 function Logo({ light = false }) {
+  const site = useGlobalContent();
+  const logo = (light && site.logoLight) || site.logo || {};
   return <div className="logo-lockup">
-    <img src="/airfair_logo_colored.png" alt="Air Fair Travel & Tours" className="logo-img" />
+    <img src={imageSrc(logo)} alt={logo.alt} className="logo-img" width="1254" height="521" />
   </div>;
 }
 
-function TopBars({ settings }) {
+export function TopBars({ settings }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const businessName = settings.business_name || fallbackSettings.business_name;
+  const site = useGlobalContent();
+  const nav = site.nav || {};
   return <>
-    <div className="browser-bar"><span className="browser-dot">A</span><span>{businessName} — Website</span><span className="browser-actions">◌　□　<span>Make a copy</span><b>Share</b></span></div>
-    <div className="promise-bar"><span>✦ Free Cancellation within 24 hrs</span><span>Best Price Guarantee</span><span>Secure Booking</span><span>24/7 Customer Support</span></div>
+    <a className="skip-link" href="#main-content">Skip to main content</a>
     <header className="main-nav">
       <div className="nav-inner">
-        <a href="#top"><Logo /></a>
+        <a href="/#top"><Logo /></a>
         <nav className={menuOpen ? "nav-links open" : "nav-links"}>
-          <a href="#top" onClick={() => setMenuOpen(false)}>Home</a><a href="#our-services" onClick={() => setMenuOpen(false)}>Our Services</a><a href="#assessment" onClick={() => setMenuOpen(false)}>Free Assessment</a><a href="#services" onClick={() => setMenuOpen(false)} className="nav-green">Visa &amp; Immigration</a><a href="#about" onClick={() => setMenuOpen(false)}>About Us</a><a href="#contact" onClick={() => setMenuOpen(false)}>Contact</a>
+          {(nav.items || []).map(item => <a key={item.label + item.href} href={item.href} onClick={() => setMenuOpen(false)} className={item.highlight ? "nav-green" : undefined}>{item.label}</a>)}
         </nav>
-        <div className="nav-actions"><button aria-label="Search" onClick={() => setSearchOpen(v => !v)}><Search size={15} /></button><a className="book-button" href="#contact">Book Now <ArrowRight size={14} /></a><button className="mobile-menu" aria-label="Menu" onClick={() => setMenuOpen(v => !v)}>{menuOpen ? <X size={20} /> : <Menu size={20} />}</button></div>
+        <div className="nav-actions"><button aria-label="Search" aria-expanded={searchOpen} onClick={() => setSearchOpen(v => !v)}><Search size={15} /></button><a className="book-button" href={nav.ctaHref}>{nav.ctaLabel} <ArrowRight size={14} /></a><button className="mobile-menu" aria-label={menuOpen ? "Close menu" : "Open menu"} aria-expanded={menuOpen} onClick={() => setMenuOpen(v => !v)}>{menuOpen ? <X size={20} /> : <Menu size={20} />}</button></div>
       </div>
-      {searchOpen && <div className="search-panel"><input autoFocus placeholder="Search visa and immigration services" /><X size={16} onClick={() => setSearchOpen(false)} /></div>}
+      {searchOpen && <div className="search-panel"><input autoFocus type="search" aria-label={nav.searchPlaceholder || "Search"} placeholder={nav.searchPlaceholder} /><X size={16} role="button" tabIndex={0} aria-label="Close search" onClick={() => setSearchOpen(false)} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSearchOpen(false); } }} /></div>}
     </header>
   </>;
 }
 
-function Hero() {
+const HERO_IMAGE_MS = 2000;
+
+function Hero({ fields }) {
+  const slides = fields.slides || [];
+  const featureIcons = fields.featureIcons || [];
   const [active, setActive] = useState(0);
+  const [imageIndex, setImageIndex] = useState(0);
   const [paused, setPaused] = useState(false);
+  const sectionRef = useRef(null);
+  const canAutoplay = useAutoplay(sectionRef);
+  const running = !paused && canAutoplay;
+  const imagesInSlide = slides[active]?.images?.length || 1;
+  // Background photos are only requested once they are showing or up next,
+  // instead of every slide's photos on first load. Once requested they stay
+  // set so the cross-fade out still works.
+  const nextKey = imageIndex + 1 < imagesInSlide ? `${active}-${imageIndex + 1}` : `${(active + 1) % Math.max(slides.length, 1)}-0`;
+  const [requested, setRequested] = useState(() => new Set());
   useEffect(() => {
-    if (paused) return undefined;
-    const timer = setInterval(() => setActive(v => (v + 1) % heroSlides.length), 6500);
+    setRequested(prev => (prev.has(`${active}-${imageIndex}`) && prev.has(nextKey) ? prev : new Set([...prev, `${active}-${imageIndex}`, nextKey])));
+  }, [active, imageIndex, nextKey]);
+  const shouldLoad = key => key === `${active}-${imageIndex}` || key === nextKey || requested.has(key);
+  useEffect(() => {
+    if (!running || slides.length === 0) return undefined;
+    const timer = setInterval(() => {
+      setImageIndex(prev => {
+        const nextIndex = prev + 1;
+        if (nextIndex >= imagesInSlide) {
+          setActive(a => (a + 1) % slides.length);
+          return 0;
+        }
+        return nextIndex;
+      });
+    }, HERO_IMAGE_MS);
     return () => clearInterval(timer);
-  }, [paused]);
-  const next = () => setActive(v => (v + 1) % heroSlides.length);
-  const prev = () => setActive(v => (v - 1 + heroSlides.length) % heroSlides.length);
-  const slide = heroSlides[active];
-  const Icon = slide.icon;
-  return <section id="top" className="hero" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
+  }, [running, imagesInSlide, slides.length]);
+  if (slides.length === 0) return null;
+  const goToSlide = i => { setActive(i); setImageIndex(0); };
+  const next = () => goToSlide((active + 1) % slides.length);
+  const prev = () => goToSlide((active - 1 + slides.length) % slides.length);
+  const slide = slides[active % slides.length];
+  return <section id="top" ref={sectionRef} className="hero" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
     <div className="hero-bg">
-      {heroSlides.map((s, i) => <div key={s.headline + s.highlight} className={i === active ? "hero-bg-img active" : "hero-bg-img"} style={{ backgroundImage: `url(${s.image})` }} />)}
+      {slides.map((s, i) => (
+        <div key={s.headline + s.highlight} className={i === active ? "hero-bg-slide active" : "hero-bg-slide"}>
+          {(s.images || []).map((img, imgI) => <div key={imageSrc(img)} className={i === active && imgI === imageIndex ? "hero-bg-img active" : "hero-bg-img"} style={shouldLoad(`${i}-${imgI}`) ? { backgroundImage: `url(${imageSrc(img)})` } : undefined} />)}
+        </div>
+      ))}
       <div className="hero-bg-overlay" />
     </div>
     <button className="hero-edge-arrow left" onClick={prev} aria-label="Previous service"><ChevronLeft size={20} /></button>
@@ -174,279 +178,276 @@ function Hero() {
     <div className="hero-inner">
       <div className="hero-card" key={active} aria-live="polite">
         <div className="hero-card-top">
-          <div className="hero-card-badge"><div className="hero-card-icon"><Icon size={22} /></div><span className="hero-card-tag">{slide.tag}</span></div>
-          <span className="hero-card-flag">PHILIPPINES 🇵🇭</span>
+
+          <span className="hero-card-flag">{fields.flagLabel}</span>
         </div>
-        <h1>{slide.headline}<span className="hero-card-highlight">{slide.highlight}</span></h1>
+        <h2>{slide.headline}<span className="hero-card-highlight">{slide.highlight}</span></h2>
         <p className="hero-card-subheading">{slide.subheading}</p>
         <p className="hero-card-desc">{slide.description}</p>
         <div className="hero-trust-row">
-          {slide.features.map((f, i) => { const FIcon = heroFeatureIcons[i]; return <div className="hero-trust-item" key={f}><FIcon size={15} /><span>{f}</span></div>; })}
+          {(slide.features || []).map((f, i) => { const FIcon = getIcon(featureIcons[i]); return <div className="hero-trust-item" key={f}><FIcon size={15} /><span>{f}</span></div>; })}
         </div>
         <div className="hero-cta-row">
-          <a href="#contact" className="hero-cta">{slide.cta} <ArrowRight size={15} /></a>
-          <a href="#about" className="hero-story-btn">
-            <span className="hero-story-icon"><PlayCircle size={16} /></span>
-            <span className="hero-story-text"><strong>Watch Our Story</strong><small>Real people. Real journeys.</small></span>
-          </a>
+          <a href={slide.cta?.href || "#contact"} className="hero-cta">{slide.cta?.label} <ArrowRight size={15} /></a>
         </div>
       </div>
       <div className="hero-progress-track">
-        {heroSlides.map((s, i) => (
-          <button key={s.headline + s.highlight} onClick={() => setActive(i)} className={i === active ? "hero-progress-dot active" : "hero-progress-dot"} aria-label={`Show ${s.headline}${s.highlight}`}>
-            {i === active && <span className="hero-progress-fill" style={{ animationPlayState: paused ? "paused" : "running" }} />}
+        {slides.map((s, i) => (
+          <button key={s.headline + s.highlight} onClick={() => goToSlide(i)} className={i === active ? "hero-progress-dot active" : "hero-progress-dot"} aria-label={`Show ${s.headline}${s.highlight}`}>
+            {i === active && <span className="hero-progress-fill" style={{ animationPlayState: running ? "running" : "paused" }} />}
           </button>
         ))}
       </div>
       <div className="hero-trust-strip">
-        <span className="hero-trust-strip-label">Your Trusted Visa &amp; Immigration Partner</span>
+        <span className="hero-trust-strip-label">{fields.trustLabel}</span>
         <div className="hero-trust-strip-items">
-          {heroTrustStrip.map(t => { const TIcon = t.icon; return <div key={t.label}><TIcon size={15} /><span>{t.label}</span></div>; })}
+          {(fields.trustItems || []).map(t => { const TIcon = getIcon(t.icon); return <div key={t.label}><TIcon size={15} /><span>{t.label}</span></div>; })}
         </div>
       </div>
     </div>
   </section>;
 }
 
-function AccreditationBar() {
+function AccreditationBar({ fields }) {
   return <div className="accreditation-bar">
     <div className="section-shell accreditation-inner">
-      <span className="accreditation-label">Officially Accredited By</span>
+      <span className="accreditation-label">{fields.label}</span>
       <div className="accreditation-items">
-        {accreditations.map(a => { const Icon = a.icon; return <div className="accreditation-item" key={a.label}><Icon size={18} /><span>{a.label}</span></div>; })}
+        {(fields.items || []).map(a => <div className="accreditation-item" key={a.label}><img className="accreditation-logo" src={imageSrc(a.logo)} alt={a.logo?.alt || a.label} loading="lazy" decoding="async" /><div className="accreditation-item-text"><span className="accreditation-item-sub">{fields.itemSubLabel}</span><span className="accreditation-item-label">{a.label}</span></div></div>)}
       </div>
     </div>
   </div>;
 }
 
-function ServiceShowcaseCard({ item }) {
-  const Icon = item.icon;
-  return <a className="showcase-card" href="#contact">
-    <img src={item.image} alt={item.name} />
-    <div className="showcase-shade" />
-    <div className="showcase-icon"><Icon size={18} /></div>
-    <div className="showcase-overlay">
-      <span className="showcase-tag">{item.tag}</span>
-      <h3>{item.name}</h3>
-      <p>{item.description}</p>
-      <span className="showcase-link">Learn More <ArrowRight size={13} /></span>
+function ServiceCategories({ fields }) {
+  return <section className="category-cards section-shell" aria-labelledby="category-cards-title">
+    <h2 id="category-cards-title" className="sr-only">{fields.heading || "Our services"}</h2>
+    <div className="category-grid">
+      {(fields.items || []).map(item => {
+        const Icon = getIcon(item.icon);
+        return <a className={`category-card category-card--${item.theme}`} href={item.href} key={item.title}>
+          <div className="category-card-icon"><Icon size={26} strokeWidth={1.8} /></div>
+          <h3>{item.title}</h3>
+          <p>{item.description}</p>
+          <span className="category-card-link">{fields.linkLabel} <ArrowRight size={14} /></span>
+        </a>;
+      })}
     </div>
-  </a>;
+  </section>;
 }
 
-function OurServices() {
-  return <section id="our-services" className="showcase section-shell"><div className="section-heading-row"><SectionTitle title="Our Visa & Immigration Services" description="Government-accredited processing, handled by certified immigration consultants" /><a className="view-all" href="#services">View All →</a></div><div className="showcase-grid">{serviceShowcase.map(item => <ServiceShowcaseCard key={item.slug} item={item} />)}</div></section>;
-}
-
-function FreeAssessment({ settings }) {
-  const steps = [
-    { icon: MessageCircle, title: "Tell Us Your Situation", text: "A quick chat about your goals, by phone, email, or in person." },
-    { icon: FileCheck, title: "Get Your Document Checklist", text: "A clear, personalized list of exactly what you need." },
-    { icon: CheckCircle2, title: "We Handle the Rest", text: "Preparation, filing, and follow-up until it's approved." },
-  ];
-  return <section id="assessment" className="assessment-section">
-    <div className="assessment-decor">
-      <div className="assessment-map" />
-    </div>
-    <div className="section-shell assessment-layout">
-      <div className="assessment-intro">
-        <span className="assessment-badge"><Users size={14} /> FREE CONSULTATION</span>
-        <h2>Not Sure Which Visa<br /><span className="assessment-accent">You Need?<svg className="assessment-underline" viewBox="0 0 210 14" fill="none" preserveAspectRatio="none"><path d="M2 10 Q 52 2 105 8 T 208 6" stroke="#FFCB19" strokeWidth="3" strokeLinecap="round" /></svg></span></h2>
-        <p>Tell us your situation and our certified consultants will recommend the right visa pathway for you — no obligation.</p>
-        <div className="assessment-actions"><a className="assessment-cta" href="#contact">Get a Free Assessment →</a><a className="phone-button-dark" href={`tel:${settings.contact_phone || fallbackSettings.contact_phone}`}><Phone size={14} /> {settings.contact_phone || fallbackSettings.contact_phone}</a></div>
-        <div className="assessment-trust-row">
-          <div><ShieldCheck size={18} /><span>Trusted<br />Consultants</span></div>
-          <span className="assessment-trust-divider" />
-          <div><Users size={18} /><span>Personalized<br />Guidance</span></div>
-          <span className="assessment-trust-divider" />
-          <div><Lock size={18} /><span>No Obligation<br />100% Free</span></div>
+function ImmigrationServices({ fields }) {
+  const cards = useImmigrationCards("home");
+  return <section id="our-services" className="immigration-v2">
+    <div className="immigration-banner">
+      <div className="section-shell immigration-header">
+        <div className="immigration-header-copy">
+          <h2>{fields.heading}</h2>
+          <p>{fields.body}</p>
         </div>
       </div>
-      <div className="assessment-steps">{steps.map((s, i) => { const Icon = s.icon; return <div className="assessment-step" key={s.title}><span className="assessment-step-num">{i + 1}</span><div className="assessment-step-icon"><Icon size={22} /></div><h4>{s.title}</h4><p>{s.text}</p></div>; })}</div>
+    </div>
+    <div className="section-shell">
+      <div className="immigration-grid">
+        {cards.map(item => <ServiceCard key={item.title} icon={getIcon(item.icon)} title={item.title} desc={item.description} slug={item.slug} />)}
+      </div>
     </div>
   </section>;
 }
 
-function Services({ content, settings }) {
-  const heading = content?.blocks?.heading || "Every step of your journey, covered.";
-  const commaIndex = heading.lastIndexOf(",");
-  return <section id="services" className="services services-redesign section-shell">
-    <div className="services-copy">
-      <span className="services-eyebrow">EXPERT VISA CONSULTANTS</span>
-      <h2>{commaIndex > -1 ? <>{heading.slice(0, commaIndex + 1)} <span className="services-heading-accent">{heading.slice(commaIndex + 1).trim()}</span></> : heading}</h2>
-      <p>Planning to study, work, retire, or settle in the Philippines — or heading abroad? Our certified immigration consultants guide you through every step of the process.</p>
-      <div className="services-callout"><ShieldCheck size={18} /><span>At Air Fair, we are driven to pursue your VISA success.</span></div>
-      <div className="service-buttons"><a className="green-button" href="#contact">Apply Now →</a><a className="phone-button" href={`tel:${settings.contact_phone || fallbackSettings.contact_phone}`}><Phone size={14} /> {settings.contact_phone || fallbackSettings.contact_phone}</a></div>
+function SRRVBanner({ fields }) {
+  return <section id="srrv" className="srrv-banner-wrap">
+    <div className="section-shell">
+      <div className="srrv-card">
+        <div className="srrv-card-image">
+          <img src={imageSrc(fields.image)} alt={fields.image?.alt} width="1122" height="1186" loading="lazy" decoding="async" />
+        </div>
+        <div className="srrv-card-content">
+          <h2>{fields.heading}</h2>
+          <p className="srrv-card-subhead">{fields.subheading}</p>
+          <p className="srrv-card-desc">{fields.description}</p>
+          <ul className="srrv-card-benefits">
+            {(fields.benefits || []).map(b => { const Icon = getIcon(b.icon); return <li key={b.text}><span className="srrv-card-benefit-icon"><Icon size={16} /></span>{b.text}</li>; })}
+          </ul>
+          <div className="srrv-card-actions">
+            <a className="green-button" href={fields.primaryCta?.href}>{fields.primaryCta?.label} <ArrowRight size={15} /></a>
+            <a className="outline-green-button" href={fields.secondaryCta?.href}>{fields.secondaryCta?.label}<span className="sr-only"> about {fields.heading}</span></a>
+          </div>
+        </div>
+      </div>
     </div>
-    <div className="service-grid">{additionalServices.map(item => { const Icon = item.icon; return <div className="service-tile" key={item.code}>{item.badge && <span className="service-tile-badge">{item.badge}</span>}<div className={`service-tile-icon ${item.color}`}><Icon size={20} /></div><h3>{item.code}</h3><p>{item.text}</p></div>; })}</div>
+  </section>;
+}
+
+function InternationalVisaAssistance({ fields }) {
+  const featured = useVisaCountries().filter(country => country.featured).map(toDestinationCard);
+  return <section id="visa-assistance" className="visa-assist section-shell">
+    <div className="section-heading-row">
+      <SectionTitle title={fields.heading} description={fields.description} />
+      <a className="view-all" href={fields.viewAll?.href}>{fields.viewAll?.label}</a>
+    </div>
+    <div className="visa-assist-grid">
+      {featured.map(item => <VisaDestinationCard key={item.slug} destination={item} />)}
+    </div>
+  </section>;
+}
+
+function TravelTours({ fields }) {
+  const travelPackages = useHomepageTravelCards();
+  return <section id="travel-tours" className="travel-tours section-shell">
+    <div className="section-heading-row">
+      <SectionTitle title={fields.heading} description={fields.description} />
+      <a className="view-all" href={fields.viewAll?.href}>{fields.viewAll?.label}</a>
+    </div>
+    <div className="tours-grid">
+      {travelPackages.map(item => <a className="tour-card" href={`/travel-tours/${item.slug}`} key={item.slug}>
+        <img className="tour-card-photo" src={item.image} alt={item.name} loading="lazy" decoding="async" />
+        <div className="tour-card-shade" />
+        <img className="tour-card-icon" src={imageSrc(fields.cardIcon)} alt="" loading="lazy" decoding="async" />
+        <span className="card-flag-badge"><img src={`https://flagcdn.com/w80/${item.flagCode}.webp`} alt="" loading="lazy" decoding="async" /></span>
+        <div className="tour-card-overlay">
+          <span className="tour-card-tag">{item.place}</span>
+          <h3>{item.name}</h3>
+          <p>{item.price}</p>
+          <span className="tour-card-cta">{fields.cardCtaLabel} <ArrowRight size={13} /></span>
+        </div>
+      </a>)}
+    </div>
+  </section>;
+}
+
+function TrustBar({ fields }) {
+  return <section className="trust-bar">
+    <div className="section-shell trust-bar-inner">
+      {(fields.items || []).map((item, i) => {
+        const Icon = getIcon(item.icon);
+        return <React.Fragment key={item.title}>
+          {i > 0 && <span className="trust-bar-divider" />}
+          <div className="trust-bar-item"><Icon size={18} /><div><strong>{item.title}</strong><span>{item.text}</span></div></div>
+        </React.Fragment>;
+      })}
+    </div>
+  </section>;
+}
+
+function FreeAssessment({ fields }) {
+  const steps = fields.steps || [];
+  return <section id="assessment" className="assessment-section assessment-process">
+    <div className="section-shell assessment-layout">
+      <div className="assessment-intro">
+        <h2>{fields.headingLine1}<br /><span className="assessment-accent">{fields.headingAccent}</span></h2>
+        <p>{fields.body}</p>
+        <div className="assessment-actions"><a className="assessment-cta" href={fields.primaryCta?.href}>{fields.primaryCta?.label} <ArrowRight size={18} /></a><a className="assessment-explore" href={fields.secondaryCta?.href}>{fields.secondaryCta?.label} <ArrowRight size={17} /></a></div>
+        <div className="assessment-trust-row">
+          {(fields.trustItems || []).map(item => { const Icon = getIcon(item.icon); return <div key={item.label}><Icon size={18} /><span>{item.label}</span></div>; })}
+        </div>
+      </div>
+      <ol className="assessment-steps">{steps.map((step, index) => { const Icon = getIcon(step.icon); return <li className="assessment-step" key={step.title}><span className="assessment-step-num">{String(index + 1).padStart(2, "0")}</span><h3>{step.title}</h3><p>{step.text}</p><Icon className="assessment-process-icon" size={44} strokeWidth={1.7} aria-hidden="true" /></li>; })}</ol>
+    </div>
   </section>;
 }
 
 
-function Benefits() {
-  const benefits = [
-    { icon: ShieldCheck, title: "Government Accredited", text: "PRA, BI & DOLE accredited" },
-    { icon: Award, title: "Certified Consultants", text: "Experienced immigration specialists" },
-    { icon: Lock, title: "Confidential & Secure", text: "Your case handled discreetly" },
-    { icon: Headphones, title: "24/7 Support", text: "We're here whenever you need us" },
-    { icon: FileCheck, title: "Transparent Process", text: "Simple steps, no hidden fees" },
-  ];
-  return <section className="benefits"><div className="section-shell benefits-grid">{benefits.map(b => { const Icon = b.icon; return <div key={b.title}><div className="benefit-icon"><Icon size={20} /></div><h3>{b.title}</h3><p>{b.text}</p></div>; })}</div></section>;
-}
-
-function Testimonials({ content, testimonials }) {
-  const fallback = [{ client_name: "Maria Santos", quote: "Air Fair helped me get my Japan visa in just 2 weeks! Their preparation and support were professional and honest.", service_category: "Tourist Visa" }, { client_name: "James Reyes", quote: "They handled my 9G work visa from the employer paperwork to the BI interview. Smooth from start to finish.", service_category: "9G Work Visa" }, { client_name: "Ana Cruz", quote: "They processed my 13A marriage visa without any hassle. The team is knowledgeable, patient, and kept me updated throughout.", service_category: "13A Visa" }];
-  const rows = testimonials.length ? testimonials : fallback;
-  const heading = content?.blocks?.heading || "Trusted by travelers and families alike.";
+function Testimonials({ fields }) {
+  const rows = useTestimonials();
+  const heading = fields.heading || "";
+  const stats = fields.stats || {};
   return <section id="about" className="testimonials section-shell">
     <div className="testimonials-decor">
       <div className="testimonials-map" />
       <svg className="testimonials-flight-path" viewBox="0 0 220 90" fill="none"><path d="M6 78 Q 90 6 214 24" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4 6" strokeLinecap="round" /></svg>
       <Plane className="testimonials-flight-icon" size={20} />
     </div>
-    <div className="testimonials-eyebrow"><span /> CLIENT STORIES <span /></div>
+
     <div className="section-title" style={{ textAlign: "center" }}>
       <h2>{heading.replace(/\.$/, "")}<span className="testimonials-dot">.</span></h2>
-      <p>Real stories from clients we've guided through their visa and immigration journey.</p>
+      <p>{fields.subheading}</p>
     </div>
-    <div className="testimonials-grid">{rows.slice(0, 3).map((item, index) => <article className="testimonial-card" key={item.id || index}><span className="quote">“</span><p>{item.quote}</p><div className="client"><div className="client-avatar">{item.client_name.split(" ").map(part => part[0]).join("").slice(0, 2)}</div><div><strong>{item.client_name}</strong><small>{item.service_category || "Air Fair Client"}</small></div><span className="stars">★★★★★</span></div></article>)}</div>
+    <div className="testimonials-grid">{rows.slice(0, 3).map((item, index) => <article className="testimonial-card" key={item.id || index}><span className="quote">“</span><p>{item.quote}</p><div className="client"><div className="client-avatar">{item.client_name.split(" ").map(part => part[0]).join("").slice(0, 2)}</div><div><strong>{item.client_name}</strong><small>{item.service_category || fields.fallbackCategory}</small></div><span className="stars">★★★★★</span></div></article>)}</div>
     <div className="testimonials-pagination"><span className="active" /><span /><span /></div>
     <div className="testimonials-stats">
-      <div className="testimonials-stat"><div className="testimonials-avatar-stack"><span>MC</span><span>JR</span><span>AC</span><span>+</span></div><strong>+2,500</strong><span>Happy Clients</span></div>
+      <div className="testimonials-stat"><div className="testimonials-avatar-stack">{(stats.avatarInitials || []).map(initials => <span key={initials}>{initials}</span>)}<span>+</span></div><strong>{stats.clientsValue}</strong><span>{stats.clientsLabel}</span></div>
       <span className="testimonials-stat-divider" />
-      <div className="testimonials-stat"><Star size={15} fill="#FFCB19" color="#FFCB19" /><Star size={15} fill="#FFCB19" color="#FFCB19" /><Star size={15} fill="#FFCB19" color="#FFCB19" /><Star size={15} fill="#FFCB19" color="#FFCB19" /><Star size={15} fill="#FFCB19" color="#FFCB19" /><strong>4.9/5</strong><span>Average Rating</span></div>
-      <span className="testimonials-tagline">JOURNEYS TO A BRIGHTER TOMORROW</span>
+      <div className="testimonials-stat"><Star size={15} fill="#FFCB19" color="#FFCB19" /><Star size={15} fill="#FFCB19" color="#FFCB19" /><Star size={15} fill="#FFCB19" color="#FFCB19" /><Star size={15} fill="#FFCB19" color="#FFCB19" /><Star size={15} fill="#FFCB19" color="#FFCB19" /><strong>{stats.ratingValue}</strong><span>{stats.ratingLabel}</span></div>
+      <span className="testimonials-tagline">{fields.tagline}</span>
     </div>
   </section>;
 }
 
-function Contact({ settings }) {
-  const [form, setForm] = useState({ name: "", email: "", phone: "", message: "" });
-  const [sent, setSent] = useState(false);
-  const update = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
-  const submit = async event => { event.preventDefault(); const { error } = await supabase.from("form_submissions").insert({ form_type: "website_inquiry", name: form.name, email: form.email, phone: form.phone, raw_data: { message: form.message } }); if (!error) setSent(true); };
-  return <section id="contact" className="contact-section"><div className="section-shell contact-layout"><div><span className="eyebrow yellow">LET'S PLAN YOUR JOURNEY</span><h2>Ready to make your travel dreams a reality?</h2><p>Tell us what you need and our travel experts will get back to you with the best next step.</p><div className="contact-detail"><Phone size={16} /> {settings.contact_phone || fallbackSettings.contact_phone}</div><div className="contact-detail"><Mail size={16} /> {settings.contact_email || fallbackSettings.contact_email}</div><div className="contact-detail"><MapPin size={16} /> {settings.address || fallbackSettings.address}</div></div>{sent ? <div className="sent-card"><ShieldCheck size={38} /><h3>Thank you for reaching out.</h3><p>We've received your inquiry and will contact you soon.</p></div> : <form className="contact-form" onSubmit={submit}><input required placeholder="Full name" value={form.name} onChange={e => update("name", e.target.value)} /><input required type="email" placeholder="Email address" value={form.email} onChange={e => update("email", e.target.value)} /><input placeholder="Phone number" value={form.phone} onChange={e => update("phone", e.target.value)} /><textarea rows="4" placeholder="How can we help?" value={form.message} onChange={e => update("message", e.target.value)} /><button className="yellow-button" type="submit">Send Inquiry <ArrowRight size={14} /></button></form>}</div></section>;
+function Contact({ fields, settings }) {
+  const form = useForm(fields.formKey || "website-contact");
+  const runner = useFormRunner(form?.schema);
+  const { values, errors, onChange, submitted: sent, submitError: sendError } = runner;
+  const { honeypot, guard } = useFormGuard();
+  const submitEl = submitElementOf(form?.schema);
+  const redirect = safeRedirect(form?.successRedirect);
+  useEffect(() => { if (sent && redirect) window.location.assign(redirect); }, [sent, redirect]);
+  const submit = event => {
+    event.preventDefault();
+    runner.run((formFields, vals, submissionId) => submitWebsiteForm({
+      form, formId: "contact-home", serviceType: "general", formType: "website_inquiry", fields: formFields, values: vals, submissionId, guard: guard(),
+    }), "We couldn't send your message. Please try again.");
+  };
+  return <section id="contact" className="contact-section"><div className="section-shell contact-layout"><div><h2>{fields.heading}</h2><p>{fields.body}</p><div className="contact-detail"><Phone size={16} /> {settings.contact_phone || fallbackSettings.contact_phone}</div><div className="contact-detail"><Mail size={16} /> {settings.contact_email || fallbackSettings.contact_email}</div><div className="contact-detail"><MapPin size={16} /> {settings.address || fallbackSettings.address}</div></div>{sent ? <div className="sent-card"><ShieldCheck size={38} /><h3>{form?.successTitle}</h3><p>{form?.successMessage}</p></div> : <form className="contact-form" onSubmit={submit}>{form?.schema && <ContactFields schema={form.schema} values={values} errors={errors} onChange={onChange} />}{honeypot}<button className="yellow-button" type="submit" disabled={runner.submitting}>{submitEl?.text || form?.submitLabel} <ArrowRight size={14} /></button>{sendError && <p className="form-send-error" role="alert">{sendError}</p>}</form>}</div></section>;
 }
 
-function Footer({ settings }) {
-  const socials = [[Facebook, settings.facebook_url], [Instagram, settings.instagram_url], [Linkedin, settings.linkedin_url]];
-  return <footer><div className="section-shell footer-grid"><div className="footer-brand"><Logo light /><p>Your trusted travel partner and visa consultant for unforgettable journeys and hassle-free immigration services.</p><div className="socials">{socials.map(([Icon, url], index) => <a key={index} href={url || "#"} aria-label="Social link"><Icon size={13} /></a>)}</div></div><div><h4>COMPANY</h4><a href="#about">About Us</a><a href="#about">Our Team</a><a href="#services">Careers</a><a href="#about">Blog</a><a href="#contact">Contact Us</a></div><div><h4>VISA SERVICES</h4><a href="#services">Tourist Visa</a><a href="#services">9G Work Visa</a><a href="#services">13A Marriage Visa</a><a href="#our-services">SRRV / Retirement</a><a href="#services">ACR-I Card</a><a href="#services">Other Services</a></div><div><h4>CONTACT US</h4><a href={`tel:${settings.contact_phone}`}>☎ {settings.contact_phone || fallbackSettings.contact_phone}</a><a href={`mailto:${settings.contact_email}`}>✉ {settings.contact_email || fallbackSettings.contact_email}</a><a href="#contact">▣ {settings.address || fallbackSettings.address}</a></div></div><div className="footer-bottom section-shell"><span>© 2025 Air Fair Travel and Tours OPC. All rights reserved.</span><span>Privacy Policy　 Terms &amp; Conditions</span></div></footer>;
+// Homepage contact form: text-style fields keep their compact look (no visible
+// label, placeholder only); other field types and design elements use the
+// standard form markup.
+const COMPACT_TYPES = new Set(["text", "email", "tel", "number", "date", "textarea"]);
+function ContactFields({ schema, values, errors, onChange }) {
+  const visible = visibleIds(schema, values);
+  const els = walk(schema).filter(l => !isRow(l.el) && visible.has(l.id) && (!l.parentId || visible.has(l.parentId))).map(l => l.el).filter(el => el.type !== "submit");
+  return els.map(field => {
+    const id = elementId(field);
+    if (!isInput(field) || !COMPACT_TYPES.has(field.type)) return <FormElementView key={id} el={field} values={values} errors={errors} onChange={onChange} />;
+    const common = {
+      id: `field-${id}`, "aria-label": field.label || field.placeholder, required: field.required || undefined, placeholder: field.placeholder,
+      value: values[field.name] ?? "", onChange: e => onChange(field.name, e.target.value), "aria-invalid": errors[field.name] ? true : undefined,
+    };
+    const input = field.type === "textarea"
+      ? <textarea {...common} rows="4" />
+      : <input {...common} type={field.type === "email" ? "email" : field.type === "tel" ? "tel" : field.type === "number" ? "number" : field.type === "date" ? "date" : undefined} />;
+    return errors[field.name] ? <React.Fragment key={id}>{input}<p className="form-send-error" role="alert">{field.label}: {errors[field.name]}</p></React.Fragment> : <React.Fragment key={id}>{input}</React.Fragment>;
+  });
 }
 
-function ChatWidget({ code }) {
+export function Footer({ settings }) {
+  const footer = useGlobalContent().footer || {};
+  const businessName = settings.business_name || fallbackSettings.business_name;
+  const socials = [[Facebook, settings.facebook_url, "Facebook"], [Instagram, settings.instagram_url, "Instagram"], [Linkedin, settings.linkedin_url, "LinkedIn"]];
+  // null | "check_email" (confirmation sent) | "saved" (email service unavailable)
+  const [subscribed, setSubscribed] = useState(null);
+  const { honeypot: newsletterHoneypot, guard: newsletterGuard } = useFormGuard();
+  const [subscribeError, setSubscribeError] = useState("");
+  const subscribe = async event => {
+    event.preventDefault();
+    const email = event.currentTarget.querySelector('input[type="email"]')?.value || "";
+    setSubscribeError("");
+    try {
+      setSubscribed(await subscribeToNewsletter(email, newsletterGuard()));
+    } catch (err) {
+      // Keep the form visible so the visitor can try again.
+      setSubscribeError(err instanceof FormSubmitError ? err.message : "We couldn't subscribe you. Please try again.");
+    }
+  };
+  return <footer><div className="section-shell footer-grid"><div className="footer-brand"><Logo light /><p>{footer.blurb}</p><div className="socials">{socials.map(([Icon, url, name]) => <a key={name} href={url || "#"} aria-label={`${businessName} on ${name}`}><Icon size={13} aria-hidden="true" /></a>)}</div></div>{(footer.columns || []).map(column => <div key={column.heading}><h2>{column.heading}</h2>{(column.links || []).map(item => <a key={item.label + item.href} href={item.href}>{item.label}</a>)}</div>)}<div><h2>{footer.contactHeading}</h2><a href={`tel:${settings.contact_phone}`}>☎ {settings.contact_phone || fallbackSettings.contact_phone}</a><a href={`mailto:${settings.contact_email}`}>✉ {settings.contact_email || fallbackSettings.contact_email}</a><a href="#contact">▣ {settings.address || fallbackSettings.address}</a></div><div className="footer-newsletter"><h2>{footer.newsletter?.heading}</h2><p>{footer.newsletter?.body}</p>{subscribed ? <span className="newsletter-thanks"><Check size={14} /> {subscribed === "check_email" ? (footer.newsletter?.checkEmail || "Almost done! Check your inbox to confirm.") : footer.newsletter?.thanks}</span> : <form className="newsletter-form" onSubmit={subscribe}><input required type="email" aria-label={footer.newsletter?.placeholder || "Email address"} placeholder={footer.newsletter?.placeholder} />{newsletterHoneypot}<button type="submit" aria-label="Subscribe"><ArrowRight size={14} /></button></form>}{subscribeError && <p className="form-send-error" role="alert">{subscribeError}</p>}</div></div><div className="footer-bottom section-shell"><span>{footer.copyright}</span><span>{footer.legalText}</span></div></footer>;
+}
+
+export function ChatWidget({ code }) {
+  const label = useGlobalContent().shared?.chatBubbleLabel;
   useEffect(() => { if (!code?.trim()) return undefined; const script = document.createElement("script"); script.innerHTML = code; document.body.appendChild(script); return () => document.body.removeChild(script); }, [code]);
   if (code?.trim()) return null;
-  return <a className="chat-bubble" href="#contact" aria-label="Contact Air Fair"><Mail size={21} /></a>;
-}
-
-export function PackageDetailPage() {
-  const { slug } = useParams();
-  const [item, setItem] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [settings, setSettings] = useState(fallbackSettings);
-  const [galleryIndex, setGalleryIndex] = useState(0);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const [settingsData] = await Promise.all([fetchSiteSettings()]);
-        if (settingsData) setSettings({ ...fallbackSettings, ...settingsData });
-        const { data } = await supabase.from("services").select("*").eq("status", "Published").eq("slug", slug).maybeSingle();
-        if (data) setItem(dbRowToService(data));
-      } catch (err) {
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [slug]);
-
-  useEffect(() => {
-    if (item) document.title = `${item.name} | ${settings.business_name || fallbackSettings.business_name}`;
-  }, [item, settings.business_name]);
-
-  if (loading) {
-    return <div className="travel-site"><TopBars settings={settings} /><div className="section-shell" style={{ padding: "120px 0", textAlign: "center", color: colors.text }}><p>Loading package details...</p></div><Footer settings={settings} /></div>;
-  }
-
-  if (!item) {
-    return <div className="travel-site"><TopBars settings={settings} /><div className="section-shell" style={{ padding: "120px 0", textAlign: "center" }}><h2 style={{ color: colors.ink, fontSize: 28, marginBottom: 12 }}>Package not found</h2><p style={{ color: colors.text, marginBottom: 24 }}>We couldn't find this package. It may have been removed or unpublished.</p><a href="/" className="yellow-button">← Back to Home</a></div><Footer settings={settings} /></div>;
-  }
-
-  const currency = settings.currency_symbol || "₱";
-  const galleryImages = item.gallery && item.gallery.length > 0 ? item.gallery : [item.image];
-  const inclusions = item.inclusions ? item.inclusions.split("\n").filter(Boolean) : [];
-  const exclusions = item.exclusions ? item.exclusions.split("\n").filter(Boolean) : [];
-  const priceLabel = getPriceLabel(item, currency);
-
-  return <div className="travel-site">
-    <TopBars settings={settings} />
-    <section className="section-shell" style={{ paddingTop: 40, paddingBottom: 60 }}>
-      <a href="/" style={{ display: "inline-flex", alignItems: "center", gap: 6, color: colors.text, fontSize: 14, marginBottom: 20, textDecoration: "none" }}><ChevronLeft size={16} /> Back to Home</a>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 48, alignItems: "start" }} className="package-detail-grid">
-        <div>
-          <div style={{ borderRadius: 16, overflow: "hidden", marginBottom: 12, aspectRatio: "4/3" }}>
-            <img src={galleryImages[galleryIndex]} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-          </div>
-          {galleryImages.length > 1 && (
-            <div style={{ display: "flex", gap: 8, overflowX: "auto" }}>
-              {galleryImages.map((img, i) => (
-                <button key={i} onClick={() => setGalleryIndex(i)} style={{ borderRadius: 8, overflow: "hidden", border: `2px solid ${i === galleryIndex ? colors.green : colors.line}`, cursor: "pointer", flexShrink: 0 }}>
-                  <img src={img} alt="" style={{ width: 72, height: 54, objectFit: "cover" }} />
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-        <div>
-          {item.category && <span style={{ display: "inline-block", padding: "4px 12px", borderRadius: 20, fontSize: 12, fontWeight: 600, backgroundColor: colors.greenSoft, color: colors.greenDark, marginBottom: 12 }}>{item.category}</span>}
-          <h1 style={{ fontSize: 30, color: colors.ink, marginBottom: 8, lineHeight: 1.2 }}>{item.name}</h1>
-          {item.shortDescription && <p style={{ fontSize: 16, color: colors.text, lineHeight: 1.6, marginBottom: 20 }}>{item.shortDescription}</p>}
-          {priceLabel && <div style={{ marginBottom: 20 }}><span style={{ fontSize: 28, fontWeight: 700, color: colors.green }}>{priceLabel}</span></div>}
-          {item.availability && <div style={{ display: "flex", alignItems: "center", gap: 8, color: colors.text, fontSize: 14, marginBottom: 16 }}><CalendarDays size={16} /> {item.availability}</div>}
-          {item.startDate && item.endDate && <div style={{ display: "flex", alignItems: "center", gap: 8, color: colors.text, fontSize: 14, marginBottom: 16 }}><CalendarDays size={16} /> {item.startDate} — {item.endDate}</div>}
-          <div style={{ display: "flex", gap: 12, marginBottom: 28 }}>
-            <a href="#contact" className="yellow-button" style={{ textDecoration: "none" }}>{item.ctaLabel || "Book Now"} <ArrowRight size={14} /></a>
-            <a href={`tel:${settings.contact_phone || fallbackSettings.contact_phone}`} className="phone-button" style={{ textDecoration: "none" }}><Phone size={14} /> Call Us</a>
-          </div>
-          {inclusions.length > 0 && (
-            <div style={{ marginBottom: 24 }}>
-              <h3 style={{ fontSize: 16, color: colors.ink, marginBottom: 12 }}>Inclusions</h3>
-              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
-                {inclusions.map((inc, i) => <li key={i} style={{ display: "flex", alignItems: "start", gap: 8, fontSize: 14, color: colors.text }}><Check size={16} style={{ color: colors.green, flexShrink: 0, marginTop: 2 }} /> {inc}</li>)}
-              </ul>
-            </div>
-          )}
-          {exclusions.length > 0 && (
-            <div>
-              <h3 style={{ fontSize: 16, color: colors.ink, marginBottom: 12 }}>Exclusions</h3>
-              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
-                {exclusions.map((exc, i) => <li key={i} style={{ display: "flex", alignItems: "start", gap: 8, fontSize: 14, color: colors.text }}><X size={16} style={{ color: "#D7443E", flexShrink: 0, marginTop: 2 }} /> {exc}</li>)}
-              </ul>
-            </div>
-          )}
-        </div>
-      </div>
-      {item.fullDescription && (
-        <div style={{ marginTop: 48, maxWidth: 760 }}>
-          <h2 style={{ fontSize: 22, color: colors.ink, marginBottom: 16 }}>About this package</h2>
-          <p style={{ fontSize: 15, color: colors.text, lineHeight: 1.8, whiteSpace: "pre-wrap" }}>{item.fullDescription}</p>
-        </div>
-      )}
-    </section>
-    <Footer settings={settings} />
-    <ChatWidget code={settings.chat_widget_code} />
-  </div>;
+  return <a className="chat-bubble" href="#contact" aria-label={label}><Mail size={21} /></a>;
 }
 
 export default function Website() {
-  const [pages, setPages] = useState([]);
-  const [testimonials, setTestimonials] = useState([]);
   const [settings, setSettings] = useState(fallbackSettings);
-  useEffect(() => { (async () => { const [pageData, testimonialData, settingsData] = await Promise.all([fetchPublishedPages(), fetchPublishedTestimonials(), fetchSiteSettings()]); setPages(pageData); setTestimonials(testimonialData); if (settingsData) setSettings({ ...fallbackSettings, ...settingsData }); })(); }, []);
-  useEffect(() => { document.title = settings.seo_title || fallbackSettings.seo_title; }, [settings.seo_title]);
-  const homePage = pages.find(page => page.slug === "home");
-  const section = type => homePage?.sections.find(item => item.template_type === type);
-  const servicesContent = section("services_preview");
-  const testimonialsContent = section("testimonials");
-  return <div className="travel-site"><TopBars settings={settings} /><Hero /><AccreditationBar /><OurServices /><FreeAssessment settings={settings} /><Services content={servicesContent} settings={settings} /><Benefits /><Testimonials content={testimonialsContent} testimonials={testimonials} /><Contact settings={settings} /><Footer settings={settings} /><ChatWidget code={settings.chat_widget_code} /></div>;
+  const page = usePage("home");
+  useEffect(() => { (async () => { const settingsData = await fetchSiteSettings(); if (settingsData) setSettings({ ...fallbackSettings, ...settingsData }); })(); }, []);
+  useSeo({ title: settings.seo_title || fallbackSettings.seo_title, description: settings.seo_description }, settings);
+  if (import.meta.env.SSR) collectSsrJsonLd(organizationJsonLd(settings));
+  useEffect(() => applyOrganizationJsonLd(settings), [settings]);
+  const show = (key, Section, extra = {}) => page.visible(key) && <Section fields={page.section(key)} {...extra} />;
+  return <div className="travel-site" aria-busy={page.loading || undefined}><TopBars settings={settings} /><main id="main-content"><h1 className="sr-only">{`${settings.business_name || fallbackSettings.business_name}: visa, immigration and travel services`}</h1>{show("hero", Hero)}{show("accreditations", AccreditationBar)}{show("categories", ServiceCategories)}{show("immigration", ImmigrationServices)}{show("srrv", SRRVBanner)}{show("visa", InternationalVisaAssistance)}{show("travel", TravelTours)}{show("trustBar", TrustBar)}{show("assessment", FreeAssessment)}{show("testimonials", Testimonials)}{show("news", NewsEvents)}{show("contact", Contact, { settings })}</main><Footer settings={settings} /><ChatWidget code={settings.chat_widget_code} /></div>;
 }
