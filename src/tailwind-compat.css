@@ -1,0 +1,24 @@
+/* Preserve the existing Tailwind 3 design tokens during the v4 security upgrade.
+   Only colors referenced by the app are retained; no runtime legacy dependency. */
+@theme {
+  --color-blue-500: #3b82f6;
+  --color-gray-200: #e5e7eb;
+  --color-gray-400: #9ca3af;
+  --color-red-700: #b91c1c;
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --radius-sm: 0.125rem;
+  --blur-sm: 4px;
+  --default-ring-width: 3px;
+  --default-ring-color: rgb(59 130 246 / 0.5);
+}
+
+*, ::before, ::after, ::backdrop, ::file-selector-button { border-color: #e5e7eb; }
+input::placeholder, textarea::placeholder { color: #9ca3af; opacity: 1; }
+input:where(:not([type="checkbox"]):not([type="radio"])), select, textarea { background-color: Field; }
+/* Preserve native cell padding when a table sets only selected sides. */
+th, td { padding: 1px; }
+/* v3 retained the browser's vertical date-edit padding. */
+::-webkit-datetime-edit { padding-block: 1px; }
+button, [role="button"] { cursor: pointer; }
+:disabled { cursor: default; }
+@utility outline-none { outline: 2px solid transparent; outline-offset: 2px; }

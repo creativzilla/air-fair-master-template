@@ -1,0 +1,21 @@
+# Inbound authenticates the raw payload using Resend/Svix signatures.
+[functions.resend-inbound]
+verify_jwt = false
+
+# inbox-send verifies the user's JWT with auth.getUser and enforces DB access.
+# Disabling gateway JWT verification supports Supabase's newer signing keys.
+[functions.inbox-send]
+verify_jwt = false
+
+# mailbox-verify checks the user's JWT with auth.getUser and requires is_admin().
+[functions.mailbox-verify]
+verify_jwt = false
+
+# campaign-worker: pg_cron calls it with a Vault-held secret; test sends check
+# the user's JWT; unsubscribe links are public by design.
+[functions.campaign-worker]
+verify_jwt = false
+
+# Public raw-file uploads: bounded, type checked and rate limited in the handler.
+[functions.form-upload]
+verify_jwt = false
