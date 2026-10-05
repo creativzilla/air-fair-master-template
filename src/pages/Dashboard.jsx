@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { LayoutDashboard, File as FileEdit, Inbox, CalendarDays, Image as ImageIcon, Settings as SettingsIcon, ChevronRight, ChevronLeft, Bell, Plus, X, Clock, Search, Check, Trash2, GripVertical, Mail, CalendarPlus, Wallet, Users, Globe, UserPlus, FileText, Contact as Contact2, UserCog, ListChecks, Lock, LogOut, Eye, EyeOff, Loader as Loader2, Menu as MenuIcon, Stamp, Newspaper, MessageSquareQuote, ShieldCheck, KeyRound, FolderOpen } from "lucide-react";
+import { Archive, ArchiveRestore, LayoutDashboard, File as FileEdit, Inbox, CalendarDays, Image as ImageIcon, Settings as SettingsIcon, ChevronRight, ChevronLeft, Bell, Plus, X, Clock, Search, Check, Trash2, GripVertical, Mail, CalendarPlus, Wallet, Users, Globe, UserPlus, FileText, Contact as Contact2, UserCog, ListChecks, Lock, LogOut, Eye, EyeOff, Loader as Loader2, Menu as MenuIcon, Stamp, Newspaper, MessageSquareQuote, ShieldCheck, KeyRound, FolderOpen } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { fetchSiteSettings, saveSiteSettings } from "../lib/content.js";
 import { T, fontDisplay, fontBody, fontMono, Badge, StageBadge, CategoryTag, LabeledInput, LabeledSelect, Modal, Button, Notice, ImagePickerButton } from "../dashboard/ui.jsx";
@@ -10,7 +10,12 @@ import { CLIENT_CATEGORIES, clientCategory } from "../dashboard/clientCategories
 import PipelineStagesEditor from "../dashboard/PipelineStagesEditor.jsx";
 import FormsModule from "../dashboard/FormsModule.jsx";
 import MediaLibrary from "../dashboard/MediaLibrary.jsx";
-import UsersAdmin from "../dashboard/UsersAdmin.jsx";
+import Team from "../dashboard/Team.jsx";
+import { ROLE_DEFAULTS, defaultsFromRows, effectiveSections } from "../dashboard/access.js";
+import { bulkTag, createTag, deleteContacts, filterByTags, loadClientTags, setArchived, tagCounts } from "../dashboard/clientTags.js";
+import BulkEmailComposer from "../dashboard/campaigns/BulkEmailComposer.jsx";
+import CampaignsPanel from "../dashboard/campaigns/CampaignsPanel.jsx";
+import { BulkTagMenu, DownloadMenu, ManageTagsModal, RemoveTagMenu, TagChip, TagFilterDropdown } from "../dashboard/ClientTagsUI.jsx";
 import ClientDocuments from "../dashboard/ClientDocuments.jsx";
 import LeadDrawer, { mapContactRow } from "../dashboard/LeadEditor.jsx";
 import { applySeo } from "../lib/seo.js";
@@ -18,39 +23,30 @@ import EmailInbox from "../dashboard/EmailInbox.jsx";
 import FormEmails from "../dashboard/FormEmails.jsx";
 
 // Sidebar. `roles` = who may open it; `moduleKey` = can be switched off in
-// Settings → Modules; `staffKey` = staff access follows the employee's
-// "Dashboard Access" checkboxes.
+// Settings → Modules; each person's section access (Team page, access.js)
+// decides which of the rest they see.
 const ALL_ROLES = ["admin", "editor", "staff"];
 const CONTENT_ROLES = ["admin", "editor"];
 const NAV = [
   { id: "overview", label: "Dashboard", icon: LayoutDashboard, roles: ALL_ROLES },
   { group: "Clients" },
-  { id: "clients", label: "Clients", icon: Contact2, roles: ALL_ROLES, staffKey: "clients" },
-  { id: "email-inbox", label: "Email Inbox", icon: Mail, roles: ALL_ROLES, staffKey: "email-inbox" },
-  { id: "pipeline", label: "Pipeline", icon: Users, moduleKey: "pipeline", roles: ALL_ROLES, staffKey: "pipeline" },
-  { id: "forms", label: "Forms", icon: Inbox, roles: ALL_ROLES, staffKey: "forms" },
-  { id: "documents", label: "Documents", icon: FolderOpen, roles: ALL_ROLES, staffKey: "documents" },
-  { id: "bookings", label: "Calendar", icon: CalendarDays, moduleKey: "bookings", roles: ALL_ROLES, staffKey: "bookings" },
+  { id: "clients", label: "Clients", icon: Contact2, roles: ALL_ROLES },
+  { id: "email-inbox", label: "Email Inbox", icon: Mail, roles: ALL_ROLES },
+  { id: "pipeline", label: "Pipeline", icon: Users, moduleKey: "pipeline", roles: ALL_ROLES },
+  { id: "forms", label: "Forms", icon: Inbox, roles: ALL_ROLES },
+  { id: "documents", label: "Documents", icon: FolderOpen, roles: ALL_ROLES },
+  { id: "bookings", label: "Calendar", icon: CalendarDays, moduleKey: "bookings", roles: ALL_ROLES },
   { group: "Website" },
-  { id: "edit-website", label: "Pages", icon: FileEdit, roles: CONTENT_ROLES, staffKey: "edit-website" },
-  { id: "cms-services", label: "Services", icon: Stamp, roles: CONTENT_ROLES },
-  { id: "news", label: "News", icon: Newspaper, roles: CONTENT_ROLES },
-  { id: "testimonials", label: "Testimonials", icon: MessageSquareQuote, roles: CONTENT_ROLES },
+  { id: "edit-website", label: "Pages", icon: FileEdit, roles: ALL_ROLES },
+  { id: "cms-services", label: "Services", icon: Stamp, roles: ALL_ROLES },
+  { id: "news", label: "News", icon: Newspaper, roles: ALL_ROLES },
+  { id: "testimonials", label: "Testimonials", icon: MessageSquareQuote, roles: ALL_ROLES },
   { group: "Business" },
-  { id: "form-emails", label: "Form Emails", icon: Mail, roles: ["admin"] },
-  { id: "users", label: "Users", icon: ShieldCheck, roles: ["admin"] },
-  { id: "employees", label: "Employees", icon: UserCog, moduleKey: "employees", roles: ["admin"] },
-  { id: "media", label: "Media", icon: ImageIcon, roles: CONTENT_ROLES, staffKey: "media" },
-  { id: "settings", label: "Settings", icon: SettingsIcon, roles: ["admin"] },
-];
-
-const ALL_MODULES = [
-  { key: "pipeline", label: "Pipeline" }, { key: "bookings", label: "Calendar" },
-  { key: "clients", label: "Clients" }, { key: "documents", label: "Documents" }, { key: "forms", label: "Forms" },
-  { key: "email-inbox", label: "Email Inbox" },
-  { key: "media", label: "Media" },
-  { key: "edit-website", label: "Edit Website" }, { key: "employees", label: "Employees" },
-  { key: "settings", label: "Settings" },
+  { id: "form-emails", label: "Form Emails", icon: Mail, roles: ALL_ROLES },
+  // Users + Employees merged: every team member is a sign-in account.
+  { id: "team", label: "Team", icon: ShieldCheck, roles: ALL_ROLES },
+  { id: "media", label: "Media", icon: ImageIcon, roles: ALL_ROLES },
+  { id: "settings", label: "Settings", icon: SettingsIcon, roles: ALL_ROLES },
 ];
 
 const DEFAULT_EMPLOYEE_ACCESS = { "email-inbox": false, pipeline: true, bookings: true, clients: true, documents: true, forms: true, media: false, "edit-website": false, employees: false, settings: false };
@@ -272,21 +268,96 @@ function Contacts({ contacts, setContacts, bookings, employees, onStageChange, o
   );
 }
 
-function ClientsDirectory({ contacts, bookings, goTo, categories, stages, currency, onOpenDocuments, onOpenLead, onNewLead }) {
+function ClientsDirectory({ contacts: allContacts, bookings, goTo, categories, stages, currency, onOpenDocuments, onOpenLead, onNewLead, tags = [], contactTags = {}, onTagsChanged, role, onArchived, onDeleted, employees = [], canEmail = false }) {
+  // Active / Archived tabs: archived clients are kept but hidden everywhere else.
+  const [view, setView] = useState("active");
+  const [composing, setComposing] = useState(false);
+  const archivedCount = allContacts.filter(c => c.archivedAt).length;
+  const contacts = allContacts.filter(c => (view === "archived") === !!c.archivedAt);
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [stageFilter, setStageFilter] = useState("");
+  const [tagFilter, setTagFilter] = useState([]);
+  const [tagMode, setTagMode] = useState("any");
+  const [picked, setPicked] = useState(() => new Set());
+  const [bulkTagId, setBulkTagId] = useState("");
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkError, setBulkError] = useState("");
+  const [bulkNotice, setBulkNotice] = useState("");
+  const [managing, setManaging] = useState(false);
   const categoryOptions = CLIENT_CATEGORIES;
   const stageOptions = [...new Set([...stages, ...contacts.map(c => c.status)].filter(Boolean))];
-  const hasFilters = query !== "" || categoryFilter !== "" || stageFilter !== "";
-  const clearFilters = () => { setQuery(""); setCategoryFilter(""); setStageFilter(""); };
+  const hasFilters = query !== "" || categoryFilter !== "" || stageFilter !== "" || tagFilter.length > 0;
+  const clearFilters = () => { setQuery(""); setCategoryFilter(""); setStageFilter(""); setTagFilter([]); };
   const linkedBooking = (contactId) => bookings.find(b => b.contactId === contactId);
   const search = query.trim().toLowerCase();
-  const rows = contacts.filter(c =>
+  const counts = tagCounts(contactTags);
+  const rows = filterByTags(contacts, contactTags, tagFilter, tagMode).filter(c =>
     (!categoryFilter || clientCategory(c.category) === categoryFilter) &&
     (!stageFilter || c.status === stageFilter) &&
     (!search || (c.name || "").toLowerCase().includes(search) || (c.email || "").toLowerCase().includes(search))
   );
+  const allPicked = rows.length > 0 && rows.every(c => picked.has(c.id));
+  const togglePick = id => setPicked(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
+  useEffect(() => { setPicked(new Set()); }, [view]);
+  const archiveSelected = async archive => {
+    const ids = [...picked];
+    if (archive && !window.confirm(`Archive ${ids.length} client${ids.length > 1 ? "s" : ""}? They leave the Pipeline and active lists but are kept, and can be restored from the Archived tab.`)) return;
+    setBulkBusy(true); setBulkError("");
+    try { await setArchived(ids, archive); onArchived(ids, archive ? new Date().toISOString() : null); setPicked(new Set()); }
+    catch (err) { setBulkError(err.message || "Could not update the clients."); } finally { setBulkBusy(false); }
+  };
+  const deleteSelected = async () => {
+    const ids = [...picked];
+    if (!window.confirm(`Permanently delete ${ids.length} client${ids.length > 1 ? "s" : ""}? Their bookings and tasks are kept but unlinked. This can't be undone. (Archive instead to keep them.)`)) return;
+    setBulkBusy(true); setBulkError("");
+    try {
+      const failed = await deleteContacts(ids);
+      const done = ids.filter(id => !failed.some(f => f.id === id));
+      if (done.length) onDeleted(done);
+      setPicked(new Set(failed.map(f => f.id)));
+      if (failed.length) setBulkError(`${failed.length} not deleted: ${failed.map(f => `${allContacts.find(c => c.id === f.id)?.name || "client"} (${f.reason})`).join(", ")}.`);
+    } catch (err) { setBulkError(err.message || "Could not delete the clients."); } finally { setBulkBusy(false); }
+  };
+  // Tags on the selected clients: { tagId: how many selected clients have it }.
+  const presentOnPicked = {};
+  for (const id of picked) for (const t of contactTags[id] || []) presentOnPicked[t] = (presentOnPicked[t] || 0) + 1;
+  const tagName = id => tags.find(t => t.id === id)?.name || "tag";
+  const plural = n => `${n} client${n === 1 ? "" : "s"}`;
+  // Download the selected clients, or everyone shown (filters applied) when none are selected.
+  const downloadClients = async format => {
+    const list = picked.size ? allContacts.filter(c => picked.has(c.id)) : rows;
+    const { clientRows, toCSV, toXLSX, download, printPDF } = await import("../dashboard/clientExport.js");
+    const data = clientRows(list, { tags, contactTags, employees });
+    const name = `airfair-clients-${view === "archived" ? "archived-" : ""}${new Date().toISOString().slice(0, 10)}`;
+    if (format === "xlsx") download(toXLSX(data), `${name}.xlsx`, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    else if (format === "csv") download(toCSV(data), `${name}.csv`, "text/csv;charset=utf-8");
+    else printPDF(data, `Air Fair clients${view === "archived" ? " (archived)" : ""}`);
+  };
+  const applyBulk = async (add, tagId = bulkTagId) => {
+    if (!tagId) return;
+    const ids = [...picked];
+    // Only the clients that change: adding skips those who have it, removing those who don't.
+    const affected = ids.filter(id => (contactTags[id] || []).includes(tagId) !== add).length;
+    setBulkBusy(true); setBulkError(""); setBulkNotice("");
+    try {
+      await bulkTag(ids, tagId, add); await onTagsChanged(); setPicked(new Set());
+      setBulkNotice(add ? `Added ${tagName(tagId)} to ${plural(affected)}${affected < ids.length ? ` (${ids.length - affected} already had it)` : ""}.`
+        : `Removed ${tagName(tagId)} from ${plural(affected)}.`);
+    } catch (err) { setBulkError(err.message || "Could not update tags."); } finally { setBulkBusy(false); }
+  };
+  // Create a tag and put it on every selected client in one step.
+  const createAndApply = async name => {
+    if (!name.trim()) return;
+    setBulkBusy(true); setBulkError("");
+    try {
+      const tag = await createTag(name);
+      await bulkTag([...picked], tag.id, true);
+      await onTagsChanged();
+      setPicked(new Set()); setBulkTagId("");
+    } catch (err) { setBulkError(err.message || "Could not create the tag."); } finally { setBulkBusy(false); }
+  };
+  const tagsOf = c => (contactTags[c.id] || []).map(id => tags.find(t => t.id === id)).filter(Boolean);
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between flex-wrap gap-3"><div><h1 className="text-2xl mb-1" style={{ ...fontDisplay, color: T.ink }}>Clients</h1><p className="text-sm" style={{ color: T.muted, ...fontBody }}>Every client on file. Click a name to edit, or open Pipeline to move their case forward.</p></div><div className="flex gap-2 flex-wrap"><button onClick={() => goTo("pipeline")} className="text-sm px-4 py-2 rounded-lg flex items-center gap-1.5" style={{ backgroundColor: T.accentSoft, color: T.accent, ...fontBody }}><Users size={15} /> Open Pipeline</button><button onClick={onNewLead} className="px-4 py-2 rounded-lg text-sm flex items-center gap-1.5" style={{ backgroundColor: T.accent, color: "#fff", ...fontBody }}><Plus size={14} /> New lead</button></div></div>
@@ -296,110 +367,44 @@ function ClientsDirectory({ contacts, bookings, goTo, categories, stages, curren
         </div>
         <div className="w-full sm:w-48"><LabeledSelect label="Category" value={categoryFilter} onChange={setCategoryFilter} options={[{ value: "", label: "All categories" }, ...categoryOptions.map(value => ({ value, label: value }))]} /></div>
         <div className="w-full sm:w-48"><LabeledSelect label="Stage" value={stageFilter} onChange={setStageFilter} options={[{ value: "", label: "All stages" }, ...stageOptions.map(value => ({ value, label: value }))]} /></div>
+        <div className="w-full sm:w-48"><TagFilterDropdown tags={tags} counts={counts} value={tagFilter} onChange={setTagFilter} mode={tagMode} onModeChange={setTagMode} onManage={() => setManaging(true)} /></div>
         {hasFilters && <Button tone="outline" onClick={clearFilters}>Clear filters</Button>}
       </div>
-      <p className="text-xs" role="status" style={{ color: T.muted }}>Showing {rows.length} of {contacts.length} clients</p>
-      <div className="rounded-xl overflow-x-auto" style={{ backgroundColor: T.surface, border: `1px solid ${T.border}` }}><table className="w-full text-sm"><thead><tr style={{ borderBottom: `1px solid ${T.border}` }}>{["Name", "Email", "Category", "Stage", "Amount", "Next Meeting", ""].map(h => <th key={h} className="text-left px-5 py-3 text-xs uppercase tracking-wide" style={{ color: T.muted, ...fontBody, letterSpacing: "0.05em" }}>{h}</th>)}</tr></thead><tbody>{rows.map((c, i) => { const booking = linkedBooking(c.id); return (<tr key={c.id} style={{ borderBottom: i < rows.length - 1 ? `1px solid ${T.border}` : "none" }}><td className="px-5 py-3" style={{ color: T.ink, ...fontBody }}><button type="button" onClick={() => onOpenLead(c.id)} className="text-left hover:underline" style={{ color: T.ink, ...fontBody }}>{c.name}</button></td><td className="px-5 py-3" style={{ color: T.muted, ...fontBody }}>{c.email}</td><td className="px-5 py-3"><CategoryTag category={clientCategory(c.category)} categories={CLIENT_CATEGORIES} /></td><td className="px-5 py-3"><StageBadge stage={c.status} stages={stages} /></td><td className="px-5 py-3" style={{ ...fontMono, color: c.amount ? T.ink : T.muted }}>{c.amount ? `${currency}${c.amount.toLocaleString()}` : "—"}</td><td className="px-5 py-3" style={{ color: T.muted, ...fontBody }}>{booking ? `${booking.date} · ${booking.time}` : "—"}</td><td className="px-5 py-3 text-right"><button type="button" onClick={() => onOpenDocuments(c.id)} className="text-xs px-2.5 py-1 rounded-md inline-flex items-center gap-1" style={{ backgroundColor: T.accentSoft, color: T.accent, ...fontBody }}><FolderOpen size={12} /> Documents</button></td></tr>); })}{rows.length === 0 && <tr><td colSpan={7} className="px-5 py-8 text-center text-sm" style={{ color: T.muted, ...fontBody }}>{hasFilters ? "No clients match these filters. Try another selection or clear filters." : "No clients yet."}</td></tr>}</tbody></table></div>
-    </div>
-  );
-}
-
-function Employees({ employees, setEmployees, tasks, setTasks, stageTasks, setStageTasks, stages, profiles = [], role, onDeleteEmployee }) {
-  const [activeId, setActiveId] = useState(employees[0]?.id ?? null);
-  const [addingEmployee, setAddingEmployee] = useState(false);
-  const [draft, setDraft] = useState({ name: "", email: "", role: "" });
-  const [addError, setAddError] = useState("");
-  const [newTaskTitle, setNewTaskTitle] = useState("");
-  const [newTaskDue, setNewTaskDue] = useState("");
-  const [pickerStage, setPickerStage] = useState(stages[0]);
-  const [checkedTemplateIds, setCheckedTemplateIds] = useState([]);
-  const [newTemplateTitle, setNewTemplateTitle] = useState("");
-  const active = employees.find(e => e.id === activeId);
-  const activeTasks = tasks.filter(t => t.employeeId === activeId);
-  const stageTemplates = stageTasks.filter(t => t.stage === pickerStage);
-  const openAdd = () => { setAddingEmployee(true); setActiveId(null); setAddError(""); setDraft({ name: "", email: "", role: "" }); };
-  const selectEmployee = (id) => { setActiveId(id); setAddingEmployee(false); setCheckedTemplateIds([]); };
-  const saveEmployee = async () => {
-    if (!draft.name.trim() || !draft.email.trim()) { setAddError("Name and email are required."); return; }
-    setAddError("");
-    const allowedModules = { ...DEFAULT_EMPLOYEE_ACCESS };
-    const { data, error } = await supabase.from("employees").insert({ name: draft.name.trim(), email: draft.email.trim(), role: draft.role.trim(), allowed_modules: allowedModules }).select().single();
-    if (error) { setAddError("Could not save employee: " + error.message); return; }
-    setEmployees(prev => [...prev, { id: data.id, name: data.name, email: data.email, role: data.role, allowedModules: data.allowed_modules || allowedModules }]);
-    setAddingEmployee(false);
-    setActiveId(data.id);
-  };
-  const linkLogin = (employeeId, userId) => {
-    setEmployees(prev => prev.map(e => e.id === employeeId ? { ...e, userId } : e));
-    supabase.from("employees").update({ user_id: userId }).eq("id", employeeId).then(({ error }) => { if (error) console.error("Failed to link sign-in account:", error); });
-  };
-  const toggleAccess = (employeeId, moduleKey) => {
-    const target = employees.find(e => e.id === employeeId);
-    if (!target) return;
-    const current = target.allowedModules || DEFAULT_EMPLOYEE_ACCESS;
-    const updatedModules = { ...current, [moduleKey]: !current[moduleKey] };
-    setEmployees(prev => prev.map(e => e.id === employeeId ? { ...e, allowedModules: updatedModules } : e));
-    supabase.from("employees").update({ allowed_modules: updatedModules }).eq("id", employeeId).then(({ error }) => { if (error) console.error("Failed to update employee access:", error); });
-  };
-  const addTask = async () => {
-    if (!newTaskTitle.trim() || !activeId) return;
-    const title = newTaskTitle.trim();
-    const due = newTaskDue || null;
-    setNewTaskTitle(""); setNewTaskDue("");
-    const { data, error } = await supabase.from("employee_tasks").insert({ employee_id: activeId, title, due_date: due, is_done: false }).select().single();
-    if (error) { console.error("Failed to add task:", error); return; }
-    setTasks(prev => [...prev, { id: data.id, employeeId: data.employee_id, contactId: data.contact_id, title: data.title, due: data.due_date || "No due date", done: data.is_done }]);
-  };
-  const toggleTask = (taskId) => {
-    const target = tasks.find(t => t.id === taskId);
-    if (!target) return;
-    const nextDone = !target.done;
-    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, done: nextDone } : t));
-    supabase.from("employee_tasks").update({ is_done: nextDone }).eq("id", taskId).then(({ error }) => { if (error) console.error("Failed to update task:", error); });
-  };
-  const toggleTemplateChecked = (id) => { setCheckedTemplateIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]); };
-  const addNewTemplate = async () => {
-    if (!newTemplateTitle.trim()) return;
-    const title = newTemplateTitle.trim();
-    setNewTemplateTitle("");
-    const { data, error } = await supabase.from("stage_task_templates").insert({ stage: pickerStage, title }).select().single();
-    if (error) { console.error("Failed to add task template:", error); return; }
-    setStageTasks(prev => [...prev, { id: data.id, stage: data.stage, title: data.title }]);
-  };
-  const addSelectedTemplateTasks = async () => {
-    if (!activeId || checkedTemplateIds.length === 0) return;
-    const toAdd = stageTasks.filter(t => checkedTemplateIds.includes(t.id));
-    const rows = toAdd.map(t => ({ employee_id: activeId, title: t.title, is_done: false }));
-    setCheckedTemplateIds([]);
-    const { data, error } = await supabase.from("employee_tasks").insert(rows).select();
-    if (error) { console.error("Failed to add template tasks:", error); return; }
-    const newTasks = data.map(r => ({ id: r.id, employeeId: r.employee_id, contactId: r.contact_id, title: r.title, due: r.due_date || "TBD", done: r.is_done }));
-    setTasks(prev => [...prev, ...newTasks]);
-  };
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between flex-wrap gap-3"><div><h1 className="text-2xl mb-1" style={{ ...fontDisplay, color: T.ink }}>Employees</h1><p className="text-sm" style={{ color: T.muted, ...fontBody }}>Your internal team and the tasks assigned to each of them.</p></div><button onClick={openAdd} className="px-4 py-2 rounded-lg text-sm flex items-center gap-1.5" style={{ backgroundColor: T.accent, color: "#fff", ...fontBody }}><Plus size={14} /> Add Employee</button></div>
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 dash-grid-5">
-        <div className="lg:col-span-2 rounded-xl overflow-hidden" style={{ backgroundColor: T.surface, border: `1px solid ${T.border}` }}>
-          {employees.map((e, i) => { const count = tasks.filter(t => t.employeeId === e.id && !t.done).length; return (<button key={e.id} onClick={() => selectEmployee(e.id)} className="w-full flex items-center gap-3 px-5 py-4 text-left" style={{ borderBottom: i < employees.length - 1 ? `1px solid ${T.border}` : "none", backgroundColor: activeId === e.id ? T.accentSoft : "transparent" }}><div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-xs" style={{ backgroundColor: T.accent, color: "#fff", ...fontBody }}>{e.name.split(" ").map(p => p[0]).join("").slice(0, 2).toUpperCase()}</div><div className="flex-1 min-w-0"><div className="text-sm truncate" style={{ color: T.ink, ...fontBody }}>{e.name}</div><div className="text-xs truncate" style={{ color: T.muted, ...fontBody }}>{e.role}</div></div>{count > 0 && <span className="text-xs px-2 py-0.5 rounded-full shrink-0" style={{ backgroundColor: T.warnSoft, color: T.warn, ...fontBody }}>{count}</span>}</button>); })}
-          {employees.length === 0 && <div className="px-5 py-10 text-center text-sm" style={{ color: T.muted, ...fontBody }}>No employees yet.</div>}
-        </div>
-        <div className="lg:col-span-3 rounded-xl" style={{ backgroundColor: T.surface, border: `1px solid ${T.border}` }}>
-          {addingEmployee ? (
-            <div className="p-5 flex flex-col gap-4"><div className="flex items-center justify-between"><span className="text-sm font-medium" style={{ color: T.ink, ...fontBody }}>New Employee</span><button onClick={() => setAddingEmployee(false)} style={{ color: T.muted }}><X size={16} /></button></div>{[{ key: "name", label: "Full Name" }, { key: "email", label: "Email" }, { key: "role", label: "Role (e.g. Visa Officer)" }].map(f => (<div key={f.key}><label className="text-xs block mb-1.5" style={{ color: T.muted, ...fontBody }}>{f.label}</label><input value={draft[f.key]} onChange={e => setDraft(prev => ({ ...prev, [f.key]: e.target.value }))} className="w-full rounded-lg px-3 py-2 text-sm outline-none" style={{ border: `1px solid ${T.border}`, color: T.ink, ...fontBody, backgroundColor: T.bg }} /></div>))}<p className="text-xs" style={{ color: T.muted, ...fontBody }}>This adds an internal team record for task assignment — it doesn't create a dashboard login for them yet.</p>{addError && <div className="text-xs" style={{ color: T.danger, ...fontBody }}>{addError}</div>}<button onClick={saveEmployee} className="mt-2 px-4 py-2 rounded-lg text-sm" style={{ backgroundColor: T.accent, color: "#fff", ...fontBody }}>Save Employee</button></div>
-          ) : !active ? (
-            <div className="h-full flex items-center justify-center text-center px-8 py-16"><p className="text-sm" style={{ color: T.muted, ...fontBody }}>Select an employee to view their tasks.</p></div>
-          ) : (
-            <div className="p-5 flex flex-col gap-5">
-              <div className="flex items-start justify-between gap-3"><div><span className="text-sm font-medium" style={{ color: T.ink, ...fontBody }}>{active.name}'s Tasks</span><div className="text-xs mt-0.5" style={{ color: T.muted, ...fontBody }}>{active.email} · {active.role}</div></div>{role === "admin" && <button type="button" onClick={async () => { if (await onDeleteEmployee(active)) setActiveId(null); }} className="text-xs px-2.5 py-1.5 rounded-md flex items-center gap-1 shrink-0" style={{ backgroundColor: T.dangerSoft, color: T.danger, ...fontBody }}><Trash2 size={12} /> Delete employee</button>}</div>
-              <div className="rounded-lg p-3" style={{ border: `1px solid ${T.border}`, backgroundColor: T.bg }}><div className="flex items-center gap-1.5 mb-0.5"><UserCog size={13} style={{ color: T.muted }} /><span className="text-xs font-medium" style={{ color: T.ink, ...fontBody }}>Dashboard Access</span></div><p className="text-[11px] mb-2.5" style={{ color: T.muted, ...fontBody }}>What {active.name.split(" ")[0]} can see once they log in (applies to the staff role). Only you can change this.</p><div className="flex items-center gap-2 mb-3"><span className="text-xs shrink-0" style={{ color: T.muted, ...fontBody }}>Sign-in account</span><select value={active.userId || ""} onChange={e => linkLogin(active.id, e.target.value || null)} className="text-xs flex-1 min-w-0 rounded-md px-1.5 py-1 outline-none" style={{ border: `1px solid ${T.border}`, color: T.ink, ...fontBody, backgroundColor: "#fff" }}><option value="">Not linked</option>{profiles.map(p => <option key={p.id} value={p.id}>{p.email}{p.role ? ` (${p.role})` : ""}</option>)}</select></div><div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">{ALL_MODULES.map(m => { const checked = !!(active.allowedModules || DEFAULT_EMPLOYEE_ACCESS)[m.key]; return (<label key={m.key} className="flex items-center gap-1.5 text-xs cursor-pointer" style={{ color: T.ink, ...fontBody }}><input type="checkbox" checked={checked} onChange={() => toggleAccess(active.id, m.key)} style={{ accentColor: T.accent }} />{m.label}</label>); })}</div></div>
-              <div className="flex flex-col gap-2">{activeTasks.map(t => (<div key={t.id} className="flex items-start gap-3 px-3 py-2.5 rounded-lg" style={{ border: `1px solid ${T.border}` }}><button onClick={() => toggleTask(t.id)} className="mt-0.5 shrink-0"><div className="w-4 h-4 rounded flex items-center justify-center" style={{ border: `1.5px solid ${t.done ? T.accent : T.border}`, backgroundColor: t.done ? T.accent : "transparent" }}>{t.done && <Check size={11} color="#fff" />}</div></button><div className="flex-1 min-w-0"><div className="text-sm" style={{ color: t.done ? T.muted : T.ink, textDecoration: t.done ? "line-through" : "none", ...fontBody }}>{t.title}</div><div className="text-xs mt-0.5" style={{ color: T.muted, ...fontBody }}>Due {t.due}</div></div></div>))}{activeTasks.length === 0 && <div className="text-xs text-center py-6" style={{ color: T.muted, ...fontBody }}>No tasks assigned yet.</div>}</div>
-              <div className="pt-4 flex flex-col gap-3" style={{ borderTop: `1px solid ${T.border}` }}><label className="text-xs font-medium" style={{ color: T.ink, ...fontBody }}>Add Pipeline Task</label><div className="flex gap-1.5 flex-wrap">{stages.map(stage => <button key={stage} onClick={() => { setPickerStage(stage); setCheckedTemplateIds([]); }} className="px-2.5 py-1 rounded-full text-xs" style={{ ...fontBody, backgroundColor: pickerStage === stage ? T.ink : T.bg, color: pickerStage === stage ? "#fff" : T.muted, border: `1px solid ${pickerStage === stage ? T.ink : T.border}` }}>{stage}</button>)}</div><div className="flex flex-col gap-1.5">{stageTemplates.map(t => <label key={t.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer" style={{ border: `1px solid ${T.border}`, backgroundColor: T.bg }}><input type="checkbox" checked={checkedTemplateIds.includes(t.id)} onChange={() => toggleTemplateChecked(t.id)} className="w-4 h-4 shrink-0" style={{ accentColor: T.accent }} /><span className="text-sm flex-1" style={{ color: T.ink, ...fontBody }}>{t.title}</span></label>)}{stageTemplates.length === 0 && <div className="text-xs px-3 py-2" style={{ color: T.muted, ...fontBody }}>No tasks defined for this stage yet — add one below.</div>}</div><div className="flex gap-2"><input value={newTemplateTitle} onChange={e => setNewTemplateTitle(e.target.value)} placeholder={`New task for "${pickerStage}"`} className="flex-1 rounded-lg px-3 py-2 text-sm outline-none" style={{ border: `1px solid ${T.border}`, color: T.ink, ...fontBody, backgroundColor: T.bg }} /><button onClick={addNewTemplate} className="px-3 py-2 rounded-lg text-sm" style={{ backgroundColor: T.surface, color: T.ink, border: `1px solid ${T.border}`, ...fontBody }}><Plus size={14} /></button></div><button onClick={addSelectedTemplateTasks} disabled={checkedTemplateIds.length === 0} className="px-4 py-2 rounded-lg text-sm flex items-center justify-center gap-1.5" style={{ backgroundColor: checkedTemplateIds.length === 0 ? T.border : T.accent, color: checkedTemplateIds.length === 0 ? T.muted : "#fff", ...fontBody }}><ListChecks size={14} /> Add {checkedTemplateIds.length > 0 ? `${checkedTemplateIds.length} Task${checkedTemplateIds.length > 1 ? "s" : ""}` : "Selected Tasks"}</button></div>
-              <div className="pt-4 flex flex-col gap-2" style={{ borderTop: `1px solid ${T.border}` }}><label className="text-xs" style={{ color: T.muted, ...fontBody }}>Or assign a one-off task</label><div className="flex gap-2 flex-wrap"><input value={newTaskTitle} onChange={e => setNewTaskTitle(e.target.value)} placeholder="Task description" className="flex-1 min-w-[160px] rounded-lg px-3 py-2 text-sm outline-none" style={{ border: `1px solid ${T.border}`, color: T.ink, ...fontBody, backgroundColor: T.bg }} /><input type="date" value={newTaskDue} onChange={e => setNewTaskDue(e.target.value)} aria-label="Due date" className="w-40 rounded-lg px-3 py-2 text-sm outline-none" style={{ border: `1px solid ${T.border}`, color: T.ink, ...fontBody, backgroundColor: T.bg }} /><button onClick={addTask} className="px-4 py-2 rounded-lg text-sm" style={{ backgroundColor: T.surface, color: T.ink, border: `1px solid ${T.border}`, ...fontBody }}>Assign</button></div></div>
-            </div>
-          )}
-        </div>
+      <div className="flex flex-wrap items-center gap-2 rounded-lg px-3 py-2" style={{ backgroundColor: picked.size ? T.accentSoft : T.surface, border: `1px solid ${T.border}` }} role="toolbar" aria-label="Bulk actions">
+        <span className="text-sm" style={{ color: picked.size ? T.ink : T.muted, ...fontBody }}>{picked.size ? `${picked.size} selected` : "Select clients for bulk actions"}</span>
+        <BulkTagMenu tags={tags} value={bulkTagId} onChange={setBulkTagId} onCreate={name => createAndApply(name)} disabled={!picked.size || bulkBusy} busy={bulkBusy} />
+        <Button small busy={bulkBusy} disabled={!picked.size || !bulkTagId} onClick={() => applyBulk(true)}>Add tag</Button>
+        <RemoveTagMenu tags={tags} present={presentOnPicked} disabled={!picked.size || bulkBusy} onRemove={tagId => applyBulk(false, tagId)} />
+        <span className="w-px h-5 mx-1" style={{ backgroundColor: T.border }} aria-hidden="true" />
+        {view === "active"
+          ? <Button small tone="outline" icon={Archive} disabled={!picked.size || bulkBusy} onClick={() => archiveSelected(true)}>Archive</Button>
+          : <Button small tone="outline" icon={ArchiveRestore} disabled={!picked.size || bulkBusy} onClick={() => archiveSelected(false)}>Restore</Button>}
+        {role === "admin" && <Button small tone="danger" icon={Trash2} disabled={!picked.size || bulkBusy} onClick={deleteSelected}>Delete</Button>}
+        {canEmail && <Button small icon={Mail} disabled={!picked.size || bulkBusy} onClick={() => setComposing(true)}>Send Email</Button>}
+        <DownloadMenu count={picked.size || rows.length} disabled={bulkBusy} onDownload={downloadClients}
+          label={picked.size ? `${picked.size} selected client${picked.size === 1 ? "" : "s"}` : `All ${rows.length} shown client${rows.length === 1 ? "" : "s"} (filters applied)`} />
+        {picked.size > 0 && <button type="button" onClick={() => setPicked(new Set())} className="text-xs underline ml-auto" style={{ color: T.muted }}>Clear selection</button>}
+        {bulkError && <span className="text-xs w-full" style={{ color: T.danger }}>{bulkError}</span>}
+        {bulkNotice && !bulkError && !picked.size && <span className="text-xs w-full" role="status" style={{ color: T.accent }}>{bulkNotice}</span>}
       </div>
+      <div className="flex gap-1 border-b" style={{ borderColor: T.border }} role="tablist" aria-label="Client list">
+        {[["active", "Active", allContacts.length - archivedCount], ["archived", "Archived", archivedCount], ...(canEmail ? [["campaigns", "Campaigns", null]] : [])].map(([id, label, n]) =>
+          <button key={id} type="button" role="tab" aria-selected={view === id} onClick={() => setView(id)} className="px-4 py-2 text-sm -mb-px"
+            style={{ ...fontBody, color: view === id ? T.ink : T.muted, borderBottom: view === id ? `2px solid ${T.accent}` : "2px solid transparent", fontWeight: view === id ? 500 : 400 }}>{label} {n !== null && <span className="text-xs" style={{ color: T.muted }}>{n}</span>}</button>)}
+      </div>
+      {view === "campaigns" ? <CampaignsPanel /> : <>
+      <p className="text-xs" role="status" style={{ color: T.muted }}>Showing {rows.length} of {contacts.length} {view === "archived" ? "archived " : ""}clients</p>
+      <div className="rounded-xl overflow-x-auto" style={{ backgroundColor: T.surface, border: `1px solid ${T.border}` }}><table className="w-full text-sm"><thead><tr style={{ borderBottom: `1px solid ${T.border}` }}>
+        <th className="pl-5 py-3 w-8"><input type="checkbox" aria-label="Select all shown clients" checked={allPicked} disabled={!rows.length} onChange={() => setPicked(allPicked ? new Set() : new Set(rows.map(c => c.id)))} /></th>
+        {["Name", "Email", "Tags", "Category", "Stage", "Amount", "Next Meeting", ""].map(h => <th key={h} className="text-left px-5 py-3 text-xs uppercase tracking-wide" style={{ color: T.muted, ...fontBody, letterSpacing: "0.05em" }}>{h}</th>)}</tr></thead><tbody>{rows.map((c, i) => { const booking = linkedBooking(c.id); return (<tr key={c.id} style={{ borderBottom: i < rows.length - 1 ? `1px solid ${T.border}` : "none", backgroundColor: picked.has(c.id) ? T.accentSoft : undefined }}>
+        <td className="pl-5 py-3"><input type="checkbox" aria-label={`Select ${c.name}`} checked={picked.has(c.id)} onChange={() => togglePick(c.id)} /></td>
+        <td className="px-5 py-3" style={{ color: T.ink, ...fontBody }}><button type="button" onClick={() => onOpenLead(c.id)} className="text-left hover:underline" style={{ color: T.ink, ...fontBody }}>{c.name}</button></td><td className="px-5 py-3" style={{ color: T.muted, ...fontBody }}>{c.email}</td>
+        <td className="px-5 py-3"><div className="flex flex-wrap gap-1 max-w-[16rem]">{tagsOf(c).map(t => <TagChip key={t.id} tag={t} />)}{!tagsOf(c).length && <span style={{ color: T.muted }}>—</span>}</div></td>
+        <td className="px-5 py-3"><CategoryTag category={clientCategory(c.category)} categories={CLIENT_CATEGORIES} /></td><td className="px-5 py-3"><StageBadge stage={c.status} stages={stages} /></td><td className="px-5 py-3" style={{ ...fontMono, color: c.amount ? T.ink : T.muted }}>{c.amount ? `${currency}${c.amount.toLocaleString()}` : "—"}</td><td className="px-5 py-3" style={{ color: T.muted, ...fontBody }}>{booking ? `${booking.date} · ${booking.time}` : "—"}</td><td className="px-5 py-3 text-right"><button type="button" onClick={() => onOpenDocuments(c.id)} className="text-xs px-2.5 py-1 rounded-md inline-flex items-center gap-1" style={{ backgroundColor: T.accentSoft, color: T.accent, ...fontBody }}><FolderOpen size={12} /> Documents</button></td></tr>); })}{rows.length === 0 && <tr><td colSpan={9} className="px-5 py-8 text-center text-sm" style={{ color: T.muted, ...fontBody }}>{hasFilters ? "No clients match these filters. Try another selection or clear filters." : view === "archived" ? "No archived clients." : "No clients yet."}</td></tr>}</tbody></table></div>
+      </>}
+      {composing && <BulkEmailComposer contacts={allContacts.filter(c => picked.has(c.id))} onClose={() => setComposing(false)}
+        onQueued={() => { setComposing(false); setPicked(new Set()); setView("campaigns"); }} />}
+      {managing && <ManageTagsModal tags={tags} counts={counts} canDelete={role === "admin"} onClose={() => setManaging(false)} onChanged={onTagsChanged} />}
     </div>
   );
 }
@@ -466,7 +471,7 @@ function Media({ role }) {
   return <MediaLibrary role={role} />;
 }
 
-function Settings({ pipelineStages, pipelineStageRows, onStagesSaved, currency, setCurrency, modules, setModules, chatWidgetCode, setChatWidgetCode, settings, onSaveSettings, goTo }) {
+function Settings({ role, pipelineStages, pipelineStageRows, onStagesSaved, currency, setCurrency, modules, setModules, chatWidgetCode, setChatWidgetCode, settings, onSaveSettings, goTo }) {
   const [tab, setTab] = useState("Business");
   const tabs = ["Business", "Branding", "Social", "SEO", "Pipeline", "Modules", "Integrations"];
   const [form, setForm] = useState(null);
@@ -517,7 +522,9 @@ function Settings({ pipelineStages, pipelineStageRows, onStagesSaved, currency, 
     if (!form) return;
     setSaving(true); setSavedFlash(false); setSaveError("");
     try {
-      await onSaveSettings(form);
+      const payload = { ...form };
+      if (role !== "admin") delete payload.chat_widget_code;
+      await onSaveSettings(payload);
       setSavedFlash(true); setTimeout(() => setSavedFlash(false), 1800);
     } catch (err) {
       setSaveError(err.message || "Could not save settings. Please try again.");
@@ -531,7 +538,7 @@ function Settings({ pipelineStages, pipelineStageRows, onStagesSaved, currency, 
     </div>
   ) : null;
 
-  const MODULE_INFO = [{ key: "pipeline", label: "Pipeline", desc: "Kanban board for tracking leads through your sales stages." }, { key: "bookings", label: "Calendar", desc: "Scheduled meetings/appointments with clients." }, { key: "employees", label: "Employees", desc: "Internal staff, task assignment, and pipeline automation." }];
+  const MODULE_INFO = [{ key: "pipeline", label: "Pipeline", desc: "Kanban board for tracking leads through your sales stages." }, { key: "bookings", label: "Calendar", desc: "Scheduled meetings/appointments with clients." }];
   return (
     <div className="flex flex-col gap-6">
       <div><h1 className="text-2xl mb-1" style={{ ...fontDisplay, color: T.ink }}>Settings</h1><p className="text-sm" style={{ color: T.muted, ...fontBody }}>Business info, branding, and site-wide details.</p></div>
@@ -556,7 +563,7 @@ function Settings({ pipelineStages, pipelineStageRows, onStagesSaved, currency, 
         {tab === "SEO" && (<div className="flex flex-col gap-4">{renderField({"label":"Site Title","fieldKey":"seo_title"})}{renderField({"label":"Meta Description","fieldKey":"seo_description"})}</div>)}
 
         {tab === "Modules" && (<div className="flex flex-col gap-4"><p className="text-xs" style={{ color: T.muted, ...fontBody }}>Turn off anything this business doesn't need — hidden modules disappear from the sidebar entirely. Click Save Changes to apply.</p>{MODULE_INFO.map(m => (<label key={m.key} className="flex items-start gap-3 px-3 py-3 rounded-lg cursor-pointer" style={{ border: `1px solid ${T.border}`, backgroundColor: T.bg }}><input type="checkbox" checked={!!form.enabled_modules[m.key]} onChange={e => { const next = { ...form.enabled_modules, [m.key]: e.target.checked }; update("enabled_modules", next); }} className="mt-0.5" style={{ accentColor: T.accent }} /><div><div className="text-sm" style={{ color: T.ink, ...fontBody, fontWeight: 500 }}>{m.label}</div><div className="text-xs mt-0.5" style={{ color: T.muted, ...fontBody }}>{m.desc}</div></div></label>))}</div>)}
-        {tab === "Integrations" && (<div className="flex flex-col gap-4"><div><h3 className="text-sm font-medium mb-1" style={{ color: T.ink, ...fontBody }}>Chat Widget</h3><p className="text-xs" style={{ color: T.muted, ...fontBody }}>Paste the embed code from any chat provider — Facebook Messenger Chat Plugin, Tawk.to, Crisp, Tidio, or a WhatsApp click-to-chat link. It shows up on your live website automatically, no developer needed.</p></div><textarea rows={6} value={form.chat_widget_code || ""} onChange={e => update("chat_widget_code", e.target.value)} placeholder={'<!-- Paste your widget script here, e.g. Facebook Messenger Chat Plugin or Tawk.to code -->'} className="w-full rounded-lg px-3 py-2 text-xs font-mono outline-none" style={{ border: `1px solid ${T.border}`, color: T.ink, backgroundColor: T.bg }} /><div className="rounded-lg p-3 text-xs" style={{ backgroundColor: T.infoSoft, color: T.info, ...fontBody }}>Recommended for this business: Facebook Messenger Chat Plugin (ties into the Facebook page you already use) or Tawk.to (free, no Facebook page needed).</div></div>)}
+        {tab === "Integrations" && (<div className="flex flex-col gap-4"><div><h3 className="text-sm font-medium mb-1" style={{ color: T.ink, ...fontBody }}>Chat Widget</h3><p className="text-xs" style={{ color: T.muted, ...fontBody }}>Only administrators can change this script. Paste the embed code from a trusted chat provider — Facebook Messenger Chat Plugin, Tawk.to, Crisp, Tidio, or a WhatsApp click-to-chat link. It shows up on your live website automatically, no developer needed.</p></div><textarea readOnly={role !== "admin"} aria-label="Chat widget script (administrators only)" rows={6} value={form.chat_widget_code || ""} onChange={e => update("chat_widget_code", e.target.value)} placeholder={'<!-- Paste your widget script here, e.g. Facebook Messenger Chat Plugin or Tawk.to code -->'} className="w-full rounded-lg px-3 py-2 text-xs font-mono outline-none" style={{ border: `1px solid ${T.border}`, color: T.ink, backgroundColor: T.bg }} /><div className="rounded-lg p-3 text-xs" style={{ backgroundColor: T.infoSoft, color: T.info, ...fontBody }}>Recommended for this business: Facebook Messenger Chat Plugin (ties into the Facebook page you already use) or Tawk.to (free, no Facebook page needed).</div></div>)}
         {saveError && <Notice tone="danger">{saveError}</Notice>}
         {tab !== "Pipeline" && <button onClick={handleSave} disabled={saving} className="mt-6 px-4 py-2 rounded-lg text-sm flex items-center gap-1.5" style={{ backgroundColor: T.accent, color: "#fff", ...fontBody, opacity: saving ? 0.7 : 1 }}>{savedFlash ? <><Check size={14} /> Saved</> : saving ? "Saving..." : "Save Changes"}</button>}
         </>)}
@@ -695,13 +702,13 @@ function SetPasswordScreen({ email, onDone }) {
   );
 }
 
-function NoAccessScreen({ email, deactivated, onSignOut }) {
+function NoAccessScreen({ email, deactivated, unverified, onSignOut }) {
   return (
     <AuthShell subtitle={email}>
       <div className="flex flex-col gap-4 text-center">
         <Lock size={28} style={{ color: T.muted, margin: "0 auto" }} />
-        <p className="text-sm" style={{ color: T.ink, ...fontBody }}>{deactivated ? "Your account has been deactivated." : "Your account doesn't have access to the dashboard yet."}</p>
-        <p className="text-xs" style={{ color: T.muted, ...fontBody }}>Ask an administrator to {deactivated ? "reactivate your account" : "give you a role"} in Users.</p>
+        <p className="text-sm" style={{ color: T.ink, ...fontBody }}>{unverified ? "Confirm your email address before accessing the dashboard." : deactivated ? "Your account has been deactivated." : "Your account doesn't have access to the dashboard yet."}</p>
+        <p className="text-xs" style={{ color: T.muted, ...fontBody }}>{unverified ? "Open the confirmation or invitation link sent to your email. Contact an administrator if you need help." : <>Ask an administrator to {deactivated ? "reactivate your account" : "give you a role"} in Users.</>}</p>
         <button type="button" onClick={onSignOut} className="py-2.5 rounded-lg text-sm font-medium" style={{ border: `1px solid ${T.border}`, color: T.ink, ...fontBody }}>Sign out</button>
       </div>
     </AuthShell>
@@ -747,11 +754,12 @@ export default function Dashboard() {
   const [leadPanel, setLeadPanel] = useState(null); // null | "new" | contact id
   const [loaded, setLoaded] = useState(false);
 
-  const role = profile && profile.is_active ? profile.role : "none";
+  const role = profile?.is_active && session?.user?.email_confirmed_at ? profile.role : "none";
 
   const loadAll = useCallback(async () => {
     try {
-      const [subsRes, contactsRes, bookingsRes, employeesRes, tasksRes, stageTasksRes, servicesRes, stagesRes, settingsRes, profilesRes] = await Promise.all([
+      // One name per query, in the same order (a removed query must lose its name too).
+      const [subsRes, contactsRes, bookingsRes, employeesRes, tasksRes, stageTasksRes, stagesRes, settingsRes, profilesRes] = await Promise.all([
         supabase.from("form_submissions").select("id,name,email,form_type,status,created_at").order("created_at", { ascending: false }),
         supabase.from("contacts").select("*").order("created_at", { ascending: false }),
         supabase.from("bookings").select("*").order("created_at", { ascending: false }),
@@ -762,13 +770,13 @@ export default function Dashboard() {
         fetchSiteSettings(),
         supabase.from("profiles").select("id,email,full_name,role"),
       ]);
-      [["form_submissions", subsRes], ["contacts", contactsRes], ["bookings", bookingsRes], ["employees", employeesRes], ["employee_tasks", tasksRes], ["stage_task_templates", stageTasksRes], ["services", servicesRes], ["pipeline_stages", stagesRes]]
+      [["form_submissions", subsRes], ["contacts", contactsRes], ["bookings", bookingsRes], ["employees", employeesRes], ["employee_tasks", tasksRes], ["stage_task_templates", stageTasksRes], ["pipeline_stages", stagesRes]]
         .forEach(([name, res]) => { if (res.error) console.error(`Failed to load ${name}:`, res.error); });
 
       if (subsRes.data) setSubmissions(subsRes.data.map(r => ({ id: r.id, name: r.name, email: r.email, type: r.form_type, createdAt: r.created_at, date: r.created_at ? new Date(r.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "", status: r.status })));
       if (contactsRes.data) setContacts(contactsRes.data.map(mapContactRow));
       if (bookingsRes.data) setBookings(bookingsRes.data.map(mapBooking));
-      if (employeesRes.data) setEmployees(employeesRes.data.map(r => ({ id: r.id, userId: r.user_id, name: r.name, email: r.email, role: r.role, allowedModules: r.allowed_modules || { ...DEFAULT_EMPLOYEE_ACCESS } })));
+      if (employeesRes.data) setEmployees(employeesRes.data.map(r => ({ id: r.id, userId: r.user_id, name: r.name, email: r.email, role: r.role, allowedModules: r.allowed_modules || { ...DEFAULT_EMPLOYEE_ACCESS }, customAccess: !!r.custom_access })));
       if (tasksRes.data) setEmployeeTasks(tasksRes.data.map(mapTask));
       if (stageTasksRes.data) setStageTasks(stageTasksRes.data.map(r => ({ id: r.id, stage: r.stage, title: r.title })));
       if (stagesRes.data && stagesRes.data.length > 0) { setPipelineStages(stagesRes.data.map(r => r.name)); setPipelineStageRows(stagesRes.data); }
@@ -846,21 +854,20 @@ export default function Dashboard() {
     setLeadPanel(null);
   };
 
+  // Archived clients stay on the Clients page (Archived tab) only.
+  const activeContacts = useMemo(() => contacts.filter(c => !c.archivedAt), [contacts]);
+  const handleArchived = (ids, archivedAt) => setContacts(prev => prev.map(c => (ids.includes(c.id) ? { ...c, archivedAt } : c)));
+  const handleLeadsDeleted = ids => {
+    setContacts(prev => prev.filter(c => !ids.includes(c.id)));
+    setBookings(prev => prev.map(b => (ids.includes(b.contactId) ? { ...b, contactId: null } : b)));
+    setEmployeeTasks(prev => prev.map(t => (ids.includes(t.contactId) ? { ...t, contactId: null } : t)));
+    setContactTags(prev => Object.fromEntries(Object.entries(prev).filter(([id]) => !ids.includes(id))));
+  };
   const handleLeadDeleted = id => {
     setContacts(prev => prev.filter(c => c.id !== id));
     setBookings(prev => prev.map(b => (b.contactId === id ? { ...b, contactId: null } : b)));
     setEmployeeTasks(prev => prev.map(t => (t.contactId === id ? { ...t, contactId: null } : t)));
     setLeadPanel(null);
-  };
-
-  const handleDeleteEmployee = async employee => {
-    if (!window.confirm(`Delete ${employee.name}? Their tasks are deleted too and their leads become unassigned.`)) return false;
-    const { error } = await supabase.from("employees").delete().eq("id", employee.id);
-    if (error) { window.alert(error.code === "23503" ? "This employee still has leads assigned. Push the latest database update (npx supabase@2.118.0 db push) or reassign their leads first." : error.message); return false; }
-    setEmployees(prev => prev.filter(e => e.id !== employee.id));
-    setEmployeeTasks(prev => prev.filter(t => t.employeeId !== employee.id));
-    setContacts(prev => prev.map(c => (c.assignedEmployeeId === employee.id ? { ...c, assignedEmployeeId: null } : c)));
-    return true;
   };
 
   const handleUpdateContact = async (id, patch) => {
@@ -901,12 +908,28 @@ export default function Dashboard() {
 
   // Staff see the modules ticked on their employee record (Employees → Dashboard Access).
   const myEmployee = session ? employees.find(e => e.userId === session.user.id) : null;
-  const staffAccess = myEmployee?.allowedModules || DEFAULT_EMPLOYEE_ACCESS;
-  const canEmail = ["admin", "editor"].includes(role) || (role === "staff" && !!myEmployee?.allowedModules?.clients && !!myEmployee?.allowedModules?.["email-inbox"]);
+  // Client tags (Clients page and client drawer), loaded on their own.
+  const [clientTags, setClientTags] = useState([]);
+  const [contactTags, setContactTags] = useState({});
+  const loadTags = useCallback(async () => {
+    try { const { tags, contactTags: links } = await loadClientTags(); setClientTags(tags); setContactTags(links); }
+    catch (err) { console.error("Failed to load client tags:", err); }
+  }, []);
+  useEffect(() => { if (session && role !== "none") loadTags(); }, [session, role, loadTags]);
+  // Role defaults (Team → Role defaults); built-in values until loaded.
+  const [roleDefaults, setRoleDefaults] = useState(ROLE_DEFAULTS);
+  const loadRoleDefaults = useCallback(async () => {
+    const { data, error } = await supabase.from("role_access_defaults").select("role,sections");
+    if (!error) setRoleDefaults(defaultsFromRows(data));
+  }, []);
+  useEffect(() => { if (session) loadRoleDefaults(); }, [session, loadRoleDefaults]);
+  // Sections this person can open: role defaults or their custom access (Team page).
+  const mySections = useMemo(() => effectiveSections(role, myEmployee, roleDefaults), [role, myEmployee, roleDefaults]);
+  const canEmail = mySections.has("email-inbox");
   const visibleNav = useMemo(() => {
-    const allowed = NAV.filter(n => n.group || (n.roles.includes(role) && (n.id !== "email-inbox" || canEmail) && (!n.moduleKey || modules[n.moduleKey]) && (role !== "staff" || !n.staffKey || staffAccess[n.staffKey])));
+    const allowed = NAV.filter(n => n.group || (n.roles.includes(role) && (n.id === "overview" || mySections.has(n.id)) && (!n.moduleKey || modules[n.moduleKey])));
     return allowed.filter((n, i) => !n.group || (allowed[i + 1] && !allowed[i + 1].group));
-  }, [role, modules, staffAccess, canEmail]);
+  }, [role, modules, mySections]);
   const navItems = visibleNav.filter(n => !n.group);
   const currentPage = navItems.some(n => n.id === page) ? page : "overview";
   const activeLabel = navItems.find(n => n.id === currentPage)?.label ?? "";
@@ -927,24 +950,25 @@ export default function Dashboard() {
   }, [canEmail, session, page]);
 
   const pageComponents = {
-    overview: <Overview goTo={setPage} submissions={submissions} bookings={bookings} contacts={contacts} stages={pipelineStages} currency={currency} role={role} calendar={!!modules.bookings} />,
+    overview: <Overview goTo={setPage} submissions={submissions} bookings={bookings} contacts={activeContacts} stages={pipelineStages} currency={currency} role={role} calendar={!!modules.bookings} />,
     "edit-website": <EditWebsite role={role} />,
     "cms-services": <CollectionManager kinds={["immigration_service", "visa_destination", "travel_package"]} title="Services" subtitle="Everything on each service page — text, images, SEO and its form — on one screen." role={role} />,
     news: <CollectionManager kinds={["news_article"]} title="News" subtitle="Stories (badge “Homepage”) appear in the homepage “News & Current Events” section in list order; guides appear on the News page. The section's heading is edited in Pages → Home." role={role} />,
     testimonials: <CollectionManager kinds={["testimonial"]} title="Testimonials" subtitle="Client quotes shown on the homepage (the first three are displayed)." role={role} />,
     forms: <Forms onOpenEmail={canEmail ? openEmail : null} role={role} stages={pipelineStages} goTo={setPage} onConvertToCase={handleConvertToCase} />,
-    pipeline: <Contacts contacts={contacts} setContacts={setContacts} bookings={bookings} employees={employees} onStageChange={handleStageChange} onUpdateContact={handleUpdateContact} onOpenLead={setLeadPanel} onNewLead={() => setLeadPanel("new")} stages={pipelineStages} categories={categories} currency={currency} stageRows={pipelineStageRows} onStagesSaved={handleStagesSaved} role={role} />,
-    clients: <ClientsDirectory contacts={contacts} bookings={bookings} goTo={setPage} categories={categories} stages={pipelineStages} currency={currency} onOpenDocuments={id => { setDocumentsContactId(id); setPage("documents"); }} onOpenLead={setLeadPanel} onNewLead={() => setLeadPanel("new")} />,
+    pipeline: <Contacts contacts={activeContacts} setContacts={setContacts} bookings={bookings} employees={employees} onStageChange={handleStageChange} onUpdateContact={handleUpdateContact} onOpenLead={setLeadPanel} onNewLead={() => setLeadPanel("new")} stages={pipelineStages} categories={categories} currency={currency} stageRows={pipelineStageRows} onStagesSaved={handleStagesSaved} role={role} />,
+    clients: <ClientsDirectory contacts={contacts} bookings={bookings} goTo={setPage} categories={categories} stages={pipelineStages} currency={currency} onOpenDocuments={id => { setDocumentsContactId(id); setPage("documents"); }} onOpenLead={setLeadPanel} onNewLead={() => setLeadPanel("new")}
+      tags={clientTags} contactTags={contactTags} onTagsChanged={loadTags} role={role} onArchived={handleArchived} onDeleted={handleLeadsDeleted} employees={employees} canEmail={canEmail} />,
     documents: <ClientDocuments contacts={contacts} role={role} selectedContactId={documentsContactId} onSelectContact={setDocumentsContactId} />,
-    employees: <Employees employees={employees} setEmployees={setEmployees} tasks={employeeTasks} setTasks={setEmployeeTasks} stageTasks={stageTasks} setStageTasks={setStageTasks} stages={pipelineStages} profiles={profiles} role={role} onDeleteEmployee={handleDeleteEmployee} />,
-    bookings: <Bookings bookings={bookings} contacts={contacts} role={role} onSaveBooking={handleSaveBooking} onDeleteBooking={handleDeleteBooking} />,
+    bookings: <Bookings bookings={bookings} contacts={activeContacts} role={role} onSaveBooking={handleSaveBooking} onDeleteBooking={handleDeleteBooking} />,
     media: <Media role={role} />,
-    users: profile ? <UsersAdmin me={profile} /> : null,
+    team: profile ? <Team me={profile} employees={employees} setEmployees={setEmployees} tasks={employeeTasks} setTasks={setEmployeeTasks}
+      stageTasks={stageTasks} setStageTasks={setStageTasks} stages={pipelineStages} onReload={loadAll} roleDefaults={roleDefaults} onRoleDefaultsChanged={loadRoleDefaults} /> : null,
     "form-emails": <FormEmails />,
-    "email-inbox": canEmail ? <EmailInbox key={emailContext.key} contacts={contacts} userId={session?.user.id} initialContactId={emailContext.contactId} initialCompose={emailContext.compose} onOpenLead={setLeadPanel}
+    "email-inbox": canEmail ? <EmailInbox key={emailContext.key} contacts={activeContacts} userId={session?.user.id} initialContactId={emailContext.contactId} initialCompose={emailContext.compose} onOpenLead={setLeadPanel}
       onContextUsed={() => setEmailContext(c => (c.contactId || c.compose ? { ...c, contactId: null, compose: false } : c))}
       isAdmin={role === "admin"} /> : null,
-    settings: <Settings pipelineStages={pipelineStages} pipelineStageRows={pipelineStageRows} onStagesSaved={handleStagesSaved} currency={currency} setCurrency={setCurrency} modules={modules} setModules={setModules} chatWidgetCode={chatWidgetCode} setChatWidgetCode={setChatWidgetCode} settings={siteSettings} onSaveSettings={handleSaveSettings} goTo={setPage} />,
+    settings: <Settings role={role} pipelineStages={pipelineStages} pipelineStageRows={pipelineStageRows} onStagesSaved={handleStagesSaved} currency={currency} setCurrency={setCurrency} modules={modules} setModules={setModules} chatWidgetCode={chatWidgetCode} setChatWidgetCode={setChatWidgetCode} settings={siteSettings} onSaveSettings={handleSaveSettings} goTo={setPage} />,
   };
 
   if (!authReady || (session && profile === undefined)) {
@@ -960,7 +984,7 @@ export default function Dashboard() {
   }
 
   if (role === "none") {
-    return <NoAccessScreen email={session.user.email} deactivated={profile && !profile.is_active} onSignOut={handleSignOut} />;
+    return <NoAccessScreen email={session.user.email} unverified={!session.user.email_confirmed_at} deactivated={profile && !profile.is_active} onSignOut={handleSignOut} />;
   }
 
   const renderNav = (onPick, isMobile) => visibleNav.map(n => {
@@ -1037,6 +1061,8 @@ export default function Dashboard() {
         <div className={`flex-1 min-h-0 dash-content-pad px-8 py-8 ${currentPage === "pipeline" ? "dash-pipeline-content overflow-hidden" : "overflow-auto"}`} style={{ paddingBottom: currentPage === "pipeline" ? 24 : 80 }}>{!loaded ? <div className="flex items-center justify-center py-20"><Loader2 size={22} className="animate-spin" style={{ color: T.muted }} /></div> : pageComponents[currentPage]}</div>
       </div>
       {leadPanel && <LeadDrawer onOpenEmail={canEmail ? openEmail : null} key={leadPanel} lead={leadPanel === "new" ? null : contacts.find(c => c.id === leadPanel)} contacts={contacts} stages={pipelineStages} employees={employees} bookings={bookings} role={role}
+        tags={clientTags} tagIds={leadPanel === "new" ? [] : contactTags[leadPanel] || []}
+        onTagCreated={tag => setClientTags(prev => [...prev, tag])} onTagsSaved={(id, ids) => setContactTags(prev => ({ ...prev, [id]: ids }))}
         onClose={() => setLeadPanel(null)} onSaved={handleLeadSaved} onDeleted={handleLeadDeleted}
         goTo={id => { setLeadPanel(null); setPage(id); }} onOpenDocuments={id => { setLeadPanel(null); setDocumentsContactId(id); setPage("documents"); }} />}
       {/* Mobile bottom tab bar */}

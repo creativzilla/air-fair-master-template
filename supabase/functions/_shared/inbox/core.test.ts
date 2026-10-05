@@ -353,3 +353,57 @@ test("From selector: only active sendable mailboxes; replies default to the rece
   assert.equal(pickFromMailbox(boxes,null).initial,"g");
   assert.equal(pickFromMailbox([{id:"t",can_send:false,status:"active"}],"t").initial,"");
 });
+
+test("dashboard section access: role defaults, custom lists for any role, inbox needs clients",async()=>{
+  const { effectiveSections, defaultsMap } = await import("../../../../src/dashboard/access.js");
+  const list=(r:string,m?:any)=>[...effectiveSections(r,m)].sort();
+  assert.ok(effectiveSections("admin",null).has("team"));assert.ok(effectiveSections("admin",null).has("settings"));
+  assert.ok(!effectiveSections("staff",null).has("email-inbox"),"staff default: no inbox");
+  assert.ok(!effectiveSections("editor",null).has("settings"));
+  assert.deepEqual(list("staff",{customAccess:true,allowedModules:{clients:true,"email-inbox":true,settings:true}}),["clients","email-inbox","settings"],"any section can be granted to any role");
+  assert.deepEqual(list("none",{customAccess:true,allowedModules:{clients:true}}),[],"no role: nothing");
+  assert.deepEqual(list("staff",{customAccess:true,allowedModules:{"email-inbox":true}}),[],"inbox needs clients");
+  assert.deepEqual(list("admin",{customAccess:true,allowedModules:{clients:true,pipeline:true}}),["clients","pipeline"],"admins can be limited");
+  assert.deepEqual(list("admin",{customAccess:false,allowedModules:{clients:true}}),list("admin",null),"not custom: role defaults");
+  assert.equal(defaultsMap("staff").pipeline,true);assert.equal(defaultsMap("staff")["email-inbox"],false);
+  assert.deepEqual(list("none",null),[]);
+});
+
+test("client tags: filter by any/all, counts per tag, minimal changes on save",async()=>{
+  const { filterByTags, tagCounts, tagDiff } = await import("../../../../src/dashboard/clientTagFilters.js");
+  const contacts=[{id:"a"},{id:"b"},{id:"c"}];
+  const links={a:["lost","vip"],b:["vip"],c:[]};
+  assert.deepEqual(filterByTags(contacts,links,["vip"]).map((c:any)=>c.id),["a","b"]);
+  assert.deepEqual(filterByTags(contacts,links,["vip","lost"],"any").map((c:any)=>c.id),["a","b"]);
+  assert.deepEqual(filterByTags(contacts,links,["vip","lost"],"all").map((c:any)=>c.id),["a"]);
+  assert.equal(filterByTags(contacts,links,[]).length,3,"no tag filter: everyone");
+  assert.deepEqual(tagCounts(links),{lost:1,vip:2});
+  assert.deepEqual(tagDiff(["vip","lost"],["vip","nurturing"]),{add:["nurturing"],remove:["lost"]});
+});
+
+test("client export: rows with tags/assignee, CSV escaping and formula safety, valid xlsx zip",async()=>{
+  const { clientRows, toCSV, toXLSX } = await import("../../../../src/dashboard/clientExport.js");
+  const rows=clientRows([{id:"a",name:"José",email:"j@x.com",phone:"+63 917",amount:5,assignedEmployeeId:"e1",notes:'He said "hi", ok',createdAt:"2026-10-01T00:00:00Z"},
+    {id:"b",name:"=1+1",createdAt:null}],{tags:[{id:"t",name:"VIP"}],contactTags:{a:["t"]},employees:[{id:"e1",name:"Ana"}]});
+  assert.deepEqual(rows[0].slice(0,4),["Name","Email","Phone","Tags"]);
+  assert.equal(rows[1][3],"VIP");assert.equal(rows[1][6],5);assert.equal(rows[1][7],"Ana");
+  const csv=toCSV(rows).split("\r\n");
+  assert.ok(toCSV(rows).startsWith("\uFEFF"),"BOM for Excel");
+  assert.match(csv[1],/"He said ""hi"", ok"/);assert.match(csv[1],/,'\+63 917,/,"phone numbers exported as text");
+  assert.match(csv[2],/^'=1\+1,/,"formula-looking text is neutralised");
+  const x=toXLSX(rows);
+  assert.deepEqual([...x.slice(0,4)],[0x50,0x4b,0x03,0x04],"zip signature");
+  assert.ok(new TextDecoder().decode(x).includes("José"));
+});
+
+test("Verify Setup: a send-only mailbox becomes Active once Resend accepts the test email",async()=>{
+  const box={id:"mb2",name:"Air Fair Admin",address:"admin@airfairtravel.com",receiving_address:"admin@reply.airfairtravel.com",status:"pending",send_only:true};
+  const store:any={box:{...box}};
+  const q=(table:string)=>{let patch:any=null;const api:any={select:()=>api,eq:()=>api,update:(p:any)=>{patch=p;return api;},upsert:async()=>({error:null}),
+    single:async()=>{if(table==="email_mailboxes"&&patch)Object.assign(store.box,patch);return {data:{...store.box},error:null};},then:(r:any)=>Promise.resolve(r({data:null,error:null}))};return api;};
+  let probes=0;
+  const r=await verifyMailbox({from:q},(async(path:string)=>{if(path==="/domains")return {data:[{name:"airfairtravel.com",status:"verified",capabilities:{sending:"enabled"}}]};probes++;return {id:"p"};}) as any,"mb2");
+  assert.equal(probes,1);assert.equal(r.status,"active");assert.match(r.detail,/send-only/);
+  const failed=await verifyMailbox({from:q},(async(path:string)=>{if(path==="/domains")return {data:[]};return {id:"p"};}) as any,"mb2");
+  assert.equal(failed.status,"active","an active mailbox stays active on a failed re-check");
+});

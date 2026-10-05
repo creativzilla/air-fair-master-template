@@ -18,6 +18,11 @@ export const StatusBadge = ({ status }) => { const s = STATUS[status] || STATUS.
 
 function SetupSteps({ box }) {
   const isGeneral = box.address === "no-reply@airfairtravel.com";
+  if (box.send_only) return <div className="text-sm rounded-lg p-3 flex flex-col gap-2" style={{ backgroundColor: T.bg }}>
+    <p className="font-medium">Setup (send-only)</p>
+    <p style={{ color: T.muted }}>Used as the From address in Email Inbox and bulk email. Mail sent directly to {box.address} stays in Google Workspace; replies to emails sent from the dashboard still come back to the dashboard.</p>
+    <p>Click <strong>Verify Setup</strong>: a test email is sent from {box.address} to itself. When Resend accepts it, the mailbox becomes Active.</p>
+  </div>;
   return <div className="text-sm rounded-lg p-3 flex flex-col gap-2" style={{ backgroundColor: T.bg }}>
     <p className="font-medium">Setup</p>
     {isGeneral ? <p style={{ color: T.muted }}>This is the existing Airfair sender. Replies reach the dashboard through each email's thread address.</p> : <>
@@ -36,13 +41,14 @@ function MailboxEditor({ box, staff, onSaved, onCancel }) {
   const [name, setName] = useState(box?.name || "");
   const [address, setAddress] = useState(box?.address || "");
   const [everyone, setEveryone] = useState(!!box?.all_inbox_users);
+  const [sendOnly, setSendOnly] = useState(!!box?.send_only);
   const [members, setMembers] = useState(() => Object.fromEntries((box?.members || []).map(m => [m.user_id, m.can_send ? "send" : "read"])));
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const save = async () => {
     setBusy(true); setError("");
     try {
-      const saved = check(await supabase.rpc("admin_save_mailbox", { p_id: box?.id || null, p_name: name, p_address: address, p_all_inbox_users: everyone }));
+      const saved = check(await supabase.rpc("admin_save_mailbox", { p_id: box?.id || null, p_name: name, p_address: address, p_all_inbox_users: everyone, p_send_only: sendOnly }));
       const row = Array.isArray(saved) ? saved[0] : saved;
       check(await supabase.rpc("admin_set_mailbox_members", { p_id: row.id,
         p_members: Object.entries(members).filter(([, v]) => v !== "none").map(([user_id, v]) => ({ user_id, can_send: v === "send" })) }));
@@ -53,6 +59,10 @@ function MailboxEditor({ box, staff, onSaved, onCancel }) {
     <h3 className="font-semibold">{box ? `Edit ${box.name}` : "Add Shared Mailbox"}</h3>
     <LabeledInput label="Mailbox name" value={name} onChange={setName} placeholder="Visa Team" hint="Shown to clients as the sender name." />
     <LabeledInput label="Email address" value={address} onChange={setAddress} placeholder="visa@airfairtravel.com" hint="Must be an @airfairtravel.com address. Changing it requires verifying again." />
+    <label className="flex items-start gap-2 text-sm">
+      <input type="checkbox" className="mt-1" checked={sendOnly} onChange={e => setSendOnly(e.target.checked)} />
+      <span>Send-only<span className="block text-xs" style={{ color: T.muted }}>For an address that already has its own Google Workspace inbox (like admin@): use it as From without forwarding its mail into the dashboard. Replies to dashboard emails still come back here.</span></span>
+    </label>
     <div>
       <p className="text-sm font-medium mb-1">Authorized staff</p>
       <label className="flex items-center gap-2 text-sm mb-2"><input type="checkbox" checked={everyone} onChange={e => setEveryone(e.target.checked)} />Everyone with Email Inbox access (read and send)</label>
@@ -123,13 +133,14 @@ export default function MailboxSettings({ onBack, onChanged }) {
           <span className="font-medium truncate">{box.name}</span>
           <span className="text-sm truncate" style={{ color: T.muted }}>{box.address}</span>
           {box.is_default && <span className="text-xs inline-flex items-center gap-1" style={{ color: T.accent }}><Star size={12} />Default</span>}
+          {box.send_only && <span className="text-xs rounded px-1.5" style={{ border: `1px solid ${T.border}`, color: T.muted }}>Send-only</span>}
           <span className="ml-auto"><StatusBadge status={box.status} /></span>
         </button>
         {open === box.id && <div className="px-4 pb-4 flex flex-col gap-3">
           {box.status_detail && <p className="text-sm" style={{ color: box.status === "setup_failed" ? T.danger : T.muted }}>{box.status_detail}</p>}
           <div className="text-xs flex flex-wrap gap-x-4 gap-y-1" style={{ color: T.muted }}>
             <span>Sending: {box.sending_verified_at ? <><CheckCircle2 size={11} className="inline" /> verified {formatDateTime(box.sending_verified_at)}</> : "not verified"}</span>
-            <span>Receiving: {box.receiving_verified_at ? <><CheckCircle2 size={11} className="inline" /> verified {formatDateTime(box.receiving_verified_at)}</> : "not verified"}</span>
+            <span>Receiving: {box.send_only ? "not used (send-only)" : box.receiving_verified_at ? <><CheckCircle2 size={11} className="inline" /> verified {formatDateTime(box.receiving_verified_at)}</> : "not verified"}</span>
             <span>Access: {box.all_inbox_users ? "everyone with Email Inbox access" : `${box.members.length} staff (administrators always)`}</span>
           </div>
           <SetupSteps box={box} />

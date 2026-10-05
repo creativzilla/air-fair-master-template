@@ -4,8 +4,7 @@
 // The browser app (main.jsx) is unchanged and takes over after loading.
 import React from "react";
 import { renderToString } from "react-dom/server";
-import { StaticRouter } from "react-router-dom/server";
-import { Routes, Route } from "react-router-dom";
+import { StaticRouter, Routes, Route } from "react-router-dom";
 import Website from "./pages/Website.jsx";
 import PhilippineImmigrationServices from "./pages/PhilippineImmigrationServices.jsx";
 import ImmigrationServicePage from "./pages/ImmigrationServicePage.jsx";

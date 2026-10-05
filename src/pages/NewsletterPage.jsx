@@ -2,11 +2,12 @@ import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { TopBars, Footer, ChatWidget, colors, fallbackSettings, useSeo } from "./Website.jsx";
 import { fetchSiteSettings } from "../lib/content.js";
-import { newsletterLinkAction } from "../lib/formSubmit.js";
+import { campaignUnsubscribe, newsletterLinkAction } from "../lib/formSubmit.js";
 
 // Landing page for the links in the newsletter confirmation email:
 //   /newsletter/confirm?token=...      double opt-in confirmation
 //   /newsletter/unsubscribe?token=...  unsubscribe
+//   /newsletter/unsubscribe?c=...      unsubscribe link in a bulk (campaign) email
 // Not indexed; not prerendered.
 const COPY = {
   confirm: {
@@ -18,7 +19,7 @@ const COPY = {
   unsubscribe: {
     action: "newsletter_unsubscribe",
     working: "Unsubscribing...",
-    done: { unsubscribed: "You've been unsubscribed. You won't receive our newsletter anymore." },
+    done: { unsubscribed: "You've been unsubscribed. You won't receive our marketing emails anymore." },
     title: "Unsubscribe",
   },
 };
@@ -39,9 +40,9 @@ export default function NewsletterPage() {
 
   useEffect(() => {
     let active = true;
-    const token = params.get("token");
-    if (!copy || !token) { setState({ phase: "error", message: "This link is not valid." }); return undefined; }
-    newsletterLinkAction(copy.action, token).then(result => {
+    const token = params.get("token"), campaignToken = params.get("c");
+    if (!copy || !(token || (mode === "unsubscribe" && campaignToken))) { setState({ phase: "error", message: "This link is not valid." }); return undefined; }
+    (token ? newsletterLinkAction(copy.action, token) : campaignUnsubscribe(campaignToken)).then(result => {
       if (!active) return;
       setState(result.ok
         ? { phase: "done", message: copy.done[result.status] || Object.values(copy.done)[0] }

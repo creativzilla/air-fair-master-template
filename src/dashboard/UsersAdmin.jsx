@@ -4,9 +4,10 @@ import { T, fontBody, Badge, Button, EmptyState, LabeledInput, LabeledSelect, Mo
 import { callAdminUsers, listProfiles, updateProfile } from "./api.js";
 
 export const ROLE_INFO = {
-  admin: "Everything, including publishing, deleting, settings and users.",
-  editor: "Edits website content and forms as drafts (no publishing or deleting), and works leads.",
-  staff: "Works leads only: submissions, pipeline, clients, calendar.",
+  // Sections come from each person's access (Team page); the role sets the level.
+  admin: "Can publish and delete website content and manage admins. All sections by default.",
+  editor: "Works in the sections they're given (drafts only: no publishing, deleting or admin changes). Leads and website sections by default.",
+  staff: "Works in the sections they're given (drafts only: no publishing, deleting or admin changes). Lead sections by default.",
   none: "Can sign in but sees nothing.",
 };
 

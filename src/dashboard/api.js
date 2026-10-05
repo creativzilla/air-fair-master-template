@@ -241,7 +241,7 @@ function replaceImage(value, oldUrl, newUrl, mediaId) {
 // ---------------------------------------------------------------------------
 
 export async function signedAttachmentUrl(path) {
-  const { data, error } = await supabase.storage.from("form-attachments").createSignedUrl(path, 60 * 10);
+  const { data, error } = await supabase.storage.from("form-attachments").createSignedUrl(path, 60, { download: true });
   if (error) throw error;
   return data.signedUrl;
 }

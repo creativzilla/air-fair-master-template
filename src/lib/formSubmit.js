@@ -11,18 +11,24 @@ import { getSupabase } from "./supabaseLazy.js";
 
 // Files go to the PRIVATE form-attachments bucket. The site stores only the
 // object path; staff open files through short-lived signed URLs in the
-// dashboard. Visitors can upload but never list or read attachments.
-async function uploadAttachment(file) {
-  const month = new Date().toISOString().slice(0, 7);
-  const id = newId();
-  const safeName = file.name.replace(/[^\w.-]+/g, "_").slice(-80);
-  const path = `submissions/${month}/${id}-${safeName}`;
+// dashboard. The form-upload broker enforces quotas and validates bytes before
+// storage; direct browser uploads are denied. Visitors cannot list/read files.
+async function uploadAttachment(file, formKey, fieldName) {
   const supabase = await getSupabase();
-  const { error } = await supabase.storage
-    .from("form-attachments")
-    .upload(path, file, { contentType: file.type || undefined, upsert: false });
-  if (error) throw error;
-  return path;
+  const { data, error } = await supabase.functions.invoke("form-upload", {
+    body: file,
+    headers: { "Content-Type": file.type || "application/octet-stream", "x-form-key": formKey || "",
+      "x-field-name": fieldName, "x-file-name": encodeURIComponent(file.name) },
+  });
+  if (error) {
+    let message = "We couldn't upload this file. Please try again.";
+    if (error.context?.status >= 400 && error.context?.status < 500) {
+      try { message = (await error.context.json()).error || message; } catch { /* safe default */ }
+    }
+    throw new FormSubmitError(message);
+  }
+  if (!data?.path) throw new FormSubmitError("We couldn't upload this file. Please try again.");
+  return data;
 }
 
 export function newId() {
@@ -95,9 +101,10 @@ export async function submitWebsiteForm({ form, formId, serviceType, formType, s
     if (field.type === "file") {
       if (!value) continue;
       try {
-        const path = await uploadAttachment(value);
-        attachments.push({ field: field.name, path, name: value.name, size: value.size, type: value.type });
-      } catch {
+        const uploaded = await uploadAttachment(value, form?.key, field.name);
+        attachments.push({ field: field.name, ...uploaded, name: value.name });
+      } catch (error) {
+        if (error instanceof FormSubmitError) throw error;
         throw new FormSubmitError(`We couldn't upload "${value.name}". Please try again, or send it to us by email after submitting.`);
       }
       payload[field.name] = value.name;
@@ -167,4 +174,14 @@ export async function newsletterLinkAction(action, token) {
   let message = "";
   try { message = (await error.context?.json?.())?.error || ""; } catch { /* no body */ }
   return { ok: false, error: message || "Something went wrong. Please try again later." };
+}
+
+// Unsubscribe link from a bulk (campaign) email: /newsletter/unsubscribe?c=<token>.
+export async function campaignUnsubscribe(token) {
+  const supabase = await getSupabase();
+  const { data, error } = await supabase.functions.invoke("campaign-worker", { body: { action: "unsubscribe", token } });
+  if (!error && data?.ok) return { ok: true, status: "unsubscribed" };
+  let message = "";
+  try { message = (await error?.context?.json?.())?.error || ""; } catch { /* no body */ }
+  return { ok: false, error: message || data?.error || "This unsubscribe link is not valid." };
 }

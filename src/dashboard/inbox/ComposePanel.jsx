@@ -11,7 +11,7 @@ const chipStyle = { backgroundColor: T.bg, border: `1px solid ${T.border}` };
 
 // One recipient row. The sender's own automatic copy shows once, as a normal
 // chip without a remove button (the server adds it by policy).
-function RecipientRow({ label, chips, onRemove, input, setInput, onAdd, trailing }) {
+export function RecipientRow({ label, chips, onRemove, input, setInput, onAdd, trailing }) {
   return <div className="flex items-start gap-2 px-3 py-1.5 border-b" style={{ borderColor: T.border }}>
     <span className="text-sm pt-1 w-10 shrink-0" style={{ color: T.muted }}>{label}</span>
     <div className="flex flex-wrap gap-1 items-center flex-1 min-w-0">

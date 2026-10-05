@@ -6,6 +6,13 @@ const api = resendClient(Deno.env.get("RESEND_API_KEY") || "");
 Deno.serve(req => receiveWebhook(req, {
   secret: Deno.env.get("RESEND_WEBHOOK_SECRET") || "",
   getEmail: id => api(`/emails/receiving/${encodeURIComponent(id)}`),
+  // Campaign delivery tracking and suppression (hard bounces, complaints).
+  onStatusEvent: async (eventId, event) => {
+    const d = event.data || {};
+    must(await db.rpc("campaign_provider_event", { p_event_id: eventId, p_type: event.type, p_email_id: typeof d.email_id === "string" ? d.email_id : null,
+      p_to: Array.isArray(d.to) ? d.to.map((a: unknown) => String(a).replace(/^.*<([^>]+)>.*$/, "$1").trim().toLowerCase()) : [],
+      p_bounce_type: d.bounce?.type ?? null, p_detail: d.bounce?.message ? String(d.bounce.message).slice(0, 300) : null }));
+  },
   persist: async (event, email) => {
     // Mailbox setup probe (see mailbox-verify): a matching one-time token that
     // arrived for that mailbox proves receiving. Anything else is stored normally.

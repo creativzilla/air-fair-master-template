@@ -248,6 +248,50 @@ Migration `20261003100000_email_shared_mailboxes.sql`, new function `mailbox-ver
   frontend. Until `resend-inbound` is redeployed, new mail is filed under the
   default mailbox.
 
+## Bulk email campaigns (Client List → Send Email)
+
+Migration `20261003260000_email_campaigns.sql`, new function `campaign-worker`,
+updated `resend-inbound` (delivery events) and website unsubscribe page.
+
+- Clients → select → **Send Email**: type (Service update / Promotional), From
+  (mailboxes the user can send from), Reply-To = that mailbox's
+  `…@reply.airfairtravel.com` (replies land in Email Inbox), subject and
+  rich-text message with `{{first_name}}` + fallback, Preview, Send test (to
+  the user's own address), optional Drip Sending (batch size, interval, start,
+  window + timezone, estimated finish), then a review of eligible/excluded.
+- One email per recipient; never shared To/CC/BCC; no automatic sender copy.
+  The initiating user is stored on the campaign (`created_by`).
+- Eligibility (`campaign_block_reason`), checked at review and again when each
+  job is claimed: missing/invalid/duplicate address, hard bounce, complaint;
+  promotional also needs a confirmed newsletter subscription and no
+  unsubscribe. Service emails ignore marketing unsubscribes.
+- Background sending: pg_cron job `email-campaign-worker` (every minute) runs
+  `campaign_kick_worker()`, which calls `campaign-worker` only when something is
+  due, with a secret generated into Vault (`campaign_worker_secret`) by the
+  migration. Jobs are claimed with `FOR UPDATE SKIP LOCKED` + a 5-minute lease;
+  each job uses Resend Idempotency-Key `campaign-<job id>`. Retries back off
+  1/5/15/60 minutes (max 5 attempts). Ambiguous outcomes are retried only with
+  the same key and within 23 h; otherwise marked `unknown`, never resent.
+  Rate limit → retry next minute; daily/monthly quota or `email_above_quota`
+  → campaign paused with the reason. Form Emails "Send emails" off → nothing
+  is sent; Form Emails test mode → everything goes to the test address.
+- History: Clients → Campaigns. Statuses queued/processing/paused/completed/
+  cancelled; recipient results pending / accepted by provider / delivered /
+  failed / skipped. Pause/cancel stop jobs that haven't started.
+- Promotional emails include an unsubscribe link (`/newsletter/unsubscribe?c=`)
+  and RFC 8058 one-click headers (`campaign-worker?unsubscribe=`).
+
+Required configuration after deploying:
+1. Deploy `campaign-worker` (config.toml: `verify_jwt = false`; it checks the
+   Vault secret for runs and the user's JWT for test sends).
+2. Resend → Webhooks → the existing `resend-inbound` webhook: also subscribe to
+   `email.delivered`, `email.delivery_delayed`, `email.bounced`,
+   `email.complained`. Without these, results stay "Accepted by provider" and
+   bounces/complaints are not suppressed automatically.
+3. Optional secret `SITE_URL` (defaults to https://airfairtravel.com).
+4. Rollback: `select cron.unschedule('email-campaign-worker');` then pause or
+   cancel any campaigns.
+
 ## Send status and recovery
 
 Dashboard sends are durably saved before HTTP, claimed with a two-minute lease,

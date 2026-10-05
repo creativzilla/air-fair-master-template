@@ -1,8 +1,10 @@
+import { isUuid, readJsonObject, publicFailure } from "../_shared/auth/http.ts";
+import { budgetedEmailFetch, throttleEmailAction } from "../_shared/auth/emailBudget.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { allowedOrigins, corsHeaders, must, resendClient, sendStoredMessage } from "../_shared/inbox/core.ts";
 const url = Deno.env.get("SUPABASE_URL")!;
 const db = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
-const api = resendClient(Deno.env.get("RESEND_API_KEY") || "");
+const api = resendClient(Deno.env.get("RESEND_API_KEY") || "", budgetedEmailFetch(db));
 const origins = allowedOrigins(Deno.env.get("EXTRA_ALLOWED_ORIGINS") || "");
 Deno.serve(async req => {
   const headers = corsHeaders(req.headers.get("origin") || "", origins);
@@ -18,10 +20,16 @@ Deno.serve(async req => {
     const access = await caller.rpc("can_use_email_inbox");
     if (access.error || access.data !== true) return reply({ error: "Inbox access denied" },403);
     try {
-      const raw = await req.text();
-      if (raw.length > 60000) return reply({ error: "Message too large" },413);
-      const body = JSON.parse(raw);
+      const body = await readJsonObject(req, 60000);
+      for (const key of ["message_id", "request_key", "contact_id", "conversation_id", "mailbox_id"]) {
+        if (body[key] != null && !isUuid(body[key])) return reply({ error: "Invalid message or mailbox ID." }, 400);
+      }
+      if (!body.message_id && !isUuid(body.request_key)) return reply({ error: "A valid request key is required." }, 400);
+      for (const key of ["subject", "body"]) {
+        if (body[key] != null && typeof body[key] !== "string") return reply({ error: "Subject and message must be text." }, 400);
+      }
       let message: any;
+      await throttleEmailAction(db,user.id,'inbox',600,30);
       if (body.message_id) {
         // RLS: only messages in mailboxes the caller can read.
         message = must(await caller.from("email_messages").select("id,conversation_id,outbox_id,mailbox_id,resend_id").eq("id", body.message_id).single());
@@ -53,7 +61,10 @@ Deno.serve(async req => {
       }
       const result = await sendStoredMessage(db, message.id, api);
       return reply({ ...result, message_id: message.id, conversation_id: message.conversation_id });
-    } catch (err) { return reply({ error: err instanceof Error ? err.message : "Could not send email" },400); }
+    } catch (err) {
+      const failure = publicFailure(err, "Could not send email. Check the message and mailbox access, then retry.");
+      return reply(failure.body, failure.status);
+    }
   } catch (err) {
     console.error(JSON.stringify({ fn: "inbox-send", stage: "auth", code: (err as any)?.code || (err as any)?.name || "Error" }));
     return reply({ error: "Could not verify sign-in. Retry shortly." },503);

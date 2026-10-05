@@ -4,6 +4,8 @@ import React, { useMemo, useState } from "react";
 import { CalendarDays, FileText, FolderOpen, Inbox, Mail, Trash2 } from "lucide-react";
 import { T, fontBody, Badge, Button, Drawer, FieldLabel, LabeledInput, LabeledSelect, LabeledTextarea, Notice, formatDateTime, inputStyle } from "./ui.jsx";
 import { supabase } from "../lib/supabase.js";
+import { saveContactTags, setArchived } from "./clientTags.js";
+import { TagPicker } from "./ClientTagsUI.jsx";
 
 // Same categories website forms use when they create leads automatically.
 export const LEAD_CATEGORIES = ["Immigration Processing", "Visa", "Tour Package", "General"];
@@ -13,8 +15,8 @@ const digits = v => String(v || "").replace(/\D/g, "");
 export function mapContactRow(r) {
   return {
     id: r.id, submissionId: r.submission_id, name: r.name, email: r.email, phone: r.phone, category: r.category,
-    status: r.status, amount: r.amount ? Number(r.amount) : null, assignedEmployeeId: r.assigned_employee_id,
-    source: r.source ?? null, notes: r.notes ?? null, createdAt: r.created_at,
+    status: r.status, amount: r.amount == null ? null : Number(r.amount), assignedEmployeeId: r.assigned_employee_id,
+    source: r.source ?? null, notes: r.notes ?? null, createdAt: r.created_at, archivedAt: r.archived_at ?? null,
   };
 }
 
@@ -27,7 +29,8 @@ function friendly(err) {
   return msg;
 }
 
-export default function LeadDrawer({ lead, contacts, stages, employees, bookings, role, onClose, onSaved, onDeleted, goTo, onOpenDocuments, onOpenEmail }) {
+export default function LeadDrawer({ lead, contacts, stages, employees, bookings, role, onClose, onSaved, onDeleted, goTo, onOpenDocuments, onOpenEmail,
+  tags = [], tagIds = [], onTagCreated, onTagsSaved }) {
   const isNew = !lead;
   const [form, setForm] = useState({
     name: lead?.name || "", email: lead?.email || "", phone: lead?.phone || "",
@@ -37,6 +40,7 @@ export default function LeadDrawer({ lead, contacts, stages, employees, bookings
   });
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
+  const [selectedTags, setSelectedTags] = useState(tagIds);
   const set = patch => setForm(prev => ({ ...prev, ...patch }));
 
   const duplicates = useMemo(() => {
@@ -53,9 +57,14 @@ export default function LeadDrawer({ lead, contacts, stages, employees, bookings
     setError("");
     if (!form.name.trim()) { setError("Enter the client's name."); return; }
     if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) { setError("Enter a valid email address or leave it empty."); return; }
+    if (form.name.trim().length > 200) { setError("Name must be at most 200 characters."); return; }
+    if (form.email.trim().length > 254) { setError("Email must be at most 254 characters."); return; }
+    if (form.phone.trim().length > 80 || /[\u0000-\u001f\u007f]/.test(form.phone)) { setError("Phone must be at most 80 characters without control characters."); return; }
+    if (form.source.trim().length > 200 || form.notes.trim().length > 10000) { setError("Source must be at most 200 characters and notes at most 10000."); return; }
+    if (form.amount !== "" && (!Number.isFinite(Number(form.amount)) || Number(form.amount) < 0)) { setError("Amount must be a finite, non-negative number."); return; }
     const row = {
       name: form.name.trim(), email: form.email.trim() || null, phone: form.phone.trim() || null,
-      category: form.category, status: form.status, amount: form.amount === "" ? null : Number(form.amount) || null,
+      category: form.category, status: form.status, amount: form.amount === "" ? null : Number(form.amount),
       assigned_employee_id: form.assignedEmployeeId || null,
     };
     // Only send source/notes when used, so saving works even before the
@@ -67,6 +76,14 @@ export default function LeadDrawer({ lead, contacts, stages, employees, bookings
     const { data, error: err } = await query.select().single();
     setBusy("");
     if (err) { setError(friendly(err)); return; }
+    // Tags are saved after the client row exists (new leads get their id here).
+    try {
+      await saveContactTags(data.id, isNew ? [] : tagIds, selectedTags);
+      onTagsSaved?.(data.id, selectedTags);
+    } catch (tagErr) {
+      // The client is saved; report the tag problem without losing it when the drawer closes.
+      window.alert(`${data.name} was saved, but the tags could not be updated: ${friendly(tagErr)}`);
+    }
     onSaved(mapContactRow(data), isNew);
   };
 
@@ -86,6 +103,11 @@ export default function LeadDrawer({ lead, contacts, stages, employees, bookings
       <Button busy={busy === "save"} onClick={save}>{isNew ? "Add lead" : "Save changes"}</Button>
     </>}>
       <div className="flex flex-col gap-5">
+        {!isNew && lead.archivedAt && <Notice tone="warn">Archived {formatDateTime(lead.archivedAt)}. Hidden from the Pipeline and active lists.{" "}
+          <button type="button" className="underline" disabled={!!busy} onClick={async () => {
+            setBusy("restore"); setError("");
+            try { await setArchived([lead.id], false); onSaved({ ...lead, archivedAt: null }, false); } catch (err) { setError(friendly(err)); setBusy(""); }
+          }}>Restore</button></Notice>}
         {!isNew && (
           <div className="flex gap-2 flex-wrap">
             {onOpenEmail && <><Button tone="soft" small icon={Mail} disabled={!lead.email} onClick={() => onOpenEmail(lead.id, true)}>Send Email</Button><Button tone="outline" small onClick={() => onOpenEmail(lead.id)}>Email history</Button></>}
@@ -95,6 +117,10 @@ export default function LeadDrawer({ lead, contacts, stages, employees, bookings
           </div>
         )}
         <LabeledInput label="Full name" value={form.name} onChange={name => set({ name })} />
+        <div>
+          <FieldLabel hint="Labels like Inquiry only, Nurturing or Lost. Filter by them on the Clients page.">Tags</FieldLabel>
+          <TagPicker tags={tags} value={selectedTags} onChange={setSelectedTags} onTagCreated={tag => onTagCreated?.(tag)} />
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <LabeledInput label="Email" type="email" value={form.email} onChange={email => set({ email })} />
           <LabeledInput label="Phone / WhatsApp" type="tel" value={form.phone} onChange={phone => set({ phone })} />

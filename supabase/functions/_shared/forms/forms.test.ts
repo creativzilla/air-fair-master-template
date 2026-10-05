@@ -143,6 +143,23 @@ class FakeMailer {
   }
 }
 
+test('application budget holds emails without burning attempts; delayed uncertain sends require review',async()=>{
+  const {deps,store,mailer,clock}=setup();
+  mailer.script.push(...Array.from({length:2},()=>({ok:false as const,retryable:true,budgetBlocked:true,error:'Budget reached'})));
+  await submit(deps,submission('contact'));
+  assert.ok(store.outbox.every(o=>o.status==='retry'&&o.attempts===0));
+  clock.advance(25*60);
+  await processOutbox(deps);
+  assert.ok(store.outbox.every(o=>o.status==='sent'),'never-attempted email may send after budget resets');
+  const other=setup();
+  other.mailer.script.push(...Array.from({length:2},()=>({ok:false as const,retryable:true,error:'Network timeout'})));
+  await submit(other.deps,submission('contact'));
+  const calls=other.mailer.calls.length;other.clock.advance(25*60);
+  await processOutbox(other.deps);
+  assert.equal(other.mailer.calls.length,calls);
+  assert.ok(other.store.outbox.every(o=>o.status==='failed'&&o.last_error?.includes('review')));
+});
+
 function setup() {
   const clock = new Clock();
   const store = new MemoryStore(clock);

@@ -1,3 +1,5 @@
+import { readTextBody, RequestError } from "../auth/http.ts";
+
 export const RECEIVING_DOMAIN = "reply.airfairtravel.com";
 // Shared mailboxes live on the Google Workspace domain and are forwarded to
 // <local>@RECEIVING_DOMAIN; mail for either domain is ours.
@@ -145,17 +147,25 @@ const defaultLog: Log = entry => console.error(JSON.stringify({ fn: "resend-inbo
 
 export async function receiveWebhook(req: Request, deps: {
   secret: string; getEmail(id: string): Promise<any>; persist(event: string, email: any): Promise<unknown>; log?: Log;
+  // Verified delivery/bounce/complaint events (campaign tracking); optional.
+  onStatusEvent?(eventId: string, event: any): Promise<unknown>;
 }) {
   const log = deps.log || defaultLog;
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
   if (!deps.secret) { log({ stage: "config", code: "missing_webhook_secret" }); return new Response("Webhook not configured", { status: 503 }); }
-  const raw = await req.text();
-  if (raw.length > 300000) return new Response("Payload too large", { status: 413 });
+  let raw: string;
+  try { raw = await readTextBody(req, 300000); }
+  catch (error) { return new Response("Invalid webhook payload", { status: error instanceof RequestError ? error.status : 400 }); }
   let eventId: string;
   try { eventId = await verifyWebhook(raw, req.headers, deps.secret); } catch { log({ stage: "verify", code: "invalid_signature" }); return new Response("Invalid signature", { status: 401 }); }
   let stage = "parse", emailId: string | null = null;
   try {
     const event = JSON.parse(raw);
+    if (deps.onStatusEvent && ["email.delivered", "email.delivery_delayed", "email.bounced", "email.complained"].includes(event.type)) {
+      stage = "status_event";
+      await deps.onStatusEvent(eventId, event);
+      return new Response("OK");
+    }
     if (event.type !== "email.received") return new Response("Ignored");
     stage = "validate";
     const id = event.data?.email_id;
@@ -365,6 +375,13 @@ export async function verifyMailbox(db: any, api: ReturnType<typeof resendClient
     }, `mailbox-verify-${id}-${tokenHash.slice(0, 24)}`);
   } catch (err) {
     return fail(`Resend did not accept a test email from ${box.address}: ${errorText(err)}`);
+  }
+  // Send-only: Resend accepting a message from this address is the whole check.
+  if (box.send_only) {
+    must(await db.from("email_mailbox_verifications").update({ confirmed_at: now.toISOString() }).eq("mailbox_id", id));
+    const saved: any = await save({ sending_verified_at: now.toISOString(), status: "active",
+      status_detail: `Verified for sending ${now.toISOString()} (send-only). Mail sent directly to ${box.address} stays in Google Workspace; replies to dashboard emails return to the dashboard.${note}` });
+    return { status: saved.status, detail: saved.status_detail, probe_sent: true };
   }
   const saved: any = await save({ sending_verified_at: now.toISOString(),
     ...(box.status === "active" ? {} : { status: "pending" }),

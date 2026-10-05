@@ -1,3 +1,5 @@
+import { readJsonObject, publicFailure } from "../_shared/auth/http.ts";
+import { budgetedEmailFetch } from "../_shared/auth/emailBudget.ts";
 // form-submit: website form submissions, their emails, and newsletter
 // double opt-in, for the Air Fair website.
 //
@@ -146,7 +148,7 @@ const store: Store = {
 
 const deps: Deps = {
   store,
-  mailer: createResendMailer(Deno.env.get("RESEND_API_KEY"), fetch),
+  mailer: createResendMailer(Deno.env.get("RESEND_API_KEY"), budgetedEmailFetch(db)),
   now: () => new Date(),
   siteUrl: SITE_URL,
   hash: value => sha256Hex(`${HASH_SALT}:${value}`),
@@ -154,7 +156,7 @@ const deps: Deps = {
   // Send after the response so visitors don't wait for Resend.
   defer: work => {
     const runtime = (globalThis as { EdgeRuntime?: { waitUntil(p: Promise<unknown>): void } }).EdgeRuntime;
-    const guarded = work.catch(err => console.error("form-submit background error:", err instanceof Error ? err.message : String(err)));
+    const guarded = work.catch(err => console.error(JSON.stringify({ fn: "form-submit", stage: "background_failed" })));
     if (runtime?.waitUntil) runtime.waitUntil(guarded);
     else return guarded.then(() => undefined);
   },
@@ -166,8 +168,12 @@ async function caller(authHeader: string): Promise<{ id: string; role: string } 
   const asCaller = createClient(SUPABASE_URL, ANON_KEY, { global: { headers: { Authorization: authHeader } }, auth: { persistSession: false } });
   const { data: { user } } = await asCaller.auth.getUser();
   if (!user) return null;
-  const { data } = await db.from("profiles").select("role,is_active").eq("id", user.id).maybeSingle();
-  return data?.is_active ? { id: user.id, role: data.role as string } : null;
+  const { data: role, error } = await asCaller.rpc("auth_role");
+  if (error || !["admin", "editor", "staff"].includes(role)) return null;
+  // Form Emails actions (resend, test emails) follow Form Emails section access
+  // from the Team page: a person given that section acts with admin rights here.
+  const { data: formEmails } = await db.rpc("section_allowed", { p_user: user.id, p_key: "form-emails" });
+  return formEmails === true ? { id: user.id, role: "admin" } : null;
 }
 
 Deno.serve(async req => {
@@ -184,7 +190,7 @@ Deno.serve(async req => {
   if (Number(req.headers.get("content-length") ?? 0) > 300_000) return json({ ok: false, error: "Request too large." }, 413);
 
   let body: Record<string, unknown>;
-  try { body = await req.json(); } catch { return json({ ok: false, error: "Invalid request body." }, 400); }
+  try { body = await readJsonObject(req, 300000); } catch (err) { const failure = publicFailure(err); return json({ ok: false, ...failure.body }, failure.status); }
   const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || req.headers.get("x-real-ip");
 
   try {
@@ -201,7 +207,7 @@ Deno.serve(async req => {
     }
     return json(reply.body, reply.status);
   } catch (err) {
-    console.error("form-submit error:", err instanceof Error ? err.message : String(err));
+    console.error(JSON.stringify({ fn: "form-submit", stage: "request_failed" }));
     return json({ ok: false, error: "Something went wrong. Please try again." }, 500);
   }
 });

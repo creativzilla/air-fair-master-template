@@ -289,7 +289,8 @@ function CollectionManagerView({ kinds, title, subtitle, role }) {
   const [statusFilter, setStatusFilter] = useState("All");
   const [archived, setArchived] = useState(null);
   const cfg = COLLECTIONS[kind];
-  const canCreate = role === "admin" || role === "editor";
+  // Anyone given this section can create drafts (server checks section access).
+  const canCreate = !!role && role !== "none";
   const isAdmin = role === "admin";
 
   const reloadForms = useCallback(async () => {

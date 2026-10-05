@@ -8,6 +8,8 @@ function createFake() {
   const now = () => new Date(Date.now() + state.clockOffsetMs);
   const state = {
     clockOffsetMs: 0,
+    deniedSections: new Set(),
+    deniedAccounts: new Set(), // database auth_role denies unconfirmed/banned accounts
     resendScript: [],      // e.g. [503, 503] -> next sends fail with these statuses
     resendCalls: [],       // { idempotencyKey, hasAuth, body }
     tables: {
@@ -80,8 +82,14 @@ function createFake() {
     newsletter_subscribers: () => ({ id: crypto.randomUUID(), created_at: now().toISOString(), confirmed_at: null, unsubscribed_at: null }),
   }[table] || (() => ({})))();
 
-  function rpc(name, args) {
+  function rpc(name, args, authorization) {
     const t = state.tables;
+    if (name === "auth_role") {
+      const id = tokens[(authorization || "").replace(/^Bearer /, "")];
+      return state.deniedAccounts.has(id) ? "none" : t.profiles.find(p => p.id === id && p.is_active)?.role || "none";
+    }
+    if (name === "is_admin" || name === "can_use_email_inbox") return rpc("auth_role", {}, authorization) === "admin";
+    if (name === "section_allowed") return !state.deniedSections.has(args.p_key) && !state.deniedAccounts.has(args.p_user) && t.profiles.some(p => p.id === args.p_user && p.is_active && p.role === "admin");
     if (name === "rate_limit_hit") {
       const since = now().getTime() - args.p_window_seconds * 1000;
       const hits = t.rate_limit_events.filter(e => e.bucket === args.p_bucket && e.key_hash === args.p_key_hash && e.at > since).length;
@@ -89,6 +97,7 @@ function createFake() {
       t.rate_limit_events.push({ bucket: args.p_bucket, key_hash: args.p_key_hash, at: now().getTime() });
       return true;
     }
+    if (name === 'reserve_email_budget') return !state.emailBudgetDenied;
     if (name === "claim_email_outbox") {
       const n = now().toISOString();
       const due = t.email_outbox.filter(o => (!args.p_ids || args.p_ids.includes(o.id)) &&
@@ -102,8 +111,10 @@ function createFake() {
 
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, "http://localhost");
-    let body = "";
-    for await (const chunk of req) body += chunk;
+    const chunks = [];
+    for await (const chunk of req) chunks.push(chunk);
+    const rawBody = Buffer.concat(chunks);
+    const body = rawBody.toString('utf8');
     const send = (status, data, headers = {}) => { res.writeHead(status, { "Content-Type": "application/json", ...headers }); res.end(data === undefined ? "" : JSON.stringify(data)); };
     try {
       // --- Resend sink ---
@@ -129,9 +140,17 @@ function createFake() {
           .map(([p, meta]) => ({ name: p.slice(dir.length + 1), id: p, metadata: { size: meta.size, mimetype: meta.mimetype } }));
         return send(200, found);
       }
+      const uploadMatch=url.pathname.match(/^\/storage\/v1\/object\/form-attachments\/(.+)$/);
+      if(uploadMatch && req.method==='POST') {
+        const path=decodeURIComponent(uploadMatch[1]);
+        if(state.storageFailure) return send(500,{message:'private storage error details'});
+        if(state.storage[path]) return send(409,{message:'Already exists'});
+        state.storage[path]={size:rawBody.length,mimetype:req.headers['content-type'],bytes:rawBody};
+        return send(200,{Key:`form-attachments/${path}`,Id:crypto.randomUUID()});
+      }
       // --- RPC ---
       const rpcMatch = url.pathname.match(/^\/rest\/v1\/rpc\/(\w+)$/);
-      if (rpcMatch) return send(200, rpc(rpcMatch[1], body ? JSON.parse(body) : {}));
+      if (rpcMatch) return send(200, rpc(rpcMatch[1], body ? JSON.parse(body) : {}, req.headers.authorization));
       // --- Tables ---
       const tableMatch = url.pathname.match(/^\/rest\/v1\/(\w+)$/);
       if (!tableMatch) return send(404, { message: "not found" });

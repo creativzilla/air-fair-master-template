@@ -11,7 +11,7 @@ export interface OutgoingEmail {
   tags: Record<string, string>;
 }
 
-export type SendResult = { ok: true; id: string } | { ok: false; retryable: boolean; error: string };
+export type SendResult = { ok: true; id: string } | { ok: false; retryable: boolean; error: string; budgetBlocked?: boolean };
 
 export interface Mailer {
   // idempotencyKey = email_outbox row id: Resend returns the original result
@@ -47,6 +47,8 @@ export function createResendMailer(apiKey: string | undefined, fetchImpl: FetchL
       try { data = (await response.json()) as Record<string, unknown>; } catch { /* empty body */ }
       if (response.ok && typeof data.id === "string") return { ok: true, id: data.id };
       const detail = `Resend ${response.status}: ${String(data.message ?? data.name ?? "error")}`.slice(0, 500);
+      if (data.name === 'app_email_budget_exceeded' || data.name === 'app_email_budget_unavailable')
+        return {ok:false,retryable:true,budgetBlocked:true,error:String(data.message)};
       // 429 / 5xx and "request with this key is still in progress" are temporary.
       const retryable = response.status === 429 || response.status >= 500 || data.name === "concurrent_idempotent_requests";
       return { ok: false, retryable, error: detail };

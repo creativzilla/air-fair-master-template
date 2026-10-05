@@ -9,7 +9,7 @@ create schema auth;
 create function auth.uid() returns uuid language sql as $$ select nullif(current_setting('test.uid',true),'')::uuid $$;
 grant usage on schema auth,public to authenticated,anon,service_role;
 create table profiles(id uuid primary key,role text,is_active boolean,full_name text,email text);
-create table auth.users(id uuid primary key,email text);
+create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz default now(),banned_until timestamptz);
 -- Minimal Supabase Storage stand-in (bucket rows, objects with size metadata, foldername()).
 create schema storage; grant usage on schema storage to authenticated,anon,service_role;
 create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint);
@@ -19,20 +19,46 @@ create table email_settings(id smallint primary key default 1,sending_enabled bo
 insert into email_settings(id) values(1);
 create function auth_role() returns text language sql security definer as $$ select coalesce((select role from profiles where id=auth.uid() and is_active),'none') $$;
 create function is_admin() returns boolean language sql stable security definer as $$ select auth_role()='admin' $$;
-create table employees(id uuid primary key default gen_random_uuid(),user_id uuid,allowed_modules jsonb);
+create function is_editor() returns boolean language sql stable security definer as $$ select auth_role() in ('admin','editor') $$;
+create function is_team() returns boolean language sql stable security definer as $$ select auth_role() in ('admin','editor','staff') $$;
+-- Minimal stand-ins for tables whose policies the section-permission migration replaces.
+create table cms_documents(id uuid primary key default gen_random_uuid(),kind text,slug text,title text,sort_order int default 0,draft jsonb default '{}',draft_revision int default 1);
+create table cms_versions(id uuid primary key default gen_random_uuid(),document_id uuid,version_no int,action text,title text,slug text,sort_order int,content jsonb,draft_revision int,note text,created_by uuid);
+create function cms_is_service_caller() returns boolean language sql as $$ select false $$;
+create function cms_next_version_no(p uuid) returns int language sql as $$ select 1 $$;
+create table media(id uuid primary key default gen_random_uuid(),name text);
+create table email_templates(id uuid primary key default gen_random_uuid(),form_id text,subject text);
+create table site_settings(id text primary key,value jsonb,chat_widget_code text);
+create table stage_task_templates(id uuid primary key default gen_random_uuid(),stage text,title text);
+create table pipeline_stages(id uuid primary key default gen_random_uuid(),name text);
+-- Stand-ins for Supabase Vault, pg_cron, pg_net and pgcrypto's gen_random_bytes, plus newsletter subscribers.
+create schema vault; create table vault.secrets(id uuid primary key default gen_random_uuid(),name text unique,secret text);
+create view vault.decrypted_secrets as select name, secret as decrypted_secret from vault.secrets;
+create function vault.create_secret(s text,n text,d text default null) returns uuid language sql as $$ insert into vault.secrets(name,secret) values(n,s) returning id $$;
+create schema if not exists extensions; create function extensions.gen_random_bytes(n int) returns bytea language sql as $$ select decode(md5(random()::text)||md5(random()::text),'hex') $$;
+create schema cron; create table cron.job(jobid serial primary key,jobname text,schedule text,command text);
+create function cron.schedule(n text,sch text,c text) returns int language sql as $$ insert into cron.job(jobname,schedule,command) values(n,sch,c) returning jobid $$;
+create function cron.unschedule(id int) returns boolean language sql as $$ delete from cron.job where jobid=id returning true $$;
+create schema net; create table net.calls(id bigserial primary key,url text,headers jsonb);
+create function net.http_post(url text,body jsonb,headers jsonb,timeout_milliseconds int) returns bigint language sql as $$ insert into net.calls(url,headers) values(url,headers) returning id $$;
+create table newsletter_subscribers(id uuid primary key default gen_random_uuid(),email text,confirmed_at timestamptz,unsubscribed_at timestamptz);
+create table employees(id uuid primary key default gen_random_uuid(),user_id uuid,name text,email text,role text,allowed_modules jsonb,created_at timestamptz default now());
 create table form_submissions(id uuid primary key,email text,created_at timestamptz not null default now());
-create table contacts(id uuid primary key,submission_id uuid,email text,name text,created_at timestamptz default now());
+create table contacts(id uuid primary key,submission_id uuid,email text,name text,assigned_employee_id uuid,created_at timestamptz default now());
 create table email_outbox(id uuid primary key default gen_random_uuid(),dedupe_key text unique,kind text,status text,submission_id uuid,reply_to text,to_email text,subject text,body_text text,provider_message_id text,sent_at timestamptz,last_error text);
 insert into profiles values ('00000000-0000-0000-0000-000000000001','admin',true,'Admin','admin@example.com'),('00000000-0000-0000-0000-000000000002','staff',true,'Staff','staff@example.com'),('00000000-0000-0000-0000-000000000009','admin',true,null,'second@example.com');
 -- Registered (auth) emails differ from profile emails, to prove the auth account is used.
-insert into auth.users values ('00000000-0000-0000-0000-000000000001','Admin.Account@Airfairtravel.com'),('00000000-0000-0000-0000-000000000002','staff.account@airfairtravel.com'),('00000000-0000-0000-0000-000000000009','second.admin@airfairtravel.com');
+insert into auth.users(id,email) values ('00000000-0000-0000-0000-000000000001','Admin.Account@Airfairtravel.com'),('00000000-0000-0000-0000-000000000002','staff.account@airfairtravel.com'),('00000000-0000-0000-0000-000000000009','second.admin@airfairtravel.com');
 insert into employees(user_id,allowed_modules) values('00000000-0000-0000-0000-000000000002','{"clients":true,"email-inbox":false}');
+-- Seeded sample team members like the live project (no account, @airfair.com).
+insert into employees(name,email,role) values('Sarah Chen','sarah.chen@airfair.com','Senior Visa Consultant'),('Daniel Ong','daniel.ong@airfair.com','Office Administrator');
 insert into contacts(id,email) values('00000000-0000-0000-0000-000000000003','customer@example.com');
 `);
-const migrations=['20261002100000_email_inbox.sql','20261002120000_email_inbox_short_reply_to.sql','20261002140000_email_inbox_provider_status.sql','20261002160000_email_inbox_sender_copy.sql','20261002180000_email_inbox_compose_recipients.sql','20261002200000_email_inbox_mailbox.sql','20261003100000_email_shared_mailboxes.sql','20261003120000_email_form_inquiries.sql'];
+const migrations=['20261002100000_email_inbox.sql','20261002120000_email_inbox_short_reply_to.sql','20261002140000_email_inbox_provider_status.sql','20261002160000_email_inbox_sender_copy.sql','20261002180000_email_inbox_compose_recipients.sql','20261002200000_email_inbox_mailbox.sql','20261003100000_email_shared_mailboxes.sql','20261003120000_email_form_inquiries.sql','20261003140000_team_accounts.sql','20261003160000_team_section_access.sql','20261003180000_role_access_defaults.sql','20261003200000_section_permissions.sql','20261003220000_client_tags.sql','20261003240000_contacts_archive.sql','20261003260000_email_campaigns.sql','20261003280000_send_only_mailboxes.sql','20261003300000_campaign_cc_bcc.sql','20261004090000_protect_executable_settings.sql','20261004091000_preserve_inbound_thread_access.sql','20261004100000_guard_admin_employee_replacement.sql','20261004101000_require_verified_team_accounts.sql'];
 for (const f of migrations)
   await db.exec(await readFile(new URL(`../supabase/migrations/${f}`,import.meta.url),'utf8'));
-const owner=()=>db.exec('reset role');
+// Owner = server-side context (no signed-in user), like the service role in production.
+const owner=()=>db.exec("reset role; set test.uid=''");
 // Seeded General mailbox: the migration ran before any traffic existed here, so it is not active.
 const general=(await db.query('select * from email_mailboxes where is_default')).rows[0];
 assert.equal(general.address,'no-reply@airfairtravel.com');assert.equal(general.all_inbox_users,true);
@@ -83,7 +109,7 @@ await assert.rejects(queue('00000000-0000-0000-0000-000000000005'),/access denie
 await assert.rejects(db.query("insert into email_messages(conversation_id,direction,from_email,to_email,subject,body_text) values($1,'outgoing','x','x','x','x')",[c.id]),/permission denied/);
 await owner();await db.exec("set role anon");
 await assert.rejects(db.query('select * from email_messages'),/permission denied/);
-await owner();await db.exec(`update employees set allowed_modules='{"clients":true,"email-inbox":true}'`);await user(staff);
+await owner();await db.exec(`update employees set custom_access=true, allowed_modules='{"clients":true,"email-inbox":true}' where user_id='00000000-0000-0000-0000-000000000002'`);await user(staff);
 assert.equal((await db.query('select * from email_messages')).rows.length,1);
 await assert.rejects(db.query('insert into email_read_state values($1,$2,now())',[c.id,admin]),/row-level security/);
 await owner();
@@ -160,14 +186,14 @@ assert.equal(await count(),before+2,'refused requests save nothing');
 const legacy=(await db.query("select (queue_inbox_message($1,null,$2,'','Legacy')).*",['00000000-0000-0000-0000-000000000028',composed.conversation_id])).rows[0];
 assert.equal(legacy.bcc_email,'admin.account@airfairtravel.com');assert.equal(legacy.cc_email,null);
 // Staff without inbox access get neither defaults nor sends; anon cannot call them.
-await owner();await db.exec(`update employees set allowed_modules='{"clients":true,"email-inbox":false}'`);await user(staff);
+await owner();await db.exec(`update employees set custom_access=true, allowed_modules='{"clients":true,"email-inbox":false}' where user_id='00000000-0000-0000-0000-000000000002'`);await user(staff);
 await assert.rejects(db.query('select inbox_compose_defaults()'),/access denied/);
 await assert.rejects(queueWith('00000000-0000-0000-0000-000000000029',composed.conversation_id,[],[]),/access denied/);
 await owner();await db.exec('set role anon');
 await assert.rejects(db.query('select inbox_compose_defaults()'),/permission denied/);
 await owner();await db.exec("update email_settings set inbox_sender_copy='cc'");
 // Mailbox: folders, search, unread counts and per-user read state through inbox_list / inbox_folder_counts.
-await owner();await db.exec(`update employees set allowed_modules='{"clients":true,"email-inbox":true}'`);
+await owner();await db.exec(`update employees set custom_access=true, allowed_modules='{"clients":true,"email-inbox":true}' where user_id='00000000-0000-0000-0000-000000000002'`);
 await db.exec("alter table contacts add column if not exists name text; update contacts set name='Maria Santos' where id='00000000-0000-0000-0000-000000000003'");
 await db.exec('grant select on contacts to authenticated');
 const fresh={id:'resend-in-mailbox',from:'new.client@example.com',to:'inbox@reply.airfairtravel.com',cc:'',subject:'Visa question',text:'Hello, about my passport renewal',headers:{},attachments:[{filename:'scan.pdf',content_type:null}],message_id:'<mb@example.com>',tokens:[],references:[]};
@@ -202,11 +228,11 @@ await user(admin);
 await db.query("update email_read_state set read_at='1970-01-01' where conversation_id=$1 and user_id=$2",[freshConv,admin]);
 assert.equal((await list('inbox')).find(r=>r.id===freshConv).unread,true);
 // No inbox access: empty lists and zero counts (RLS + can_use_email_inbox), anon refused.
-await owner();await db.exec(`update employees set allowed_modules='{"clients":true,"email-inbox":false}'`);await user(staff);
+await owner();await db.exec(`update employees set custom_access=true, allowed_modules='{"clients":true,"email-inbox":false}' where user_id='00000000-0000-0000-0000-000000000002'`);await user(staff);
 assert.equal((await list('all')).length,0);
 assert.equal((await db.query('select inbox_folder_counts() c')).rows[0].c.inbox_unread,0);
 await owner();await db.exec('set role anon');await assert.rejects(db.query("select * from inbox_list('all')"),/permission denied/);
-await owner();await db.exec(`update employees set allowed_modules='{"clients":true,"email-inbox":true}'`);
+await owner();await db.exec(`update employees set custom_access=true, allowed_modules='{"clients":true,"email-inbox":true}' where user_id='00000000-0000-0000-0000-000000000002'`);
 
 // Attachments: own folder + request key only, real size/type from storage, limits, immutable references.
 const keyA='00000000-0000-0000-0000-000000000040';
@@ -364,5 +390,390 @@ await user(admin);await db.query('insert into email_read_state values($1,$2,now(
 assert.equal((await list('inbox')).find(r=>r.id===convA.id).unread,false);
 await user(staff);assert.equal((await list('inbox')).find(r=>r.id===convA.id).unread,true,'read state is per user');
 await owner();
+// ---------------- Team: every member is an account ----------------
+await owner();
+assert.equal((await rpc1("select count(*)::int n from employees where email like '%@airfair.com'")).n,0,'sample employees removed');
+const team=(await db.query('select p.id, count(e.id)::int n from profiles p left join employees e on e.user_id=p.id group by p.id')).rows;
+assert.ok(team.every(t=>t.n===1),'exactly one team record per account');
+assert.equal((await rpc1('select allowed_modules from employees where user_id=$1',[staff])).allowed_modules.clients,true,'existing staff access kept');
+assert.equal((await rpc1('select name from employees where user_id=$1',[second])).name,'second@example.com','no full name: email used');
+await assert.rejects(db.query("insert into employees(name,email) values('No Account','x@example.com')"),/null value|not-null/);
+await assert.rejects(db.query('insert into employees(user_id,name) values($1,$2)',[staff,'Duplicate']),/duplicate|unique/);
+// An invite creates the account's profile; the team record follows automatically and stays in sync.
+const invited='00000000-0000-0000-0000-0000000000d4';
+await db.query("insert into profiles(id,role,is_active,full_name,email) values($1,'none',true,'','new.person@airfairtravel.com')",[invited]);
+let rec=await rpc1('select * from employees where user_id=$1',[invited]);
+assert.equal(rec.name,'new.person@airfairtravel.com');assert.equal(rec.allowed_modules['email-inbox'],false,'staff inbox access still defaults off');
+await db.query("update profiles set full_name='New Person', role='staff' where id=$1",[invited]);
+assert.equal((await rpc1('select name from employees where user_id=$1',[invited])).name,'New Person');
+await assert.rejects(db.query('update employees set user_id=$1 where user_id=$2',[second,invited]),/own account/);
+await db.query('delete from profiles where id=$1',[invited]);
+assert.equal((await rpc1('select count(*)::int n from employees where user_id=$1',[invited])).n,0,'removing an account removes its team record');
+// ---------------- Section access (all roles) ----------------
+await owner();
+// Fixture: production's profiles access (select own-or-admin; updates governed by the migration's policy).
+await db.exec("alter table profiles enable row level security; grant select, update on profiles to authenticated; alter table employees enable row level security; create policy employees_team_read on employees for select to authenticated using (true); grant select, insert, update on employees to authenticated;");
+const acc = await import(new URL('../src/dashboard/access.js', import.meta.url));
+for (const r of ['admin','editor','staff','none']) {
+  assert.deepEqual((await rpc1('select role_sections($1) s',[r])).s, acc.ROLE_SECTIONS[r], `role_sections(${r}) matches access.js`);
+  assert.deepEqual((await rpc1('select role_default_sections($1) s',[r])).s, acc.ROLE_DEFAULTS[r], `defaults(${r}) match access.js`);
+}
+const allowed=async(u,k)=>(await rpc1('select section_allowed($1,$2) ok',[u,k])).ok;
+await db.exec("update employees set custom_access=false where user_id in ('00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000009')");
+assert.equal(await allowed(admin,'team'),true);assert.equal(await allowed(admin,'settings'),true,'admin defaults: everything');
+await db.query("update employees set custom_access=false where user_id=$1",[staff]);
+assert.equal(await allowed(staff,'pipeline'),true);assert.equal(await allowed(staff,'email-inbox'),false,'staff default: no inbox');
+await user(staff);assert.equal((await rpc1('select can_use_email_inbox() ok')).ok,false);await owner();
+// Custom: add inbox for staff; never beyond the role (settings stays off); inbox needs clients.
+await db.query(`update employees set custom_access=true, allowed_modules='{"clients":true,"email-inbox":true,"settings":true}' where user_id=$1`,[staff]);
+assert.equal(await allowed(staff,'email-inbox'),true);assert.equal(await allowed(staff,'settings'),true,'any section can be granted to any role');
+assert.equal(await allowed(staff,'pipeline'),false,'custom list replaces defaults');
+await user(staff);assert.equal((await rpc1('select can_use_email_inbox() ok')).ok,true);await owner();
+await db.query(`update employees set allowed_modules='{"email-inbox":true}' where user_id=$1`,[staff]);
+assert.equal(await allowed(staff,'email-inbox'),false,'Email Inbox also needs Clients');
+// Admins can be limited too: second admin without Email Inbox loses inbox data access.
+await db.query(`update employees set custom_access=true, allowed_modules='{"clients":true,"pipeline":true}' where user_id=$1`,[second]);
+assert.equal(await allowed(second,'team'),false);
+await user(second);assert.equal((await rpc1('select can_use_email_inbox() ok')).ok,false);
+assert.equal((await db.query('select id from email_conversations')).rows.length,0,'no inbox section, no inbox data');
+// Team management needs Team access, even for an admin.
+assert.equal((await db.query("update profiles set full_name='x' where id=$1 returning id",[staff])).rows.length,0,'admin without Team access cannot change accounts');
+await user(admin);
+assert.equal((await db.query("update profiles set full_name='Staff' where id=$1 returning id",[staff])).rows.length,1,'admin with Team access can');
+await owner();
+// Lockout guard: the last admin with Team access cannot lose it.
+await assert.rejects(db.query(`update employees set custom_access=true, allowed_modules='{"clients":true}' where user_id=$1`,[admin]),/keep access to Team/);
+await db.query(`update employees set custom_access=false where user_id in ($1,$2)`,[second,staff]);
+await db.query(`update employees set custom_access=true, allowed_modules='{"clients":true}' where user_id=$1`,[admin]);
+assert.equal(await allowed(admin,'team'),false,'fine while another admin keeps Team');
+await db.query(`update employees set custom_access=false where user_id=$1`,[admin]);
+await db.query(`update employees set custom_access=true, allowed_modules='{"clients":true,"email-inbox":true}' where user_id=$1`,[staff]);
+// ---------------- Editable role defaults ----------------
+await owner();
+await db.query("update employees set custom_access=false where user_id=$1",[staff]);
+await user(staff);
+assert.equal((await db.query('select * from role_access_defaults')).rows.length,3,'everyone can read the defaults');
+assert.equal((await db.query("update role_access_defaults set sections='{}' where role='staff' returning role")).rows.length,0,'staff cannot change defaults');
+await user(admin);
+// Admin turns Email Inbox (and Settings) on for all staff by default.
+await db.query("update role_access_defaults set sections=$1 where role='staff'",[['clients','pipeline','email-inbox','settings']]);
+assert.deepEqual((await rpc1("select sections from role_access_defaults where role='staff'")).sections,['clients','email-inbox','pipeline','settings'],'kept in the standard order; any section allowed');
+await owner();assert.equal(await allowed(staff,'email-inbox'),true,'staff on defaults get the new default');
+assert.equal(await allowed(staff,'forms'),false);
+await user(staff);assert.equal((await rpc1('select can_use_email_inbox() ok')).ok,true);await user(admin);
+// Custom people keep their own list.
+await owner();await db.query(`update employees set custom_access=true, allowed_modules='{"clients":true,"forms":true}' where user_id=$1`,[staff]);
+assert.equal(await allowed(staff,'email-inbox'),false);assert.equal(await allowed(staff,'forms'),true);await user(admin);
+// Admin defaults cannot drop Team while every admin follows them.
+await assert.rejects(db.query("update role_access_defaults set sections=$1 where role='admin'",[['clients']]),/keep access to Team/);
+await db.query("update role_access_defaults set sections=$1 where role='staff'",[['clients','pipeline','forms','documents','bookings']]);
+await owner();
+await db.query(`update employees set custom_access=true, allowed_modules='{"clients":true,"email-inbox":true}' where user_id=$1`,[staff]);
+// ---------------- Sections grant server permissions, for any role ----------------
+await owner();
+await db.exec(`alter table cms_documents enable row level security; alter table site_settings enable row level security;
+  alter table email_templates enable row level security; alter table email_settings enable row level security;
+  grant select, insert, update on cms_documents, site_settings, email_templates, email_settings to authenticated;
+  insert into site_settings(id,value) values ('business', '{}');`);
+const grant=(u,obj)=>db.query(`update employees set custom_access=true, allowed_modules=$2 where user_id=$1`,[u,JSON.stringify(obj)]);
+await grant(staff,{clients:true,news:true,settings:true,"form-emails":true});
+await user(staff);
+await db.query("insert into cms_documents(kind,slug,title) values('news_article','staff-news','By staff')");
+await assert.rejects(db.query("insert into cms_documents(kind,slug,title) values('page','staff-page','No')"),/row-level security/,'Pages not granted');
+assert.equal((await db.query("update site_settings set value='{\"x\":1}' where id='business' returning id")).rows.length,1,'staff with Settings can save settings');
+assert.equal((await db.query("select * from email_settings")).rows.length,1,'staff with Form Emails reads its settings');
+await db.query("insert into email_templates(form_id,subject) values('f1','Hi')");
+await owner();
+// Editors are limited by their access too: an editor without News cannot edit news.
+await db.query("update profiles set role='editor' where id=$1",[second]);
+await grant(second,{clients:true,"edit-website":true});
+await user(second);
+await db.query("insert into cms_documents(kind,slug,title) values('page','editor-page','Ok')");
+await assert.rejects(db.query("insert into cms_documents(kind,slug,title) values('news_article','editor-news','No')"),/row-level security/);
+assert.equal((await db.query("update site_settings set value='{}' where id='business' returning id")).rows.length,0,'no Settings section');
+await owner();
+// Team access without admin role: manage staff, never escalate.
+await grant(staff,{clients:true,team:true});
+await db.exec("insert into profiles values ('00000000-0000-0000-0000-0000000000e5','staff',true,'Helper','helper@example.com')");
+await user(staff);
+assert.equal((await db.query("update profiles set full_name='Helper Two' where id='00000000-0000-0000-0000-0000000000e5' returning id")).rows.length,1,'Team access manages accounts');
+await assert.rejects(db.query("update profiles set role='admin' where id='00000000-0000-0000-0000-0000000000e5'"),/Only an admin can make someone an admin/);
+await assert.rejects(db.query("update profiles set role='admin' where id=$1",[staff]),/own role/);
+await assert.rejects(db.query("update profiles set role='staff' where id=$1",[admin]),/Only an admin/);
+await assert.rejects(db.query(`update employees set custom_access=true, allowed_modules='{"clients":true}' where user_id=$1`,[admin]),/admin's access/);
+assert.equal((await db.query(`update employees set custom_access=true, allowed_modules='{"clients":true,"pipeline":true}' where user_id='00000000-0000-0000-0000-0000000000e5' returning id`)).rows.length,1,"can set a staff member's access");
+await assert.rejects(db.query("update role_access_defaults set sections=$1 where role='admin'",[['clients','team']]),/admin defaults/);
+assert.equal((await db.query("update role_access_defaults set sections=$1 where role='staff' returning role",[['clients','pipeline','forms','documents','bookings','settings']])).rows.length,1,'staff defaults may include Settings now');
+assert.deepEqual((await rpc1("select sections from role_access_defaults where role='staff'")).sections,['clients','pipeline','forms','documents','bookings','settings']);
+await user(admin);
+assert.equal((await db.query("update profiles set role='admin' where id='00000000-0000-0000-0000-0000000000e5' returning id")).rows.length,1,'an admin can promote');
+await owner();
+await db.query("update role_access_defaults set sections=$1 where role='staff'",[['clients','pipeline','forms','documents','bookings']]);
+await db.query("delete from profiles where id='00000000-0000-0000-0000-0000000000e5'");
+await db.query("update profiles set role='admin' where id=$1",[second]);
+await db.query("update employees set custom_access=false where user_id=$1",[second]);
+await grant(staff,{clients:true,"email-inbox":true});
+// ---------------- Client tags ----------------
+await owner();
+assert.equal((await rpc1('select count(*)::int n from client_tags')).n,12,'default tags');
+const tagId=async name=>(await rpc1('select id from client_tags where name=$1',[name])).id;
+const lostTag=await tagId('Lost'), vipTag=await tagId('VIP');
+await db.exec("set role anon");await assert.rejects(db.query('select * from client_tags'),/permission denied/);await owner();
+await db.query(`update employees set custom_access=true, allowed_modules='{"clients":true,"pipeline":true}' where user_id=$1`,[staff]);
+await user(staff);
+await db.query('insert into contact_tags(contact_id,tag_id) values($1,$2)',[contact,lostTag]);
+const made=(await db.query("insert into client_tags(name,color) values('Student visa','blue') returning id")).rows[0];
+await assert.rejects(db.query("insert into client_tags(name) values('  student VISA ')"),/duplicate|unique/,'names are unique, ignoring case and spaces');
+assert.equal((await db.query('delete from client_tags where id=$1 returning id',[made.id])).rows.length,0,'only admins delete tags');
+await owner();await db.query(`update employees set custom_access=true, allowed_modules='{"pipeline":true}' where user_id=$1`,[staff]);await user(staff);
+await assert.rejects(db.query("insert into client_tags(name) values('No clients section')"),/row-level security/);
+await user(admin);
+assert.equal((await db.query('delete from client_tags where id=$1 returning id',[made.id])).rows.length,1);
+await owner();
+await db.query('insert into contact_tags(contact_id,tag_id) values($1,$2)',[contact,vipTag]);
+assert.deepEqual((await db.query('select tag_id from contact_tags where contact_id=$1 order by tag_id',[contact])).rows.map(r=>r.tag_id).sort(),[lostTag,vipTag].sort());
+await db.query('delete from client_tags where id=$1',[vipTag]);
+assert.equal((await rpc1('select count(*)::int n from contact_tags where tag_id=$1',[vipTag])).n,0,'deleting a tag removes it from clients');
+await db.query("insert into contacts(id,email,name) values('00000000-0000-0000-0000-0000000000f6','gone@example.com','Gone')");
+await db.query("insert into contact_tags(contact_id,tag_id) values('00000000-0000-0000-0000-0000000000f6',$1)",[lostTag]);
+await db.query("delete from contacts where id='00000000-0000-0000-0000-0000000000f6'");
+assert.equal((await rpc1("select count(*)::int n from contact_tags where contact_id='00000000-0000-0000-0000-0000000000f6'")).n,0,'deleting a client removes its tags');
+await db.query(`update employees set custom_access=true, allowed_modules='{"clients":true,"email-inbox":true}' where user_id=$1`,[staff]);
+// Archive: kept and restorable; tags stay attached.
+await owner();
+await db.query('update contacts set archived_at=now() where id=$1',[contact]);
+assert.ok((await rpc1('select archived_at from contacts where id=$1',[contact])).archived_at);
+assert.ok((await rpc1('select count(*)::int n from contact_tags where contact_id=$1',[contact])).n>=1,'archiving keeps tags');
+await db.query('update contacts set archived_at=null where id=$1',[contact]);
+// ---------------- Bulk email campaigns ----------------
+await owner();
+assert.equal((await rpc1("select count(*)::int n from cron.job where jobname='email-campaign-worker'")).n,1,'worker scheduled');
+assert.ok((await rpc1("select decrypted_secret s from vault.decrypted_secrets where name='campaign_worker_secret'")).s.length>=32,'worker secret generated');
+await db.exec("update email_settings set sending_enabled=true, test_redirect_to=null");
+const cid=i=>`00000000-0000-0000-0000-00000000c${String(i).padStart(3,'0')}`;
+// Contacts: two share an address, one missing, one invalid, one subscribed, one unsubscribed.
+await db.query(`insert into contacts(id,name,email) values ($1,'Ana Cruz','ana@example.com'),($2,'Ana Dup','ANA@example.com'),($3,'No Mail',null),
+  ($4,'Bad Mail','not-an-email'),($5,'Sub Scriber','sub@example.com'),($6,'Un Sub','unsub@example.com'),($7,'Ben Lim','ben@example.com')`,[cid(1),cid(2),cid(3),cid(4),cid(5),cid(6),cid(7)]);
+await db.exec(`insert into newsletter_subscribers(email,confirmed_at,unsubscribed_at) values ('sub@example.com',now(),null),('unsub@example.com',now(),now())`);
+const all=[1,2,3,4,5,6,7].map(cid);
+await user(staff);
+const prev=async kind=>(await db.query('select * from campaign_preview_recipients($1,$2)',[all,kind])).rows;
+const svc=await prev('service');
+assert.deepEqual(svc.map(r=>[r.name,r.eligible,r.reason]),[['Ana Cruz',true,null],['Ana Dup',false,'Duplicate email address'],['No Mail',false,'No email address'],
+  ['Bad Mail',false,'Invalid email address'],['Sub Scriber',true,null],['Un Sub',true,null],['Ben Lim',true,null]],'service: dedupe/missing/invalid; marketing unsubscribe does not apply');
+const promo=await prev('promotional');
+assert.deepEqual(promo.filter(r=>r.eligible).map(r=>r.name),['Sub Scriber'],'promotional: recorded consent only');
+assert.equal(promo.find(r=>r.name==='Un Sub').reason,'Unsubscribed');assert.equal(promo.find(r=>r.name==='Ben Lim').reason,'No marketing consent');
+// Create (idempotent per request key); the initiating user is recorded, no copies to them.
+const key='00000000-0000-0000-0000-0000000000b1';
+const create=(k,kind,drip='{}')=>db.query("select * from campaign_create($1,$2,$3,'Hello {{first_name}}','<p>Hi</p>','there',$4,$5)",[k,general.id,kind,all,drip]).then(r=>r.rows[0]);
+const camp=await create(key,'service',JSON.stringify({enabled:true,batch_size:2,interval_minutes:60}));
+assert.equal((await create(key,'service')).id,camp.id,'same request key: same campaign');
+assert.equal(camp.created_by,staff);assert.equal(camp.reply_to,'inbox@reply.airfairtravel.com','reply-to is the shared inbox');
+await owner();
+const recips=(await db.query('select email,status,skip_reason from email_campaign_recipients where campaign_id=$1 order by seq',[camp.id])).rows;
+assert.deepEqual(recips.filter(r=>r.status==='pending').map(r=>r.email),['ana@example.com','sub@example.com','unsub@example.com','ben@example.com']);
+assert.equal(recips.filter(r=>r.status==='skipped').length,2,'missing and invalid recorded as skipped; duplicate merged');
+assert.ok((await rpc1('select count(*)::int n from net.calls')).n>=1,'worker kicked after create');
+// Claim: drip batch of 2, a second concurrent claim gets nothing, next batch waits the interval.
+const claim=async(limit=20,at=null)=>(await db.query('select * from campaign_claim_jobs($1,coalesce($2::timestamptz,now()))',[limit,at])).rows;
+const first=await claim();
+assert.deepEqual(first.map(j=>j.email),['ana@example.com','sub@example.com']);assert.ok(first.every(j=>j.lease_token));
+assert.equal((await claim()).length,0,'no double claim; next batch not due');
+assert.equal((await rpc1('select status from email_campaigns where id=$1',[camp.id])).status,'processing');
+// Results only from the lease holder; accepted vs delivered stay distinct.
+await db.query("select campaign_job_result($1,$2,'accepted','re_ana')",[first[0].id,'00000000-0000-0000-0000-000000000000']);
+assert.equal((await rpc1('select status from email_campaign_recipients where id=$1',[first[0].id])).status,'sending','wrong lease ignored');
+await db.query("select campaign_job_result($1,$2,'accepted','re_ana')",[first[0].id,first[0].lease_token]);
+await db.query("select campaign_job_result($1,$2,'retry',null,'503',now()+interval '3 hours')",[first[1].id,first[1].lease_token]);
+assert.equal((await rpc1('select status from email_campaign_recipients where id=$1',[first[0].id])).status,'accepted');
+const later=new Date(Date.now()+61*60000).toISOString();
+// Eligibility rechecked right before sending: ben hard-bounced meanwhile.
+await db.exec("insert into email_suppressions(email,reason) values('ben@example.com','hard_bounce')");
+const batch2=await claim(20,later);
+assert.deepEqual(batch2.map(j=>j.email),['unsub@example.com']);
+assert.equal((await rpc1("select status,skip_reason from email_campaign_recipients where email='ben@example.com' and campaign_id=$1",[camp.id])).skip_reason,'Hard bounced');
+await db.query("select campaign_job_result($1,$2,'accepted','re_unsub')",[batch2[0].id,batch2[0].lease_token]);
+// Expired lease is reclaimed (same job → same idempotency key in the worker).
+await db.query("update email_campaign_recipients set status='sending',locked_until=now()-interval '1 minute',lease_token=gen_random_uuid() where id=$1",[first[1].id]);
+await db.query("update email_campaigns set next_batch_at=now()-interval '1 minute' where id=$1",[camp.id]);
+const reclaimedJobs=await claim();
+assert.deepEqual(reclaimedJobs.map(j=>j.id),[first[1].id]);assert.equal(reclaimedJobs[0].attempts,2);
+await db.query("select campaign_job_result($1,$2,'accepted','re_sub')",[reclaimedJobs[0].id,reclaimedJobs[0].lease_token]);
+assert.equal((await rpc1('select status from email_campaigns where id=$1',[camp.id])).status,'completed','finished when nothing is pending');
+// Verified webhook events: delivered, permanent bounce → suppression, complaint; replays ignored.
+await db.query("select campaign_provider_event('evt-d1','email.delivered','re_ana',array['ana@example.com'])");
+assert.equal((await rpc1("select status from email_campaign_recipients where provider_id='re_ana'")).status,'delivered');
+assert.equal((await rpc1("select campaign_provider_event('evt-d1','email.delivered','re_ana',array['ana@example.com']) ok")).ok,false,'replayed event ignored');
+await db.query("select campaign_provider_event('evt-b1','email.bounced','re_unsub',array['unsub@example.com'],'Permanent','mailbox does not exist')");
+assert.equal((await rpc1("select status from email_campaign_recipients where provider_id='re_unsub'")).status,'bounced');
+assert.equal((await rpc1("select reason from email_suppressions where email='unsub@example.com'")).reason,'hard_bounce');
+await db.query("select campaign_provider_event('evt-b2','email.bounced','re_none',array['temp@example.com'],'Temporary','full')");
+assert.equal((await rpc1("select count(*)::int n from email_suppressions where email='temp@example.com'")).n,0,'temporary bounce not suppressed');
+await db.query("select campaign_provider_event('evt-c1','email.complained','re_sub',array['sub@example.com'])");
+assert.equal((await rpc1("select reason from email_suppressions where email='sub@example.com'")).reason,'complaint');
+// Pause / resume / cancel; quota pause; unsubscribe link.
+await db.exec("delete from email_suppressions");
+await user(staff);
+const c2=await create('00000000-0000-0000-0000-0000000000b2','service');
+await db.query("select campaign_set_status($1,'pause')",[c2.id]);
+await owner();
+assert.equal((await claim()).filter(j=>j.campaign_id===c2.id).length,0,'paused: nothing starts');
+await user(staff);await db.query("select campaign_set_status($1,'resume')",[c2.id]);await owner();
+const c2jobs=(await claim(1)).filter(j=>j.campaign_id===c2.id);assert.equal(c2jobs.length,1);
+await db.query("select campaign_job_result($1,$2,'requeue_pause',null,'Paused: provider sending quota reached')",[c2jobs[0].id,c2jobs[0].lease_token]);
+const c2now=await rpc1('select status,status_reason from email_campaigns where id=$1',[c2.id]);
+assert.equal(c2now.status,'paused');assert.match(c2now.status_reason,/quota/);
+assert.equal((await rpc1('select status,attempts from email_campaign_recipients where id=$1',[c2jobs[0].id])).status,'pending','job put back');
+await user(staff);await db.query("select campaign_set_status($1,'cancel')",[c2.id]);await owner();
+assert.equal((await rpc1("select count(*)::int n from email_campaign_recipients where campaign_id=$1 and status in ('pending','retry')",[c2.id])).n,0,'cancel stops pending jobs');
+assert.equal((await rpc1('select status from email_campaigns where id=$1',[c2.id])).status,'cancelled');
+const tok=(await rpc1("select unsubscribe_token t from email_campaign_recipients where campaign_id=$1 and email='sub@example.com'",[c2.id])).t;
+assert.equal((await rpc1('select campaign_unsubscribe($1) e',[tok])).e,'sub@example.com');
+assert.ok((await rpc1("select unsubscribed_at from newsletter_subscribers where email='sub@example.com'")).unsubscribed_at,'marketing preference updated');
+await user(staff);
+assert.equal((await prev('promotional')).find(r=>r.name==='Sub Scriber').eligible,false,'unsubscribed → excluded from promotional');
+assert.equal((await prev('service')).find(r=>r.name==='Sub Scriber').eligible,true,'service emails unaffected');
+// Window check and permissions.
+await owner();
+assert.equal((await rpc1("select campaign_in_window(c,'2026-10-05T03:00:00Z') ok from (select (row(e.*)::email_campaigns) c from email_campaigns e limit 1) x")).ok,true,'no window: always');
+await db.query("update email_campaigns set window_start='09:00',window_end='10:30',timezone='Asia/Manila' where id=$1",[camp.id]);
+assert.equal((await rpc1("select campaign_in_window(e,'2026-10-05T01:30:00Z') ok from email_campaigns e where id=$1",[camp.id])).ok,true);
+assert.equal((await rpc1("select campaign_in_window(e,'2026-10-05T04:00:00Z') ok from email_campaigns e where id=$1",[camp.id])).ok,false);
+await db.query(`update employees set custom_access=true, allowed_modules='{"clients":true}' where user_id=$1`,[staff]);
+await user(staff);
+await assert.rejects(create('00000000-0000-0000-0000-0000000000b3','service'),/Not allowed/,'needs Email Inbox access too');
+assert.equal((await db.query('select * from email_campaigns')).rows.length,0,'no campaign history without access');
+await assert.rejects(db.query('select * from campaign_claim_jobs(1)'),/permission denied/,'worker functions are server-only');
+await db.exec('set role anon');await assert.rejects(db.query("select campaign_unsubscribe('00000000-0000-0000-0000-000000000000')"),/permission denied/);
+await owner();
+await db.query(`update employees set custom_access=true, allowed_modules='{"clients":true,"email-inbox":true}' where user_id=$1`,[staff]);
+await db.exec("update email_settings set sending_enabled=false");
+// ---------------- Send-only mailboxes ----------------
+await owner();
+const adminBox=await rpc1("select * from email_mailboxes where address='admin@airfairtravel.com'");
+assert.equal(adminBox.send_only,true);assert.equal(adminBox.status,'pending','seeded, not active until verified');
+await user(admin);
+assert.equal((await db.query('select can_send from inbox_my_mailboxes() where address=$1',['admin@airfairtravel.com'])).rows[0].can_send,false,'pending: not offered as From');
+await owner();await db.query("update email_mailboxes set sending_verified_at=now() where id=$1",[adminBox.id]);await user(admin);
+// Re-saving a send-only mailbox with proven sending makes it active; staff only with access.
+const saved=await rpc1("select * from admin_save_mailbox($1,'Air Fair Admin','admin@airfairtravel.com',false,true)",[adminBox.id]);
+assert.equal(saved.status,'active');
+assert.equal((await db.query('select can_send from inbox_my_mailboxes() where address=$1',['admin@airfairtravel.com'])).rows[0].can_send,true,'admins can send from it');
+await user(staff);assert.equal((await db.query('select id from inbox_my_mailboxes() where address=$1',['admin@airfairtravel.com'])).rows.length,0,'staff need access');
+await user(admin);
+// Switching to a full mailbox without proven receiving drops it back to pending.
+assert.equal((await rpc1("select status from admin_save_mailbox($1,'Air Fair Admin','admin@airfairtravel.com',false,false)",[adminBox.id])).status,'pending');
+assert.equal((await rpc1("select status from admin_save_mailbox($1,'Air Fair Admin','admin@airfairtravel.com',false,true)",[adminBox.id])).status,'active');
+await owner();
+// ---------------- Campaign CC/BCC ----------------
+await owner();await db.exec("update email_settings set sending_enabled=true");
+await db.query(`update employees set custom_access=true, allowed_modules='{"clients":true,"email-inbox":true}' where user_id=$1`,[staff]);
+await user(staff);
+const withCopies=(k,ccs,bccs)=>db.query("select * from campaign_create($1,$2,'service','Hi','<p>Hi</p>','there',$3,'{}'::jsonb,$4,$5)",[k,general.id,[cid(1),cid(7)],ccs,bccs]).then(r=>r.rows[0]);
+const cc1=await withCopies('00000000-0000-0000-0000-0000000000d1',['Boss@AirfairTravel.com','boss@airfairtravel.com'],['boss@airfairtravel.com','audit@airfairtravel.com']);
+assert.deepEqual(cc1.cc,['boss@airfairtravel.com'],'deduplicated, lower-cased');assert.deepEqual(cc1.bcc,['audit@airfairtravel.com'],'BCC never repeats CC');
+await assert.rejects(withCopies('00000000-0000-0000-0000-0000000000d2',['not-an-email'],[]),/Invalid CC\/BCC/);
+await assert.rejects(withCopies('00000000-0000-0000-0000-0000000000d3',[1,2,3,4,5,6].map(i=>`c${i}@x.com`),[]),/up to 5/);
+await owner();
+const ccJobs=(await db.query('select * from campaign_claim_jobs(20)')).rows.filter(j=>j.campaign_id===cc1.id);
+assert.ok(ccJobs.length>0);assert.deepEqual(ccJobs[0].cc,['boss@airfairtravel.com']);assert.deepEqual(ccJobs[0].bcc,['audit@airfairtravel.com']);
+await user(staff);await db.query("select campaign_set_status($1,'cancel')",[cc1.id]);await owner();
+await db.exec("update email_settings set sending_enabled=false");
 console.log('Inbox database checks passed: RLS, permissions, durable deduplication, thread matching, unassigned messages, queue idempotency, form auto-reply link and preserved staff/newsletter routing.');
+// Phase 1: an external reply must not add a mailbox to private thread history.
+await owner();
+await grant(staff,{clients:true,'email-inbox':true});
+const routeAddresses=(await db.query('select id,address from email_mailboxes where id in ($1,$2)',[visa.id,travel.id])).rows;
+const visaAddress=routeAddresses.find(b=>b.id===visa.id).address;
+const travelAddress=routeAddresses.find(b=>b.id===travel.id).address;
+const privateThread=await rpc1("insert into email_conversations(subject,participant_email,mailbox_id) values('Private history','private@example.com',$1) returning *",[travel.id]);
+await db.query("insert into email_messages(conversation_id,direction,from_email,to_email,subject,body_text,rfc_message_id,attachments) values($1,'incoming','private@example.com',$2,'Private','Confidential history','<private-history@example.com>',$3)",[privateThread.id,travelAddress,JSON.stringify([{path:'incoming/security/private.pdf',filename:'private.pdf'}])]);
+for(const [index,tokens,references] of [[0,[privateThread.reply_token],[]],[1,[privateThread.reply_token.slice(0,48)],[]],[2,[],['<private-history@example.com>']]]) {
+  await owner();
+  const email={...incoming,id:'security-reply-'+index,from:'private@example.com',tokens,references,recipients:[visaAddress,travelAddress],message_id:'<security-reply-'+index+'@example.com>'};
+  assert.equal(await accept('security-event-'+index,email),privateThread.id);
+  assert.equal(await accept('security-event-'+index,email),privateThread.id,'delivery replay remains idempotent');
+  assert.deepEqual((await db.query('select mailbox_id from email_conversation_mailboxes where conversation_id=$1',[privateThread.id])).rows.map(r=>r.mailbox_id),[travel.id]);
+  assert.equal((await rpc1('select mailbox_id from email_messages where resend_id=$1',[email.id])).mailbox_id,travel.id,'reply stays in an authorized mailbox');
+  await user(staff);
+  assert.equal((await db.query('select id from email_conversations where id=$1',[privateThread.id])).rows.length,0);
+  assert.equal((await db.query('select id from email_messages where conversation_id=$1',[privateThread.id])).rows.length,0);
+  assert.equal((await rpc1("select can_read_email_attachment('incoming/security/private.pdf') ok")).ok,false);
+}
+await user(admin);
+assert.equal((await db.query('select id from email_messages where conversation_id=$1',[privateThread.id])).rows.length,4,'authorized reader retains history and all replies');
+console.log('Inbound isolation checks passed: full/short tokens and RFC references cannot widen mailbox access; retries, attachments and authorized readers remain correct.');
+// Phase 1: delegated settings access must never grant script execution.
+await owner();
+await db.exec('grant delete on site_settings to authenticated');
+await db.query("update employees set custom_access=true,allowed_modules='{\"settings\":true}' where user_id=$1",[staff]);
+await user(admin);
+await db.query("insert into site_settings(id,value,chat_widget_code) values ('security-script','{}','/* trusted admin widget */')");
+await user(staff);
+assert.equal((await db.query("update site_settings set value='{\"business_name\":\"Updated\"}' where id='security-script' returning id")).rows.length,1);
+await assert.rejects(db.query("update site_settings set chat_widget_code='/* injected */' where id='security-script'"),/Only administrators/);
+await assert.rejects(db.query("update site_settings set chat_widget_code=null where id='security-script'"),/Only administrators/);
+await assert.rejects(db.query("insert into site_settings(id,chat_widget_code) values('injected','/* injected */')"),/Only administrators/);
+await assert.rejects(db.query("insert into site_settings(id,chat_widget_code) values('security-script','/* injected */') on conflict(id) do update set chat_widget_code=excluded.chat_widget_code"),/Only administrators/);
+await assert.rejects(db.query("delete from site_settings where id='security-script'"),/Only administrators/);
+await db.query("insert into site_settings(id,value) values('safe-settings','{}')");
+await db.query("delete from site_settings where id='safe-settings'");
+await owner();
+await db.query("update employees set allowed_modules='{\"form-emails\":true}' where user_id=$1",[staff]);
+await user(staff);
+await db.query("update site_settings set value='{}' where id='security-script'");
+await assert.rejects(db.query("update site_settings set chat_widget_code='/* injected */' where id='security-script'"),/Only administrators/);
+await user(admin);
+await db.query("update site_settings set chat_widget_code='/* updated trusted widget */' where id='security-script'");
+await db.query("delete from site_settings where id='security-script'");
+console.log('Executable settings checks passed: Settings/Form Emails cannot insert, change, upsert or delete scripts; ordinary edits and admin changes work.');
+// Phase 2: Team delegates cannot replace protected administrator records.
+await owner(); await grant(staff,{team:true});
+await db.exec('grant delete on employees to authenticated');
+await db.query("update profiles set role='staff' where role='admin' and id<>$1",[admin]);
+const savedAdminEmployee=await rpc1('select * from employees where user_id=$1',[admin]);
+await user(staff);
+await assert.rejects(db.query('delete from employees where user_id=$1',[admin]),/Only an admin/);
+await assert.rejects(db.query("insert into employees(user_id,custom_access,allowed_modules) values($1,true,'{}') on conflict(user_id) do update set allowed_modules=excluded.allowed_modules",[admin]),/Only an admin/);
+await user(admin);
+await db.query('delete from employees where user_id=$1',[admin]);
+await user(staff);
+await assert.rejects(db.query("insert into employees(user_id,custom_access,allowed_modules) values($1,true,'{}')",[admin]),/Only an admin/,'missing admin record cannot be recreated by a delegate');
+await user(admin);
+await assert.rejects(db.query("insert into employees(user_id,custom_access,allowed_modules) values($1,true,'{}')",[admin]),/keep access to Team/,'INSERT cannot lock out the last administrator');
+await db.query('insert into employees select * from jsonb_populate_record(null::employees,$1)',[JSON.stringify(savedAdminEmployee)]);
+await user(staff);
+assert.equal((await db.query("update employees set role='Consultant' where user_id=$1 returning id",[staff])).rows.length,1,'ordinary Team edits remain allowed');
+console.log('Admin replacement checks passed: DELETE, INSERT, upsert and last-admin insertion are protected.');
+// Trusted Auth state, not profile role or an old token, decides access.
+await owner(); await grant(staff,{clients:true,'email-inbox':true,team:true,settings:true});
+for (const account of [admin,staff]) {
+  await owner();
+  await db.query('update auth.users set email_confirmed_at=null where id=$1',[account]);
+  await user(account);
+  assert.equal((await rpc1('select auth_role() role')).role,'none');
+  assert.equal((await rpc1('select is_admin() ok')).ok,false);
+  assert.equal((await rpc1('select is_team() ok')).ok,false);
+  assert.equal((await rpc1("select has_section('team') ok")).ok,false);
+  assert.equal((await rpc1('select can_use_email_inbox() ok')).ok,false);
+  assert.equal((await db.query('select id from email_conversations')).rows.length,0);
+  assert.equal((await db.query("update site_settings set value='{}' returning id")).rows.length,0);
+  await assert.rejects(db.query('select team_account_verified($1)',[admin]),/permission denied/,'private helper cannot enumerate account state');
+  await owner();
+  await db.query("update auth.users set email_confirmed_at=now(),banned_until=now()+interval '1 hour' where id=$1",[account]);
+  await user(account);
+  assert.equal((await rpc1('select auth_role() role')).role,'none','old session does not bypass an Auth ban');
+  assert.equal((await rpc1("select has_section('team') ok")).ok,false);
+  await owner();
+  await db.query("update auth.users set banned_until=now()-interval '1 minute' where id=$1",[account]);
+  await user(account);
+  assert.equal((await rpc1('select auth_role() role')).role,account===admin?'admin':'staff');
+  assert.equal((await rpc1("select has_section('team') ok")).ok,true);
+}
+console.log('Verified-account checks passed: unconfirmed and banned admin/staff sessions denied; confirmed accounts and expired bans work.');
+await (await import('./test-private-sections.mjs')).testPrivateSections({ db, owner, user, grant, staff, admin, contact });
+await (await import('./test-client-validation.mjs')).testClientValidation({ db, owner, user, grant, staff, contact });
+await (await import('./test-upload-storage.mjs')).testUploadStorage({ db, owner, user, grant, staff, admin });
+await (await import('./test-email-budgets.mjs')).testEmailBudgets({ db, owner, user, admin });
 await db.close();

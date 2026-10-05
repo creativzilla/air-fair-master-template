@@ -196,6 +196,12 @@ export async function processOutbox(deps: Deps, opts: { ids?: string[] | null; l
       summary.skipped++;
       continue;
     }
+    // A quota delay must not extend ambiguous retries beyond provider duplicate
+    // protection. created_at is a conservative lower bound on first send time.
+    if (row.attempts > 1 && now().getTime()-Date.parse(row.created_at) > 23*3600000) {
+      await store.updateOutbox(row.id,{status:'failed',last_error:'Delivery outcome requires review: duplicate-protection window expired. Check the provider before retrying.',locked_until:null});
+      summary.failed++; continue;
+    }
     const result = await mailer.send(
       { from: SENDER, to: row.to_email, replyTo: row.reply_to, subject: row.subject, html: row.html, text: row.body_text, tags: { kind: row.kind, service_type: row.service_type ?? "general" } },
       row.id,
@@ -203,6 +209,10 @@ export async function processOutbox(deps: Deps, opts: { ids?: string[] | null; l
     if (result.ok) {
       await store.updateOutbox(row.id, { status: "sent", sent_at: now().toISOString(), provider_message_id: result.id, last_error: null, locked_until: null });
       summary.sent++;
+    } else if (result.budgetBlocked) {
+      await store.updateOutbox(row.id, { status: 'retry', attempts: Math.max(0,row.attempts-1),
+        next_attempt_at: new Date(now().getTime()+3600000).toISOString(), last_error: result.error, locked_until:null });
+      summary.retry++;
     } else if (result.retryable && row.attempts < MAX_ATTEMPTS) {
       const wait = BACKOFF_MINUTES[Math.min(row.attempts - 1, BACKOFF_MINUTES.length - 1)];
       await store.updateOutbox(row.id, { status: "retry", next_attempt_at: new Date(now().getTime() + wait * 60_000).toISOString(), last_error: result.error, locked_until: null });

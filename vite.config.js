@@ -2,6 +2,7 @@ import path from 'node:path'
 import fs from 'node:fs'
 import { build, defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
+import { validatePublicEnv, securityHeaders } from './scripts/security-config.mjs'
 
 // Share-preview tags that need the production address. Social scrapers don't
 // run JavaScript, so these go into index.html at build time; nothing is
@@ -51,12 +52,14 @@ function preloadFonts() {
 // then works exactly as a plain single-page app.
 function prerenderPages(mode) {
   let config
+  let buildFailed = false
   return {
     name: 'air-fair-prerender',
     apply: 'build',
     configResolved(resolved) { config = resolved },
+    buildEnd(error) { buildFailed = Boolean(error) },
     async closeBundle() {
-      if (config.build.ssr) return
+      if (buildFailed || config.build.ssr) return
       const root = config.root
       const ssrDir = path.join(root, 'dist-ssr')
       const { writeAppShell, prerender } = await import('./scripts/prerender.mjs')
@@ -80,11 +83,17 @@ function prerenderPages(mode) {
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), 'VITE_')
+  validatePublicEnv(env)
   return {
     plugins: [react(), siteMeta(env), preloadFonts(), prerenderPages(mode)],
     server: {
       port: 5173,
-      host: true,
+      host: 'localhost',
+      headers: securityHeaders,
+      cors: { origin: /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/ },
+      fs: { strict: true, deny: ['.env', '.env.*', '**/.env*', '**/.git/**', '**/.codex/**', '**/.agents/**', '**/*.pem', '**/*.crt', '**/*.key', '**/*.p12'] },
     },
+    preview: { host: 'localhost', headers: securityHeaders },
+    build: { sourcemap: false },
   }
 })

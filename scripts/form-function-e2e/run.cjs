@@ -44,7 +44,7 @@ const sub = (kind, over = {}) => ({
   T.email_templates = Object.entries(DEFAULT_AUTO_REPLIES).map(([service_type, t]) => ({ id: uuid(), service_type, form_id: null, enabled: true, ...t }));
 
   const deno = spawn(DENO, [
-    "run", "--node-modules-dir=none", `--allow-net=127.0.0.1,localhost,0.0.0.0:${FN_PORT}`, "--allow-env", "--allow-read",
+    "run", "--no-lock", "--node-modules-dir=none", `--allow-net=127.0.0.1,localhost,0.0.0.0:${FN_PORT}`, "--allow-env", "--allow-read",
     `--preload=${path.join(__dirname, "preload.ts")}`, path.join(ROOT, "supabase/functions/form-submit/index.ts"),
   ], {
     cwd: ROOT,
@@ -265,6 +265,29 @@ const sub = (kind, over = {}) => ({
     assert.equal(T.form_submissions.length, before[1]);
   });
 
+  await check("privileged sends obey database denial even with a valid admin token/profile", async () => {
+    const before = state.resendCalls.length;
+    state.deniedAccounts.add("u-admin");
+    try {
+      const r = await post({ action: "send_template_test", service_type: "travel", to: "staff-inbox@example.test", subject: "Test", body: "Test" }, { ...ip(), Authorization: "Bearer admin-token" });
+      assert.equal(r.status, 403);
+      assert.equal(state.resendCalls.length, before);
+    } finally { state.deniedAccounts.delete("u-admin"); }
+  });
+
+  await check("admin role cannot bypass disabled Form Emails section", async () => {
+    state.deniedSections.add("form-emails");
+    const before = state.resendCalls.length;
+    try {
+      const r = await post({ action: "send_template_test", service_type: "travel", to: "staff-inbox@example.test", subject: "Test", body: "Test" }, { ...ip(), Authorization: "Bearer admin-token" });
+      assert.equal(r.status, 403);
+      assert.equal(state.resendCalls.length, before);
+    } finally { state.deniedSections.delete("form-emails"); }
+  });
+  await check("null and array request bodies are rejected", async () => {
+    for (const body of ["null", "[]", '"text"']) assert.equal((await post(body, ip())).status, 400);
+  });
+
   // ---------------------------------------------------------------- Form Studio schemas
   const studio = (raw, extra = {}) => ({ id: uuid(), form_type: "studio-apply", form_key: "studio-apply", source_page: "/apply", name: "", email: "studio@example.com", phone: "",
     attachments: [], document_id: null, form_version_id: "99999999-9999-4999-8999-999999999999", raw_data: raw, ...extra });
@@ -308,6 +331,19 @@ const sub = (kind, over = {}) => ({
     assert.ok(!JSON.stringify(staff).includes(path), "private file path never emailed");
   });
 
+  await check("application budget blocks provider sends while preserving submission and retry queue",async()=>{
+    const before=state.resendCalls.length;
+    state.emailBudgetDenied=true;
+    const s=sub('contact',{email:'budget@example.com'});
+    assert.equal((await post({action:'submit_form',submission:s,guard:human},ip())).status,200);
+    assert.ok(T.form_submissions.some(r=>r.id===s.id));
+    const queued=T.email_outbox.filter(r=>r.submission_id===s.id);
+    assert.equal(queued.length,2);
+    assert.ok(queued.every(r=>r.status==='retry'&&r.attempts===0));
+    assert.equal(state.resendCalls.length,before);
+    state.emailBudgetDenied=false;
+  });
+
   // ---------------------------------------------------------------- safety net
   await check("no request ever left the machine", async () => {
     assert.ok(!/blocked external request|NotCapable|Requires net access/i.test(log), log.slice(-500));
@@ -318,5 +354,6 @@ const sub = (kind, over = {}) => ({
   let pass = 0;
   for (const [status, name] of results) { if (status === "PASS") pass++; console.log(`${status} | ${name}`); }
   console.log(`${pass}/${results.length} passed | emails captured by local sink: ${state.resendCalls.length} | submissions in fake DB: ${T.form_submissions.length}`);
+  if (pass !== results.length) process.exitCode = 1;
   if (/error/i.test(log)) console.log("--- function log (errors) ---\n" + log.split("\n").filter(l => /error/i.test(l)).slice(0, 10).join("\n"));
 })();
