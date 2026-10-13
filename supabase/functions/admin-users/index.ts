@@ -70,7 +70,16 @@ Deno.serve(async (req) => {
         if (!ROLES.has(role)) return json({ error: "Choose a role: admin, editor or staff." }, 400);
         if (role === "admin" && !callerIsAdmin) return json({ error: "Only an admin can invite another admin." }, 403);
         const { data, error } = await admin.auth.admin.inviteUserByEmail(email, { redirectTo, data: { full_name: fullName } });
-        if (error) throw error;
+        if (error) {
+          // Say why, for the cases the person inviting can act on.
+          const code = String((error as { code?: string }).code ?? "");
+          console.error(JSON.stringify({ fn: "admin-users", stage: "invite_failed", status: error.status ?? null, code }));
+          if (error.status === 429 || code.includes("rate_limit"))
+            return json({ error: "Too many sign-in emails were sent recently, so Supabase paused sending. Wait about an hour and try again, or set up custom email (SMTP) in Supabase to raise the limit." }, 429);
+          if (code === "email_exists" || code === "user_already_exists" || /already (been )?registered/i.test(error.message))
+            return json({ error: "This email already has an account. Find them in the team list instead." }, 409);
+          throw error;
+        }
         // The on_auth_user_created trigger created the profile with role 'none'.
         const { error: profileError } = await admin.from("profiles")
           .upsert({ id: data.user.id, email, full_name: fullName, role, is_active: true }, { onConflict: "id" });
