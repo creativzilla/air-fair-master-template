@@ -14,7 +14,7 @@ import { articleContent } from "./newsArticleContent.js";
 
 const img = (src, alt = "") => ({ src, alt, mediaId: null });
 const link = (label, href) => ({ label, href });
-const PRIVACY_CONSENT = { required: true, text: "I agree to the processing of my personal data in accordance with the Privacy Policy.", linkLabel: "Privacy Policy", linkHref: "/#contact" };
+const PRIVACY_CONSENT = { required: false, text: "I agree to the processing of my personal data in accordance with the Privacy Policy.", linkLabel: "Privacy Policy", linkHref: "/#contact" };
 
 const docs = []; // { kind, slug, title, sort, content, formSlug? }
 const add = (kind, slug, title, sort, content, formSlug = null) => docs.push({ kind, slug, title, sort, content, formSlug });
@@ -347,7 +347,7 @@ add("form", "website-contact", "Form — Website contact", formSort++, {
   submitLabel: "Send Inquiry", privacyNote: "", consent: null,
   successTitle: "Thank you for reaching out.", successMessage: "We've received your inquiry and will contact you soon.",
   sections: [{ id: "main", title: "", fields: [
-    { name: "name", label: "Full name", type: "text", required: true, placeholder: "Full name" },
+    { name: "name", label: "Full name", type: "text", required: false, placeholder: "Full name" },
     { name: "email", label: "Email address", type: "email", required: true, placeholder: "Email address" },
     { name: "phone", label: "Phone number", type: "tel", required: false, placeholder: "Phone number" },
     { name: "message", label: "How can we help?", type: "textarea", required: false, placeholder: "How can we help?" },
