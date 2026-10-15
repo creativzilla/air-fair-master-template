@@ -42,8 +42,8 @@ function embeddedSettings() {
 }
 export const fallbackSettings = {
   business_name: "Air Fair Travel & Immigration",
-  contact_email: "airfairtravelandours@gmail.com",
-  contact_phone: "+63 906-331-7785",
+  contact_email: "admin@airfairtravel.com",
+  contact_phone: "+63 917 868 3217; +63 917 319 6888",
   address: "Philippines",
   facebook_url: "",
   instagram_url: "",

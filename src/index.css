@@ -636,7 +636,7 @@ footer{background:#051931;color:#9fb2cc;border-top:1px solid rgba(255,255,255,.0
 
 /* Assessment form column */
 .svc-form-col{min-width:0}
-.svc-form-card{background:#fff;border:1px solid rgba(16,45,104,.08);border-radius:18px;box-shadow:0 12px 32px rgba(16,45,104,.08);padding:28px}
+.svc-form-card{background:#F8FAFF;border:1px solid #E1E8F7;border-radius:18px;box-shadow:0 12px 32px rgba(16,45,104,.08);padding:28px}
 .svc-form-head h3{font-size:20px;color:#102B57;font-weight:800;margin:0 0 6px;display:flex;align-items:center;gap:10px}
 .svc-form-icon{width:34px;height:34px;border-radius:9px;background:#DCEFC4;color:#2F720E;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .svc-form-head p{font-size:13.5px;color:#718093;margin:0 0 22px;line-height:1.5}
@@ -661,7 +661,7 @@ footer{background:#051931;color:#9fb2cc;border-top:1px solid rgba(255,255,255,.0
 .svc-file-name{font-size:12px;color:#718093}
 
 .svc-radio-group{display:flex;flex-wrap:wrap;gap:10px}
-.svc-radio-pill{display:flex;align-items:center;gap:7px;border:1px solid #E3E8ED;border-radius:22px;padding:9px 16px;font-size:13.5px;color:#3d4c58;cursor:pointer;transition:border-color .2s ease,background .2s ease}
+.svc-radio-pill{display:flex;align-items:center;gap:7px;border:1px solid #E3E8ED;border-radius:22px;padding:9px 16px;font-size:13.5px;color:#3d4c58;cursor:pointer;transition:border-color .2s ease,background .2s ease;background:#fff}
 .svc-radio-pill input{accent-color:#4B9B13}
 .svc-radio-pill.checked{border-color:#4B9B13;background:#EFF9D9;color:#2F720E;font-weight:600}
 
