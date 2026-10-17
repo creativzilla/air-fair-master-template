@@ -1,0 +1,10 @@
+{
+  "tool": "built-in image_gen",
+  "prompt": "Remove only the AIR FAIR logo at the top, including its airplane/leaf/swoosh symbol and small TRAVEL & IMMIGRATION subtitle. Seamlessly reconstruct the sky/background behind that logo. Preserve all other existing text verbatim, prices, layout, colors, people, landmarks, decorative graphics and square aspect ratio. Do not add new text or branding.",
+  "outputs": [
+    "public/visa-posters/*.jpg",
+    "public/visa-posters/*.webp",
+    "public/travel-posters/*.jpg",
+    "public/travel-posters/*.webp"
+  ]
+}
