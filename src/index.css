@@ -156,7 +156,7 @@ body{margin:0;font-family:'Poppins',sans-serif;color:#5B6C80;background:#fff}
 .category-card--teal .category-card-icon{background:#D7F5F0;color:#0F8577}
 .category-card--teal .category-card-link{color:#0F8577}
 
-.immigration-v2{padding-bottom:56px}
+.immigration-v2{background:#EDF4E9;padding-top:clamp(64px,7vw,88px);padding-bottom:56px}
 
 /* ---- Header area ---- */
 .immigration-banner{padding-top:0;padding-bottom:8px}
@@ -168,10 +168,10 @@ body{margin:0;font-family:'Poppins',sans-serif;color:#5B6C80;background:#fff}
 /* ---- Services grid: 3 / 2 / 1 columns ---- */
 .immigration-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;align-items:stretch;margin-top:clamp(20px,3vw,32px)}
 
-.immigration-card{display:grid;grid-template-columns:76px minmax(0,1fr);align-items:center;gap:16px;min-height:132px;min-width:0;text-decoration:none;background:#F6FBEF;border:1px solid rgba(90,150,60,.10);border-radius:18px;box-shadow:0 8px 22px rgba(15,45,25,.06);padding:20px;transition:transform .25s ease,box-shadow .25s ease}
+.immigration-card{display:grid;grid-template-columns:76px minmax(0,1fr);align-items:center;gap:16px;min-height:132px;min-width:0;text-decoration:none;background:#FFFFFF;border:1px solid #E0E8DC;border-radius:18px;box-shadow:0 8px 22px rgba(15,45,25,.06);padding:20px;transition:transform .25s ease,box-shadow .25s ease}
 .immigration-card:hover{transform:translateY(-3px);box-shadow:0 14px 30px rgba(15,45,25,.1)}
 
-.immigration-card-icon-tile{width:76px;height:76px;border-radius:14px;background:#EAF7DF;color:#176B20;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.immigration-card-icon-tile{width:76px;height:76px;border-radius:14px;background:#EDF7E3;color:#65AD28;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .immigration-card-icon-tile svg{width:32px;height:32px;flex-shrink:0}
 
 .immigration-card-content{min-width:0}
