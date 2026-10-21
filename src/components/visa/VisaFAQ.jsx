@@ -3,13 +3,17 @@ import { ChevronDown } from "lucide-react";
 import { useLabels } from "../../lib/cms.js";
 
 function FAQItem({ faq, isOpen, onToggle }) {
+  // Published CMS entries may still contain the retired case-review sentence.
+  const answer = faq.question === "What happens if my application is denied?"
+    ? faq.answer.replace(/\s*Our team can help you review(?: and strengthen)? your case\./g, "").trim()
+    : faq.answer;
   return (
     <div className={`vcp-faq-item${isOpen ? " open" : ""}`}>
       <button type="button" className="vcp-faq-question" onClick={onToggle} aria-expanded={isOpen}>
         <span>{faq.question}</span>
         <ChevronDown size={18} className="vcp-faq-chevron" />
       </button>
-      {isOpen && <p className="vcp-faq-answer">{faq.answer}</p>}
+      {isOpen && <p className="vcp-faq-answer">{answer}</p>}
     </div>
   );
 }

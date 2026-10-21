@@ -56,7 +56,7 @@ function defaultFaqs(country, stayAnswer) {
     },
     {
       question: "What happens if my application is denied?",
-      answer: "You may be able to reapply after addressing the reasons for denial. Our team can help you review your case.",
+      answer: "You may be able to reapply after addressing the reasons for denial.",
     },
   ];
 }
@@ -169,7 +169,7 @@ export const visaCountries = {
       },
       {
         question: "What happens if my application is denied?",
-        answer: "You may reapply after addressing the reasons for denial. Our team can help you review and strengthen your case.",
+        answer: "You may reapply after addressing the reasons for denial.",
       },
     ],
     relatedServices: relatedTravelCard(
