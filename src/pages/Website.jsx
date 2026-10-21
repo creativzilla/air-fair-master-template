@@ -12,6 +12,7 @@ import { getIcon } from "../components/immigration/icons.js";
 import VisaDestinationCard from "../components/visa/VisaDestinationCard.jsx";
 import NewsEvents from "../components/NewsEvents.jsx";
 import { useAutoplay } from "../lib/useAutoplay.js";
+import { withConsultationSlide } from "../lib/heroSlides.js";
 import { useFormGuard } from "../components/forms/FormGuard.jsx";
 import { applyOrganizationJsonLd, applySeo, collectSsrJsonLd, collectSsrSeo, organizationJsonLd } from "../lib/seo.js";
 
@@ -128,7 +129,8 @@ export function TopBars({ settings }) {
 const HERO_IMAGE_MS = 2000;
 
 function Hero({ fields }) {
-  const slides = fields.slides || [];
+  const global = useGlobalContent();
+  const slides = withConsultationSlide(fields.slides || [], global.nav?.ctaHref);
   const featureIcons = fields.featureIcons || [];
   const [active, setActive] = useState(0);
   const [imageIndex, setImageIndex] = useState(0);
@@ -137,6 +139,7 @@ function Hero({ fields }) {
   const canAutoplay = useAutoplay(sectionRef);
   const running = !paused && canAutoplay;
   const imagesInSlide = slides[active]?.images?.length || 1;
+  const imageDurationMs = slides[active]?.imageDurationMs || HERO_IMAGE_MS;
   // Background photos are only requested once they are showing or up next,
   // instead of every slide's photos on first load. Once requested they stay
   // set so the cross-fade out still works.
@@ -157,9 +160,9 @@ function Hero({ fields }) {
         }
         return nextIndex;
       });
-    }, HERO_IMAGE_MS);
+    }, imageDurationMs);
     return () => clearInterval(timer);
-  }, [running, imagesInSlide, slides.length]);
+  }, [running, imagesInSlide, slides.length, imageDurationMs]);
   if (slides.length === 0) return null;
   const goToSlide = i => { setActive(i); setImageIndex(0); };
   const next = () => goToSlide((active + 1) % slides.length);
@@ -184,19 +187,19 @@ function Hero({ fields }) {
           <span className="hero-card-flag">{fields.flagLabel}</span>
         </div>
         <h2>{slide.headline}<span className="hero-card-highlight">{slide.highlight}</span></h2>
-        <p className="hero-card-subheading">{slide.subheading}</p>
+        {slide.subheading && <p className="hero-card-subheading">{slide.subheading}</p>}
         <p className="hero-card-desc">{slide.description}</p>
-        <div className="hero-trust-row">
+        {!!slide.features?.length && <div className="hero-trust-row">
           {(slide.features || []).map((f, i) => { const FIcon = getIcon(featureIcons[i]); return <div className="hero-trust-item" key={f}><FIcon size={15} /><span>{f}</span></div>; })}
-        </div>
+        </div>}
         <div className="hero-cta-row">
-          <a href={slide.cta?.href || "#contact"} className="hero-cta">{slide.cta?.label} <ArrowRight size={15} /></a>
+          {slide.cta?.href ? <a href={slide.cta.href} className="hero-cta">{slide.cta.label} <ArrowRight size={15} /></a> : <span className="hero-cta">{slide.cta?.label}</span>}
         </div>
       </div>
       <div className="hero-progress-track">
         {slides.map((s, i) => (
-          <button key={s.headline + s.highlight} onClick={() => goToSlide(i)} className={i === active ? "hero-progress-dot active" : "hero-progress-dot"} aria-label={`Show ${s.headline}${s.highlight}`}>
-            {i === active && <span className="hero-progress-fill" style={{ animationPlayState: running ? "running" : "paused" }} />}
+          <button key={s.headline + s.highlight} onClick={() => goToSlide(i)} className={i === active ? "hero-progress-dot active" : "hero-progress-dot"} aria-current={i === active ? "true" : undefined} aria-label={`Slide ${i + 1} of ${slides.length}: ${s.headline}${s.highlight || ""}`}>
+            {i === active && <span className="hero-progress-fill" style={{ animationPlayState: running ? "running" : "paused", animationDuration: `${imagesInSlide * imageDurationMs}ms` }} />}
           </button>
         ))}
       </div>
