@@ -7,9 +7,9 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host 0.0.0.0 --port 5173 --strictPort",
     "build": "vite build",
-    "preview": "vite preview",
+    "preview": "vite preview --host 0.0.0.0 --port 5173 --strictPort",
     "test:auth": "node --test \"supabase/functions/_shared/auth/*.test.ts\"",
     "test:production-config": "node --test scripts/security-config.test.mjs",
     "test:email": "node --test \"supabase/functions/_shared/forms/*.test.ts\"",
