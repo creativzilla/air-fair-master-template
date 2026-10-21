@@ -7,9 +7,9 @@ export function withConsultationSlide(slides = [], bookingHref) {
   const original = slides.filter(slide => slide.id !== CONSULTATION_ID);
   const consultation = existing || {
     id: CONSULTATION_ID,
-    headline: "Have Questions About Your ",
-    highlight: "Immigration Journey?",
-    description: "Get Special Assistance from Our Immigration Lawyer",
+    headline: "Get Special Assistance from Our ",
+    highlight: "Immigration Lawyer",
+    description: "Speak with our immigration lawyer for personalized legal advice on your requirements, options, and next steps.",
     cta: { label: "Book Your Consultation Today", href: bookingHref },
     images: [
       { src: "/consultation/law-1.jpg", alt: "Immigration legal consultation" },
