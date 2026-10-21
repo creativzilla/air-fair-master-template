@@ -9,7 +9,7 @@ export function withConsultationSlide(slides = [], bookingHref) {
     id: CONSULTATION_ID,
     headline: "Have Questions About Your ",
     highlight: "Immigration Journey?",
-    description: "Speak with our immigration lawyer for personalized legal advice on your requirements, options, and next steps.",
+    description: "Get Special Assistance from Our Immigration Lawyer",
     cta: { label: "Book Your Consultation Today", href: bookingHref },
     images: [
       { src: "/consultation/law-1.jpg", alt: "Immigration legal consultation" },
