@@ -84,16 +84,17 @@ function prerenderPages(mode) {
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), 'VITE_')
   validatePublicEnv(env)
+  const port = Number(process.env.PORT) || 5173
   return {
     plugins: [react(), siteMeta(env), preloadFonts(), prerenderPages(mode)],
     server: {
-      port: 5173,
+      port,
       host: '0.0.0.0',
       headers: securityHeaders,
       cors: { origin: /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/ },
       fs: { strict: true, deny: ['.env', '.env.*', '**/.env*', '**/.git/**', '**/.codex/**', '**/.agents/**', '**/*.pem', '**/*.crt', '**/*.key', '**/*.p12'] },
     },
-    preview: { host: '0.0.0.0', headers: securityHeaders },
+    preview: { port, host: '0.0.0.0', headers: securityHeaders },
     build: { sourcemap: false },
   }
 })
