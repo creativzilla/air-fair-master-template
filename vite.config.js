@@ -88,12 +88,12 @@ export default defineConfig(({ mode }) => {
     plugins: [react(), siteMeta(env), preloadFonts(), prerenderPages(mode)],
     server: {
       port: 5173,
-      host: 'localhost',
+      host: '0.0.0.0',
       headers: securityHeaders,
       cors: { origin: /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/ },
       fs: { strict: true, deny: ['.env', '.env.*', '**/.env*', '**/.git/**', '**/.codex/**', '**/.agents/**', '**/*.pem', '**/*.crt', '**/*.key', '**/*.p12'] },
     },
-    preview: { host: 'localhost', headers: securityHeaders },
+    preview: { host: '0.0.0.0', headers: securityHeaders },
     build: { sourcemap: false },
   }
 })
