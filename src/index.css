@@ -8,6 +8,8 @@
 @source "../index.html";
 @source not inline("visible");
 
+:root{--public-form-background:#DFE8F8}
+
 html,
 body,
 #root {
@@ -156,7 +158,7 @@ body{margin:0;font-family:'Poppins',sans-serif;color:#5B6C80;background:#fff}
 .category-card--teal .category-card-icon{background:#D7F5F0;color:#0F8577}
 .category-card--teal .category-card-link{color:#0F8577}
 
-.immigration-v2{background:#EDF4E9;padding-top:clamp(64px,7vw,88px);padding-bottom:56px}
+.immigration-v2{background:#DFEBD8;padding-top:clamp(64px,7vw,88px);padding-bottom:56px}
 
 /* ---- Header area ---- */
 .immigration-banner{padding-top:0;padding-bottom:8px}
@@ -334,11 +336,11 @@ body{margin:0;font-family:'Poppins',sans-serif;color:#5B6C80;background:#fff}
 .contact-detail:hover{background:rgba(255,255,255,.09)}
 .contact-detail svg{color:#FFCB19;flex-shrink:0}
 .contact-detail a{color:inherit;text-decoration:none}
-.contact-form{background:rgba(255,255,255,.96);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.6);border-radius:18px;padding:26px;display:grid;gap:14px;box-shadow:0 24px 50px rgba(5,14,26,.3)}
+.contact-form{background:var(--public-form-background);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.6);border-radius:18px;padding:26px;display:grid;gap:14px;box-shadow:0 24px 50px rgba(5,14,26,.3)}
 .contact-form input,.contact-form textarea{font-family:inherit;border:1px solid #E3E8ED;border-radius:10px;padding:13px;font-size:15px;outline:0;resize:vertical;transition:border-color .2s ease}
 .contact-form input:focus,.contact-form textarea:focus{border-color:#4B9B13}
 .contact-form button{border:0;justify-content:center}
-.sent-card{background:rgba(255,255,255,.96);color:#102B57;border-radius:18px;padding:44px;text-align:center;box-shadow:0 24px 50px rgba(5,14,26,.3)}
+.sent-card{background:var(--public-form-background);color:#102B57;border-radius:18px;padding:44px;text-align:center;box-shadow:0 24px 50px rgba(5,14,26,.3)}
 .sent-card svg{color:#4B9B13}
 .sent-card h3{font-size:22px}
 .sent-card p{color:#5B6C80;font-size:17px}
@@ -351,9 +353,9 @@ footer{background:#051931;color:#9fb2cc;border-top:1px solid rgba(255,255,255,.0
 .footer-grid a{font-size:14px;color:#afc0d6;text-decoration:none;transition:color .2s ease}
 .footer-grid a:hover{color:#fff}
 .footer-newsletter p{font-size:13px;color:#afc0d6;line-height:1.6;margin:0 0 14px}
-.newsletter-form{display:flex;align-items:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);border-radius:24px;padding:4px 4px 4px 14px}
-.newsletter-form input{flex:1;min-width:0;border:0;background:transparent;color:#fff;font-size:13px;outline:0}
-.newsletter-form input::placeholder{color:#7f92ad}
+.newsletter-form{display:flex;align-items:center;background:var(--public-form-background);border:1px solid rgba(255,255,255,.16);border-radius:24px;padding:4px 4px 4px 14px}
+.newsletter-form input{flex:1;min-width:0;border:0;background:transparent;color:#102B57;font-size:13px;outline:0}
+.newsletter-form input::placeholder{color:#5B6C80}
 .newsletter-form button{width:32px;height:32px;border-radius:50%;border:0;background:linear-gradient(135deg,#63bd24,#2F720E);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
 .newsletter-thanks{display:flex;align-items:center;gap:7px;font-size:13px;color:#8fd66a;font-weight:600}
 .socials{display:flex;gap:8px;margin-top:14px}
@@ -636,7 +638,7 @@ footer{background:#051931;color:#9fb2cc;border-top:1px solid rgba(255,255,255,.0
 
 /* Assessment form column */
 .svc-form-col{min-width:0}
-.svc-form-card{background:#F8FAFF;border:1px solid #E1E8F7;border-radius:18px;box-shadow:0 12px 32px rgba(16,45,104,.08);padding:28px}
+.svc-form-card{background:var(--public-form-background);border:1px solid #E1E8F7;border-radius:18px;box-shadow:0 12px 32px rgba(16,45,104,.08);padding:28px}
 .svc-form-head h3{font-size:20px;color:#102B57;font-weight:800;margin:0 0 6px;display:flex;align-items:center;gap:10px}
 .svc-form-icon{width:34px;height:34px;border-radius:9px;background:#DCEFC4;color:#2F720E;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .svc-form-head p{font-size:13.5px;color:#718093;margin:0 0 22px;line-height:1.5}
