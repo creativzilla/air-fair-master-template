@@ -20,7 +20,7 @@ import { loadEnv } from "vite";
 const inlineJson = value => JSON.stringify(value).replace(/[^ -~]|</g, c => "\\u" + c.charCodeAt(0).toString(16).padStart(4, "0"));
 const attr = value => String(value).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
 const text = value => String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;");
-const MANAGED = /\s*<meta (?:name|property)="(?:description|robots|og:(?:title|description|type|url|image)|twitter:(?:title|description|image|card))"[^>]*>|\s*<link rel="canonical"[^>]*>/g;
+const MANAGED = /\s*<meta (?:name|property)="(?:description|robots|og:(?:title|description|type|url|image(?::width|:height)?)|twitter:(?:title|description|image|card))"[^>]*>|\s*<link rel="canonical"[^>]*>/g;
 
 // The app shell for non-prerendered routes; written before anything else so
 // the host's fallback rewrite (/app.html) always has a target.
@@ -32,7 +32,8 @@ export function writeAppShell(root = process.cwd()) {
 export async function prerender({ root = process.cwd(), mode = "production", ssrDir = path.join(root, "dist-ssr") } = {}) {
   const DIST = path.join(root, "dist");
   const env = { ...loadEnv(mode, root, "VITE_"), ...process.env };
-  const SITE_URL = (env.VITE_SITE_URL || "").replace(/\/+$/, "");
+  // Same production default as src/lib/seo.js: share tags never point at localhost.
+  const SITE_URL = (env.VITE_SITE_URL || "https://airfairtravel.com").replace(/\/+$/, "");
 
   async function rest(table, query) {
     const url = env.VITE_SUPABASE_URL, key = env.VITE_SUPABASE_ANON_KEY;

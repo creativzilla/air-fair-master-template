@@ -45,7 +45,7 @@ export const fallbackSettings = {
   business_name: "Air Fair Travel & Immigration",
   contact_email: "admin@airfairtravel.com",
   contact_phone: "+63 917 868 3217; +63 917 319 6888",
-  address: "Philippines",
+  address: "Unit 5 Psalm 23 Commercial Building, BF Drive, BF Resort Village, Las Piñas City, Metro Manila",
   facebook_url: "",
   instagram_url: "",
   linkedin_url: "",
@@ -127,6 +127,9 @@ export function TopBars({ settings }) {
 }
 
 const HERO_IMAGE_MS = 2000;
+// Every slide (progress tab) stays up for the same time; its background
+// photos keep cross-fading at their own pace meanwhile.
+const HERO_SLIDE_MS = 3000;
 
 function Hero({ fields }) {
   const global = useGlobalContent();
@@ -150,19 +153,15 @@ function Hero({ fields }) {
   }, [active, imageIndex, nextKey]);
   const shouldLoad = key => key === `${active}-${imageIndex}` || key === nextKey || requested.has(key);
   useEffect(() => {
-    if (!running || slides.length === 0) return undefined;
-    const timer = setInterval(() => {
-      setImageIndex(prev => {
-        const nextIndex = prev + 1;
-        if (nextIndex >= imagesInSlide) {
-          setActive(a => (a + 1) % slides.length);
-          return 0;
-        }
-        return nextIndex;
-      });
-    }, imageDurationMs);
+    if (!running || imagesInSlide < 2) return undefined;
+    const timer = setInterval(() => setImageIndex(prev => (prev + 1) % imagesInSlide), imageDurationMs);
     return () => clearInterval(timer);
-  }, [running, imagesInSlide, slides.length, imageDurationMs]);
+  }, [running, active, imagesInSlide, imageDurationMs]);
+  useEffect(() => {
+    if (!running || slides.length < 2) return undefined;
+    const timer = setTimeout(() => { setActive(a => (a + 1) % slides.length); setImageIndex(0); }, HERO_SLIDE_MS);
+    return () => clearTimeout(timer);
+  }, [running, active, slides.length]);
   if (slides.length === 0) return null;
   const goToSlide = i => { setActive(i); setImageIndex(0); };
   const next = () => goToSlide((active + 1) % slides.length);
@@ -199,7 +198,7 @@ function Hero({ fields }) {
       <div className="hero-progress-track">
         {slides.map((s, i) => (
           <button key={s.headline + s.highlight} onClick={() => goToSlide(i)} className={i === active ? "hero-progress-dot active" : "hero-progress-dot"} aria-current={i === active ? "true" : undefined} aria-label={`Slide ${i + 1} of ${slides.length}: ${s.headline}${s.highlight || ""}`}>
-            {i === active && <span className="hero-progress-fill" style={{ animationPlayState: running ? "running" : "paused", animationDuration: `${imagesInSlide * imageDurationMs}ms` }} />}
+            {i === active && <span className="hero-progress-fill" style={{ animationPlayState: running ? "running" : "paused", animationDuration: `${HERO_SLIDE_MS}ms` }} />}
           </button>
         ))}
       </div>
