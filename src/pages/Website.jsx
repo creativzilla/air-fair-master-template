@@ -137,10 +137,10 @@ function Hero({ fields }) {
   const featureIcons = fields.featureIcons || [];
   const [active, setActive] = useState(0);
   const [imageIndex, setImageIndex] = useState(0);
-  const [paused, setPaused] = useState(false);
   const sectionRef = useRef(null);
   const canAutoplay = useAutoplay(sectionRef);
-  const running = !paused && canAutoplay;
+  // Keeps sliding while hovered; only pauses when off-screen or reduced motion is on.
+  const running = canAutoplay;
   const imagesInSlide = slides[active]?.images?.length || 1;
   const imageDurationMs = slides[active]?.imageDurationMs || HERO_IMAGE_MS;
   // Background photos are only requested once they are showing or up next,
@@ -167,7 +167,7 @@ function Hero({ fields }) {
   const next = () => goToSlide((active + 1) % slides.length);
   const prev = () => goToSlide((active - 1 + slides.length) % slides.length);
   const slide = slides[active % slides.length];
-  return <section id="top" ref={sectionRef} className="hero" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
+  return <section id="top" ref={sectionRef} className="hero">
     <div className="hero-bg">
       {slides.map((s, i) => (
         <div key={s.headline + s.highlight} className={i === active ? "hero-bg-slide active" : "hero-bg-slide"}>
