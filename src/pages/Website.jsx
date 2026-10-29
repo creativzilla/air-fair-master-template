@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import VeSection, { sectionRenderer } from "../components/visual/VeSection.jsx";
 import { ArrowRight, ChevronLeft, ChevronRight, Facebook, Instagram, Linkedin, Mail, MapPin, Phone, Plane, Search, ShieldCheck, Star, X, Menu, Check } from "lucide-react";
 import { fetchSiteSettings } from "../lib/content.js";
-import { useForm, useGlobalContent, useHomepageTravelCards, useImmigrationCards, usePage, useTestimonials, useVisaCountries } from "../lib/cms.js";
+import { useCms, useForm, useGlobalContent, useHomepageTravelCards, useImmigrationCards, usePage, useTestimonials, useVisaCountries } from "../lib/cms.js";
 import { imageSrc } from "../lib/cmsAdapters.js";
 import { FormSubmitError, submitWebsiteForm, subscribeToNewsletter } from "../lib/formSubmit.js";
 import { FormElementView, submitElementOf, useFormRunner } from "../components/forms/FormRenderer.jsx";
@@ -227,7 +227,19 @@ function AccreditationBar({ fields }) {
   </div>;
 }
 
+// A card's text is the start of the banner Description on the page it opens
+// (one text, edited on that page; the card shows its first lines). Cards
+// linking anywhere else keep their own description.
+const CARD_PAGES = { "/philippine-immigration-services": "immigration-hub", "/visa-assistance/international-tourist-visa": "visa-hub", "/travel-tours": "travel-hub" };
+function linkedDescription(index, href) {
+  const path = String(href || "").split(/[?#]/)[0].replace(/\/+$/, "") || "/";
+  if (CARD_PAGES[path]) return (index.get("page", CARD_PAGES[path])?.content?.sections || []).find(s => s.key === "hero")?.fields?.description || null;
+  const service = path.match(/^\/philippine-immigration-services\/([^/]+)$/)?.[1];
+  return (service && index.get("immigration_service", service)?.content?.heroDescription) || null;
+}
+
 function ServiceCategories({ fields }) {
+  const { index } = useCms();
   return <section className="category-cards section-shell" aria-labelledby="category-cards-title">
     <h2 id="category-cards-title" className="sr-only">{fields.heading || "Our services"}</h2>
     <div className="category-grid">
@@ -236,7 +248,7 @@ function ServiceCategories({ fields }) {
         return <a className={`category-card category-card--${item.theme}`} href={item.href} key={item.title}>
           <div className="category-card-icon"><Icon size={26} strokeWidth={1.8} /></div>
           <h3>{item.title}</h3>
-          <p>{item.description}</p>
+          <p>{linkedDescription(index, item.href) || item.description}</p>
           <span className="category-card-link">{fields.linkLabel} <ArrowRight size={14} /></span>
         </a>;
       })}

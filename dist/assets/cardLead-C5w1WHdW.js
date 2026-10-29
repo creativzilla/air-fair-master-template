@@ -1,1 +1,0 @@
-import{g as a}from"./index-BeNoMwea.js";const n=e=>String(e||"").split(/[?#]/)[0].replace(/\/+$/,"")||"/";function f(e,i){const r=(a("home").section("categories").items||[]).find(o=>n(o.href)===n(e)),t=String((r==null?void 0:r.description)||"").trim(),s=String(i||"").trim();return!t||s.startsWith(t)?i:s?`${t} ${s}`:t}export{f as u};

@@ -1,5 +1,4 @@
 import React from "react";
-import { useCardLead } from "../../lib/cardLead.js";
 import { ArrowRight, Headset } from "lucide-react";
 import { useLabels } from "../../lib/cms.js";
 import { getIcon } from "../immigration/icons.js";
@@ -7,7 +6,6 @@ import { getIcon } from "../immigration/icons.js";
 import TravelPromoSlider from "./TravelPromoSlider.jsx";
 
 export default function TravelToursHeader({ fields }) {
-  const description = useCardLead("/travel-tours", fields.description);
   const labels = useLabels();
   return (
     <section className="pis-hero">
@@ -23,7 +21,7 @@ export default function TravelToursHeader({ fields }) {
           <h1>{fields.heading}</h1>
 
           <p className="pis-hero-desc">
-            {description}
+            {fields.description}
           </p>
 
           <div className="pis-hero-actions">

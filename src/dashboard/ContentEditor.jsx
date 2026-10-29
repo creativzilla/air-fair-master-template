@@ -81,9 +81,25 @@ function itemTitle(item, index) {
 
 const textInputClass = "w-full rounded-lg px-3 py-2 text-sm outline-none";
 
+// Grows with its text (any panel width); scrolls only past ~20 lines.
+function AutoTextarea({ value, onChange }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    const fit = () => { el.style.height = "auto"; el.style.height = `${Math.min(el.scrollHeight + 2, 480)}px`; };
+    fit();
+    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(fit) : null;
+    observer?.observe(el.parentElement || el);
+    return () => observer?.disconnect();
+  }, [value]);
+  return <textarea ref={ref} rows={3} value={value ?? ""} onChange={e => onChange(e.target.value)} className={textInputClass}
+    style={{ ...inputStyle, resize: "vertical", overflowY: "auto", minHeight: 72, maxHeight: 480 }} />;
+}
+
 function TextField({ name, value, onChange }) {
   const long = LONG_TEXT.test(name) || (value || "").length > 80;
-  if (long) return <textarea rows={Math.min(8, Math.max(3, Math.ceil((value || "").length / 90)))} value={value ?? ""} onChange={e => onChange(e.target.value)} className={textInputClass} style={inputStyle} />;
+  if (long) return <AutoTextarea value={value} onChange={onChange} />;
   return <input value={value ?? ""} onChange={e => onChange(e.target.value)} className={textInputClass} style={inputStyle} placeholder={/(href|url|link)$/i.test(name) ? "/page, #section or https://…" : undefined} />;
 }
 

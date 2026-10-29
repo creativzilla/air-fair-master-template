@@ -1,5 +1,4 @@
 import React from "react";
-import { useCardLead } from "../../lib/cardLead.js";
 import { Link } from "react-router-dom";
 import { ArrowRight, MessageCircle } from "lucide-react";
 import { useLabels } from "../../lib/cms.js";
@@ -17,7 +16,6 @@ function renderTitle(title, highlight) {
 }
 
 export default function ServiceHero({ service }) {
-  const heroDescription = useCardLead(`/philippine-immigration-services/${service.slug}`, service.heroDescription);
   const labels = useLabels();
   return (
     <section className="pis-hero">
@@ -35,7 +33,7 @@ export default function ServiceHero({ service }) {
 
           <h1>{renderTitle(service.title, service.titleHighlight)}</h1>
           {service.shortDescription && <p className="pis-hero-sub">{service.shortDescription}</p>}
-          {heroDescription && <p className="pis-hero-desc">{heroDescription}</p>}
+          {service.heroDescription && <p className="pis-hero-desc">{service.heroDescription}</p>}
           <div className="pis-hero-actions">
             <a className="green-button" href="#assessment-form">
               {service.heroPrimaryCta || "Start Your Assessment"} <ArrowRight size={15} />

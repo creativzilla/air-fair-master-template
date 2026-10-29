@@ -39,6 +39,12 @@ const visualUrl = doc => {
   return `${path}?preview=1&visual=1${hash ? `#${hash}` : ""}`;
 };
 const docKey = doc => (doc?.kind === "page" ? `page:${doc.slug}` : doc?.kind === "global" ? "global:site" : null);
+const pathOf = href => String(href || "").split(/[?#]/)[0].replace(/\/+$/, "") || "/";
+
+// Pages opened by a homepage card: the card shows the start of this Description.
+function CardTextNote() {
+  return <Notice tone="info">The first lines of the Description below also show on the homepage card that opens this page. Edit them here; the card updates too.</Notice>;
+}
 
 function SectionList({ sections, onPick }) {
   return (
@@ -120,12 +126,21 @@ export default function VisualEditor({ role }) {
     return () => window.removeEventListener("message", onMessage);
   }, []);
 
-  const choosePage = doc => {
-    if (doc.id === pageId) return;
-    if (pageEditor.dirty && !window.confirm(`"${pageDoc?.title}" has unsaved edits. Leave without saving them?`)) return;
-    setPageId(doc.id);
-    setTarget({ part: "page", k: null });
+  const choosePage = (doc, k = null) => {
+    if (doc.id !== pageId) {
+      if (pageEditor.dirty && !window.confirm(`"${pageDoc?.title}" has unsaved edits. Leave without saving them?`)) return;
+      setPageId(doc.id);
+    }
+    setTarget({ part: "page", k });
   };
+
+  // Is the open page linked from a homepage card? (the card shows its Description)
+  const homeDoc = useMemo(() => (docs || []).find(d => d.kind === "page" && d.slug === "home"), [docs]);
+  const hasCard = useMemo(() => {
+    if (!pageDoc || pageDoc.slug === "home" || !["page", "immigration_service"].includes(pageDoc.kind)) return false;
+    const items = (homeDoc?.draft?.sections || []).find(s => s.key === "categories")?.fields?.items || [];
+    return items.some(item => pathOf(item.href) === pathOf(previewUrlFor(pageDoc)));
+  }, [pageDoc, homeDoc]);
   const pickSection = k => { setTarget({ part: "page", k }); post({ type: VE.scrollTo, doc: docKey(pageDoc), k }); };
 
   // ---- side panel ---------------------------------------------------------
@@ -154,7 +169,10 @@ export default function VisualEditor({ role }) {
   } else if (!pageEditor.draft) {
     body = pageEditor.error ? <Notice tone="danger">{pageEditor.error}</Notice> : <Spinner />;
   } else if (!isPage) {
-    body = <ContentEditor value={pageEditor.draft} samples={samplesByKind[pageDoc.kind] || []} onChange={pageEditor.setDraft} />;
+    body = <div className="flex flex-col gap-4">
+      {hasCard && <CardTextNote />}
+      <ContentEditor value={pageEditor.draft} samples={samplesByKind[pageDoc.kind] || []} onChange={pageEditor.setDraft} />
+    </div>;
   } else if (target.k === "seo") {
     panelTitle = "SEO (search & share text)";
     body = <ContentEditor value={pageEditor.draft.seo || {}} onChange={seo => pageEditor.setDraft({ ...pageEditor.draft, seo })} />;
@@ -166,6 +184,7 @@ export default function VisualEditor({ role }) {
           <input type="checkbox" checked={section.visible !== false} onChange={e => updateSection({ ...section, visible: e.target.checked })} style={{ accentColor: T.accent }} />
           {section.visible === false ? <EyeOff size={13} /> : <Eye size={13} />} Show this section on the website
         </label>
+        {hasCard && section.key === "hero" && <CardTextNote />}
         <ContentEditor value={section.fields || {}} samples={fallbackFields} onChange={fields => updateSection({ ...section, fields })} />
       </div>
     );
@@ -180,7 +199,10 @@ export default function VisualEditor({ role }) {
 
   return (
     <div className="grid gap-4 ve-grid" style={{ gridTemplateColumns: "220px minmax(0,1fr) 380px" }}>
-      <style>{`@media (max-width: 1279px){.ve-grid{grid-template-columns:1fr !important}.ve-frame-wrap{height:70vh !important}}`}</style>
+      <style>{`@media (max-width: 1279px){.ve-grid{grid-template-columns:1fr !important}.ve-frame-wrap{height:70vh !important}}
+        .ve-panel{scrollbar-width:thin;scrollbar-color:#B7C2CC transparent}
+        .ve-panel::-webkit-scrollbar{width:10px}.ve-panel::-webkit-scrollbar-thumb{background:#B7C2CC;border-radius:8px;border:2px solid #fff}
+        .ve-panel::-webkit-scrollbar-track{background:transparent}`}</style>
       {/* Pages by category */}
       <Panel className="overflow-hidden self-start">
         {grouped.map(g => g.items.length > 0 && (
@@ -223,7 +245,7 @@ export default function VisualEditor({ role }) {
       {/* Side panel */}
       <div className="flex flex-col gap-3 min-w-0">
         {editor.doc && <PublishBar editor={editor} role={role} onPublished={reload} />}
-        <Panel className="p-4 flex flex-col gap-4 overflow-y-auto" style={{ maxHeight: "calc(100vh - 330px)", minHeight: 300 }}>
+        <Panel className="p-4 flex flex-col gap-4 overflow-y-auto ve-panel" style={{ maxHeight: "calc(100vh - 300px)", minHeight: 300, scrollbarGutter: "stable" }}>
           <div className="flex items-center gap-2">
             {canGoBack && <button type="button" onClick={() => setTarget({ part: "page", k: null })} aria-label="All sections" className="p-1 rounded" style={{ color: T.muted }}><ArrowLeft size={16} /></button>}
             <h3 className="text-sm font-semibold flex-1 min-w-0 truncate" style={{ color: T.ink, ...fontBody }}>{panelTitle}</h3>
