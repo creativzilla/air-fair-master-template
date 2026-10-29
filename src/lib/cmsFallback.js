@@ -122,7 +122,7 @@ const homeSections = [
     items: [
       { title: "Philippine Immigration Services", description: "Visa, residency, citizenship, documentation, and immigration compliance services.", icon: "stamp", href: "/philippine-immigration-services", theme: "green" },
       { title: "Special Resident Retiree's Visa (SRRV)", description: "Live, retire, and enjoy long-term residency in the Philippines.", icon: "landmark", href: "/philippine-immigration-services/special-resident-retirees-visa", theme: "amber" },
-      { title: "International Tourist Visa Assistance", description: "Travel with confidence. Aitfair helps make the tourist visa application process clearer.", icon: "plane", href: "/visa-assistance/international-tourist-visa", theme: "blue" },
+      { title: "International Tourist Visa Assistance", description: "Travel with confidence. Airfair helps make the tourist visa application process clearer.", icon: "plane", href: "/visa-assistance/international-tourist-visa", theme: "blue" },
       { title: "Travel & Tours", description: "Discover amazing destinations with our carefully curated travel packages.", icon: "globe", href: "/travel-tours", theme: "teal" },
     ],
   }),
