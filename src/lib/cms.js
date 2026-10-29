@@ -120,6 +120,16 @@ function subscribe(listener) {
   return () => listeners.delete(listener);
 }
 
+// Visual editor only: show an unsaved draft from the dashboard in place of
+// the loaded content for one document.
+export function applyVisualDraft(kind, slug, content) {
+  const docs = [...(state.docs || [])];
+  const i = docs.findIndex(d => d.kind === kind && d.slug === slug);
+  if (i >= 0) docs[i] = { ...docs[i], content };
+  else docs.push({ document_id: null, version_id: null, kind, slug, title: slug, sort_order: 0, content });
+  setState(makeState(docs, state.status === "loading" ? "ready" : state.status, state.source));
+}
+
 export function useCms() {
   return useSyncExternalStore(subscribe, () => state, () => state);
 }

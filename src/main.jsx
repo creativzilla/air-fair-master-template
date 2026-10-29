@@ -17,6 +17,9 @@ import './pages/NewsArticlePage.css'
 import Website from './pages/Website.jsx'
 import PreviewBanner from './components/PreviewBanner.jsx'
 import { whenContentReady } from './lib/cms.js'
+import { isVisualMode } from './lib/visualMode.js'
+// Dashboard visual editor only: hover outlines and click-to-edit.
+const VisualOverlay = isVisualMode() ? lazy(() => import('./components/visual/VisualOverlay.jsx')) : null
 
 // Every route except the homepage is its own chunk, so visitors only download
 // the page they open (the dashboard alone is most of the old single bundle).
@@ -64,6 +67,7 @@ function render() {
           </Routes>
         </Suspense>
         <PreviewBanner />
+        {VisualOverlay && <Suspense fallback={null}><VisualOverlay /></Suspense>}
       </BrowserRouter>
     </React.StrictMode>,
   )

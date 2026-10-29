@@ -1,13 +1,14 @@
 import React from "react";
 import { useLocation } from "react-router-dom";
 import { useCms } from "../lib/cms.js";
+import { isVisualMode } from "../lib/visualMode.js";
 
 // Only rendered for signed-in editors who opened a page with ?preview=1.
 // Public visitors never see it (they can't load drafts).
 export default function PreviewBanner() {
   const { source } = useCms();
   const { pathname } = useLocation();
-  if (source !== "preview" || pathname.startsWith("/dashboard")) return null;
+  if (source !== "preview" || pathname.startsWith("/dashboard") || isVisualMode()) return null;
   return (
     <div
       role="status"

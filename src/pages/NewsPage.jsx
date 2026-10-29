@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import VeSection, { sectionRenderer } from "../components/visual/VeSection.jsx";
 import { ArrowRight, Mail } from "lucide-react";
 import { TopBars, Footer, ChatWidget, fallbackSettings, useSeo } from "./Website.jsx";
 import { fetchSiteSettings } from "../lib/content.js";
@@ -40,13 +41,13 @@ export default function NewsPage() {
     <main id="main-content" className="news-journal">
       <div className="section-shell">
         <nav className="news-breadcrumb" aria-label="Breadcrumb"><a href="/">{labels.breadcrumbHome}</a><span>/</span><span aria-current="page">{labels.breadcrumbNews}</span></nav>
-        {page.visible("hero") && <header className="news-journal-heading"><h1>{hero.heading}</h1><p>{hero.body}</p></header>}
-        {page.visible("filters") && <div className="news-filters" role="group" aria-label="Filter stories by category">{categories.map(item => <button key={item} type="button" aria-pressed={category === item} onClick={() => setCategory(item)}>{item}</button>)}</div>}
+        {page.visible("hero") && <VeSection doc="page:news" k="hero"><header className="news-journal-heading"><h1>{hero.heading}</h1><p>{hero.body}</p></header></VeSection>}
+        {page.visible("filters") && <VeSection doc="page:news" k="filters"><div className="news-filters" role="group" aria-label="Filter stories by category">{categories.map(item => <button key={item} type="button" aria-pressed={category === item} onClick={() => setCategory(item)}>{item}</button>)}</div></VeSection>}
         <div aria-live="polite" aria-atomic="true" className="news-result-count">{featured.length + latest.length} stories and resources{category !== allLabel ? ` in ${category}` : ""}</div>
         <h2 id="news-featured-title" className="sr-only">Featured stories</h2><section aria-labelledby="news-featured-title" className={`news-featured-grid ${category === allLabel ? "news-featured-all" : ""}`}>{featured.map(story => <StoryCard key={story.href} story={story} />)}</section>
-        {page.visible("latest") && <section className="news-latest" aria-labelledby="news-latest-title"><h2 id="news-latest-title">{latestSection.heading}</h2><div className="news-latest-grid">{latest.map(story => <StoryCard key={story.href} story={story} />)}</div></section>}
+        {page.visible("latest") && <VeSection doc="page:news" k="latest"><section className="news-latest" aria-labelledby="news-latest-title"><h2 id="news-latest-title">{latestSection.heading}</h2><div className="news-latest-grid">{latest.map(story => <StoryCard key={story.href} story={story} />)}</div></section></VeSection>}
         {page.visible("latest") && <p className="af-news-note">{latestSection.note}</p>}
-        {page.visible("contact") && <section className="news-contact"><Mail size={44} aria-hidden="true" /><div><h2>{contact.heading}</h2><p>{contact.body}</p></div><a href={contact.cta?.href}>{contact.cta?.label} <ArrowRight size={17} aria-hidden="true" /></a></section>}
+        {page.visible("contact") && <VeSection doc="page:news" k="contact"><section className="news-contact"><Mail size={44} aria-hidden="true" /><div><h2>{contact.heading}</h2><p>{contact.body}</p></div><a href={contact.cta?.href}>{contact.cta?.label} <ArrowRight size={17} aria-hidden="true" /></a></section></VeSection>}
       </div>
     </main>
     <Footer settings={settings} /><ChatWidget code={settings.chat_widget_code} />

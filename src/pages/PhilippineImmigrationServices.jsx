@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import VeSection, { sectionRenderer } from "../components/visual/VeSection.jsx";
 import CardIntro from "../components/CardIntro.jsx";
 import { Link } from "react-router-dom";
 import { ArrowRight, MessageCircle, Plane } from "lucide-react";
@@ -174,7 +175,7 @@ export default function PhilippineImmigrationServices() {
 
   useSeo(page.seo, settings);
 
-  const show = (key, Section) => page.visible(key) && <Section fields={page.section(key)} />;
+  const show = sectionRenderer(page, "immigration-hub");
   return (
     <div className="travel-site pis-page" aria-busy={page.loading || undefined}>
       <TopBars settings={settings} />

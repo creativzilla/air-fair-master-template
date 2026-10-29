@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import VeSection, { sectionRenderer } from "../components/visual/VeSection.jsx";
 import CardIntro from "../components/CardIntro.jsx";
 import { ArrowRight, CheckCircle2, Globe, MessageCircle, Search } from "lucide-react";
 import { TopBars, Footer, ChatWidget, SectionTitle, fallbackSettings, useSeo } from "./Website.jsx";
@@ -144,7 +145,7 @@ export default function InternationalVisaAssistancePage() {
 
   useSeo({ title: page.seo.title || "International Tourist Visa Assistance | {businessName}", description: page.seo.description }, settings);
 
-  const show = (key, Section) => page.visible(key) && <Section fields={page.section(key)} />;
+  const show = sectionRenderer(page, "visa-hub");
   return (
     <div className="travel-site pis-page" aria-busy={page.loading || undefined}>
       <TopBars settings={settings} />

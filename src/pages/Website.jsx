@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import VeSection, { sectionRenderer } from "../components/visual/VeSection.jsx";
 import { ArrowRight, ChevronLeft, ChevronRight, Facebook, Instagram, Linkedin, Mail, MapPin, Phone, Plane, Search, ShieldCheck, Star, X, Menu, Check } from "lucide-react";
 import { fetchSiteSettings } from "../lib/content.js";
 import { useForm, useGlobalContent, useHomepageTravelCards, useImmigrationCards, usePage, useTestimonials, useVisaCountries } from "../lib/cms.js";
@@ -106,7 +107,10 @@ function Logo({ light = false }) {
   </div>;
 }
 
-export function TopBars({ settings }) {
+export function TopBars(props) {
+  return <VeSection doc="global:site" k="header"><TopBarsInner {...props} /></VeSection>;
+}
+function TopBarsInner({ settings }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const site = useGlobalContent();
@@ -416,7 +420,10 @@ function ContactFields({ schema, values, errors, onChange }) {
   });
 }
 
-export function Footer({ settings }) {
+export function Footer(props) {
+  return <VeSection doc="global:site" k="footer"><FooterInner {...props} /></VeSection>;
+}
+function FooterInner({ settings }) {
   const footer = useGlobalContent().footer || {};
   const businessName = settings.business_name || fallbackSettings.business_name;
   const socials = [[Facebook, settings.facebook_url, "Facebook"], [Instagram, settings.instagram_url, "Instagram"], [Linkedin, settings.linkedin_url, "LinkedIn"]];
@@ -452,6 +459,6 @@ export default function Website() {
   useSeo({ title: settings.seo_title || fallbackSettings.seo_title, description: settings.seo_description }, settings);
   if (import.meta.env.SSR) collectSsrJsonLd(organizationJsonLd(settings));
   useEffect(() => applyOrganizationJsonLd(settings), [settings]);
-  const show = (key, Section, extra = {}) => page.visible(key) && <Section fields={page.section(key)} {...extra} />;
+  const show = sectionRenderer(page, "home");
   return <div className="travel-site" aria-busy={page.loading || undefined}><TopBars settings={settings} /><main id="main-content"><h1 className="sr-only">{`${settings.business_name || fallbackSettings.business_name}: visa, immigration and travel services`}</h1>{show("hero", Hero)}{show("accreditations", AccreditationBar)}{show("categories", ServiceCategories)}{show("immigration", ImmigrationServices)}{show("srrv", SRRVBanner)}{show("visa", InternationalVisaAssistance)}{show("travel", TravelTours)}{show("trustBar", TrustBar)}{show("assessment", FreeAssessment)}{show("testimonials", Testimonials)}{show("news", NewsEvents)}{show("contact", Contact, { settings })}</main><Footer settings={settings} /><ChatWidget code={settings.chat_widget_code} /></div>;
 }

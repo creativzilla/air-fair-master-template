@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import VeSection, { sectionRenderer } from "../components/visual/VeSection.jsx";
 import CardIntro from "../components/CardIntro.jsx";
 import { TopBars, Footer, ChatWidget, fallbackSettings, useSeo } from "./Website.jsx";
 import { fetchSiteSettings } from "../lib/content.js";
@@ -42,10 +43,10 @@ export default function TravelToursPage() {
     <div className="travel-site pis-page" aria-busy={page.loading || undefined}>
       <TopBars settings={settings} />
       <main id="main-content">
-      {page.visible("hero") && <TravelToursHeader fields={page.section("hero")} />}
+      {page.visible("hero") && <VeSection doc="page:travel-hub" k="hero"><TravelToursHeader fields={page.section("hero")} /></VeSection>}
       <CardIntro path="/travel-tours" />
       {page.visible("search") && (
-        <TravelSearchBar
+        <VeSection doc="page:travel-hub" k="search"><TravelSearchBar
           fields={searchFields}
           value={search}
           onChange={setSearch}
@@ -53,11 +54,11 @@ export default function TravelToursPage() {
           onTravelDateChange={setTravelDate}
           travelers={travelers}
           onTravelersChange={setTravelers}
-        />
+        /></VeSection>
       )}
-      {page.visible("destinations") && <PopularDestinations fields={page.section("destinations")} destinations={filteredDestinations} />}
-      {page.visible("featured") && <FeaturedPackages fields={page.section("featured")} packages={travelPackages.filter(pkg => pkg.featured)} />}
-      {page.visible("promoBanner") && <TravelCTA fields={page.section("promoBanner")} />}
+      {page.visible("destinations") && <VeSection doc="page:travel-hub" k="destinations"><PopularDestinations fields={page.section("destinations")} destinations={filteredDestinations} /></VeSection>}
+      {page.visible("featured") && <VeSection doc="page:travel-hub" k="featured"><FeaturedPackages fields={page.section("featured")} packages={travelPackages.filter(pkg => pkg.featured)} /></VeSection>}
+      {page.visible("promoBanner") && <VeSection doc="page:travel-hub" k="promoBanner"><TravelCTA fields={page.section("promoBanner")} /></VeSection>}
       </main>
       <Footer settings={settings} />
       <ChatWidget code={settings.chat_widget_code} />

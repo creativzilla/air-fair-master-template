@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, ExternalLink, Globe, LayoutTemplate } from "lucide-react";
-import { T, fontBody, Badge, EmptyState, Notice, PageTitle, Panel, Spinner } from "./ui.jsx";
+import { T, fontBody, Badge, EmptyState, Notice, PageTitle, Panel, Spinner, Tabs } from "./ui.jsx";
+import VisualEditor from "./VisualEditor.jsx";
 import ContentEditor from "./ContentEditor.jsx";
 import { PublishBar, previewUrlFor, useDocumentEditor, useDocumentList } from "./DocumentWorkflow.jsx";
 import { docStatus } from "./api.js";
@@ -75,8 +76,22 @@ function PageDocumentEditor({ docId, role, onChanged }) {
   );
 }
 
-// "Edit Website" module: pick a page, edit each section in page order.
+// "Edit Website" module: the visual editor (see the page, click to edit), or
+// the classic list of every section of a page.
 export default function PagesEditor({ role }) {
+  const [view, setView] = useState(() => { try { return window.localStorage.getItem("af-pages-view") || "visual"; } catch { return "visual"; } });
+  const choose = v => { setView(v); try { window.localStorage.setItem("af-pages-view", v); } catch { /* storage blocked */ } };
+  return (
+    <div className="flex flex-col gap-6">
+      <PageTitle title="Pages" subtitle="See each page as visitors do and click any section to edit it. Changes stay as drafts until an admin publishes them." />
+      <Tabs tabs={[{ id: "visual", label: "Visual editor" }, { id: "list", label: "All sections (list)" }]} active={view} onChange={choose} />
+      {view === "visual" ? <VisualEditor role={role} /> : <SectionListEditor role={role} />}
+    </div>
+  );
+}
+
+// Classic view: pick a page, edit each section in page order.
+function SectionListEditor({ role }) {
   const { docs, error, reload } = useDocumentList(["page", "global"]);
   const [selectedId, setSelectedId] = useState(null);
 
@@ -92,7 +107,6 @@ export default function PagesEditor({ role }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageTitle title="Pages" subtitle="Edit the text and images on each page. Changes stay as drafts until an admin publishes them." />
       {error && <Notice tone="danger">{error}</Notice>}
       {docs === null ? <Spinner /> : ordered.length === 0 ? <Panel><EmptyState>No pages found. Run the CMS content import first.</EmptyState></Panel> : (
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 dash-grid-5">
