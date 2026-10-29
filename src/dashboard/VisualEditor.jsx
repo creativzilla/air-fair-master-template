@@ -77,7 +77,14 @@ export default function VisualEditor({ role }) {
     const list = docs || [];
     return GROUPS.map(g => {
       let items = list.filter(d => d.kind === g.kind);
-      if (g.kind === "page") items = [...PAGE_ORDER.map(s => items.find(d => d.slug === s)).filter(Boolean), ...items.filter(d => !PAGE_ORDER.includes(d.slug))];
+      if (g.kind === "page") {
+        items = [...PAGE_ORDER.map(s => items.find(d => d.slug === s)).filter(Boolean), ...items.filter(d => !PAGE_ORDER.includes(d.slug))];
+        // Pages opened by a homepage card (e.g. SRRV, an immigration service) are listed here too.
+        const home = list.find(d => d.kind === "page" && d.slug === "home");
+        const cardPaths = ((home?.draft?.sections || []).find(s => s.key === "categories")?.fields?.items || []).map(i => pathOf(i.href));
+        const linked = list.filter(d => d.kind !== "page" && d.kind !== "global" && cardPaths.includes(pathOf(previewUrlFor(d))));
+        items = [...items, ...linked.map(d => ({ ...d, viaCard: true }))];
+      }
       else items = [...items].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || String(a.title).localeCompare(String(b.title)));
       return { ...g, items };
     });
@@ -216,6 +223,7 @@ export default function VisualEditor({ role }) {
               <button key={d.id} type="button" onClick={() => choosePage(d)} className="w-full text-left px-4 py-2 text-sm flex items-center gap-2"
                 style={{ backgroundColor: d.id === pageId ? T.accentSoft : "transparent", color: T.ink, ...fontBody }}>
                 <span className="flex-1 min-w-0 truncate">{d.title}</span>
+                {d.viaCard && <span className="text-[10px] px-1.5 py-0.5 rounded shrink-0" title="Opened by a card on the homepage" style={{ backgroundColor: T.bg, color: T.muted, border: `1px solid ${T.border}`, ...fontBody }}>Service</span>}
                 {docStatus(d) !== "Published" && <span className="w-2 h-2 rounded-full shrink-0" title={docStatus(d)} style={{ backgroundColor: T.warn }} />}
               </button>
             ))}
