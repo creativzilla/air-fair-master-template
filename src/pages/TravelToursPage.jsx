@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import CardIntro from "../components/CardIntro.jsx";
 import { TopBars, Footer, ChatWidget, fallbackSettings, useSeo } from "./Website.jsx";
 import { fetchSiteSettings } from "../lib/content.js";
 import { usePage, useTravelDestinations, useTravelPackages } from "../lib/cms.js";
@@ -42,6 +43,7 @@ export default function TravelToursPage() {
       <TopBars settings={settings} />
       <main id="main-content">
       {page.visible("hero") && <TravelToursHeader fields={page.section("hero")} />}
+      <CardIntro path="/travel-tours" />
       {page.visible("search") && (
         <TravelSearchBar
           fields={searchFields}

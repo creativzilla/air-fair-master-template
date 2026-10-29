@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import CardIntro from "../components/CardIntro.jsx";
 import { ArrowRight, CheckCircle2, Globe, MessageCircle, Search } from "lucide-react";
 import { TopBars, Footer, ChatWidget, SectionTitle, fallbackSettings, useSeo } from "./Website.jsx";
 import { fetchSiteSettings } from "../lib/content.js";
@@ -149,6 +150,7 @@ export default function InternationalVisaAssistancePage() {
       <TopBars settings={settings} />
       <main id="main-content">
       {show("hero", Hero)}
+      <CardIntro path="/visa-assistance/international-tourist-visa" />
       {show("destinations", DestinationSearch)}
       {show("cantFind", CantFindStrip)}
       </main>

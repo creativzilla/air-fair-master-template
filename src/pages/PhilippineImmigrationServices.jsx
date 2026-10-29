@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import CardIntro from "../components/CardIntro.jsx";
 import { Link } from "react-router-dom";
 import { ArrowRight, MessageCircle, Plane } from "lucide-react";
 import { TopBars, Footer, ChatWidget, SectionTitle, fallbackSettings, useSeo } from "./Website.jsx";
@@ -179,6 +180,7 @@ export default function PhilippineImmigrationServices() {
       <TopBars settings={settings} />
       <main id="main-content">
       {show("hero", Hero)}
+      <CardIntro path="/philippine-immigration-services" />
       {show("about", About)}
       {show("services", Services)}
       {show("why", WhyChoose)}
