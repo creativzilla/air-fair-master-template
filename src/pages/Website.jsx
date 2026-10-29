@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ArrowRight, ChevronLeft, ChevronRight, Facebook, Instagram, Linkedin, Mail, MapPin, Phone, Plane, Search, ShieldCheck, Star, X, Menu, Check } from "lucide-react";
 import { fetchSiteSettings } from "../lib/content.js";
-import { useForm, useGlobalContent, useHomepageTravelCards, useImmigrationCards, usePage, useTestimonials, useVisaCountries } from "../lib/cms.js";
+import { useCms, useForm, useGlobalContent, useHomepageTravelCards, useImmigrationCards, usePage, useTestimonials, useVisaCountries } from "../lib/cms.js";
 import { imageSrc } from "../lib/cmsAdapters.js";
 import { FormSubmitError, submitWebsiteForm, subscribeToNewsletter } from "../lib/formSubmit.js";
 import { FormElementView, submitElementOf, useFormRunner } from "../components/forms/FormRenderer.jsx";
@@ -223,16 +223,37 @@ function AccreditationBar({ fields }) {
   </div>;
 }
 
+// Homepage cards show the title and short text of the page they open, so
+// both are edited in one place (that page). Cards linking anywhere else keep
+// their own title/description.
+const CARD_HUB_PAGES = { "/philippine-immigration-services": "immigration-hub", "/visa-assistance/international-tourist-visa": "visa-hub", "/travel-tours": "travel-hub" };
+function linkedCardPreview(index, href) {
+  const path = String(href || "").split(/[?#]/)[0].replace(/\/+$/, "") || "/";
+  const hub = CARD_HUB_PAGES[path];
+  if (hub) {
+    const hero = (index.get("page", hub)?.content?.sections || []).find(s => s.key === "hero")?.fields;
+    if (hero?.heading) return { title: hero.heading, description: hero.subheading || hero.description };
+  }
+  const service = path.match(/^\/philippine-immigration-services\/([^/]+)$/)?.[1];
+  const c = service && index.get("immigration_service", service)?.content;
+  if (c?.title) return { title: c.title, description: c.shortDescription || c.heroDescription };
+  return null;
+}
+
 function ServiceCategories({ fields }) {
+  const { index } = useCms();
   return <section className="category-cards section-shell" aria-labelledby="category-cards-title">
     <h2 id="category-cards-title" className="sr-only">{fields.heading || "Our services"}</h2>
     <div className="category-grid">
       {(fields.items || []).map(item => {
         const Icon = getIcon(item.icon);
-        return <a className={`category-card category-card--${item.theme}`} href={item.href} key={item.title}>
+        const linked = linkedCardPreview(index, item.href);
+        const title = linked?.title || item.title;
+        const description = linked?.description || item.description;
+        return <a className={`category-card category-card--${item.theme}`} href={item.href} key={item.href || item.title}>
           <div className="category-card-icon"><Icon size={26} strokeWidth={1.8} /></div>
-          <h3>{item.title}</h3>
-          <p>{item.description}</p>
+          <h3>{title}</h3>
+          <p>{description}</p>
           <span className="category-card-link">{fields.linkLabel} <ArrowRight size={14} /></span>
         </a>;
       })}
