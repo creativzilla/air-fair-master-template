@@ -3,7 +3,7 @@
 // and testimonials. Services also get their form (builder + live preview)
 // and poster on the same screen; the item and its form publish together.
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Archive, ArchiveRestore, ArrowLeft, Copy, Pencil, Plus, Search } from "lucide-react";
+import { Archive, ArchiveRestore, ArrowLeft, Copy, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { T, fontBody, Badge, Button, EmptyState, FieldLabel, FilterPills, LabeledInput, LabeledSelect, Modal, Notice, PageTitle, Panel, Spinner, Tabs, inputStyle } from "./ui.jsx";
 import ContentEditor from "./ContentEditor.jsx";
 import NewsArticleForm, { CategoryField, DEFAULT_NEWS_CATEGORIES, displayDateFor, todayISO, uniqueSlug } from "./NewsArticleForm.jsx";
@@ -11,7 +11,7 @@ import FormPreviewPanel from "./formStudio/FormPreviewPanel.jsx";
 // The Form Studio is only loaded when an admin opens it.
 const FormStudio = React.lazy(() => import("./formStudio/FormStudio.jsx"));
 import { PublishBar, friendlyError, previewUrlFor, useDocumentEditor, useDocumentList } from "./DocumentWorkflow.jsx";
-import { archiveDocument, createDocument, docStatus, getDocument, listDocuments, saveDraft } from "./api.js";
+import { archiveDocument, createDocument, deleteDocument, docStatus, getDocument, listDocuments, saveDraft } from "./api.js";
 import { imageSrc } from "../lib/cmsAdapters.js";
 import { supabase } from "../lib/supabase.js";
 import AdsEditor from "./AdsEditor.jsx";
@@ -257,10 +257,11 @@ function ItemEditor({ docId, kind, role, forms, samples, onBack, onChanged, relo
   );
 }
 
-function DocRow({ doc, last, onOpen }) {
+function DocRow({ doc, last, onOpen, onDelete, deleting }) {
   const thumb = thumbnailOf(doc.draft);
   return (
-    <button type="button" onClick={() => onOpen(doc)} className="w-full flex items-center gap-4 px-5 py-3.5 text-left hover:opacity-90" style={{ borderBottom: last ? "none" : `1px solid ${T.border}` }}>
+    <div className="flex items-center" style={{ borderBottom: last ? "none" : `1px solid ${T.border}` }}>
+    <button type="button" onClick={() => onOpen(doc)} className="flex-1 min-w-0 flex items-center gap-4 px-5 py-3.5 text-left hover:opacity-90">
       {thumb ? <img src={thumb} alt="" className="w-14 h-10 object-cover rounded-md shrink-0" style={{ border: `1px solid ${T.border}` }} /> : <span className="w-14 h-10 rounded-md shrink-0" style={{ backgroundColor: T.bg, border: `1px solid ${T.border}` }} />}
       <div className="flex-1 min-w-0">
         <div className="text-sm truncate" style={{ color: T.ink, ...fontBody }}>{doc.title}</div>
@@ -268,6 +269,8 @@ function DocRow({ doc, last, onOpen }) {
       </div>
       <span className="text-xs px-2.5 py-1 rounded-md shrink-0" style={{ backgroundColor: T.accentSoft, color: T.accent, ...fontBody }}>Edit</span>
     </button>
+    {onDelete && <div className="pr-5 shrink-0"><Button tone="danger" small icon={Trash2} busy={deleting} onClick={() => onDelete(doc)} title={`Delete "${doc.title}"`}>Delete</Button></div>}
+    </div>
   );
 }
 
@@ -321,6 +324,18 @@ function CollectionManagerView({ kinds, title, subtitle, role }) {
     ];
   });
   const openDoc = doc => { setKind(doc.kind); setSelectedId(doc.id); };
+  // News articles can be deleted from the list (admins). Other collections keep
+  // Archive in their editor, because pages and forms may link to them.
+  const [deletingId, setDeletingId] = useState(null);
+  const [deleteError, setDeleteError] = useState("");
+  const deleteDoc = async doc => {
+    if (!window.confirm(`Delete "${doc.title}" permanently?\n\nIt is removed from the website and its saved versions are deleted. This can't be undone.\n(To keep it for later instead, open it and use Archive.)`)) return;
+    setDeletingId(doc.id); setDeleteError("");
+    try { await deleteDocument(doc.id); await list.reload(); }
+    catch (err) { setDeleteError(friendlyError(err)); }
+    finally { setDeletingId(null); }
+  };
+  const rowDelete = doc => (isAdmin && doc.kind === "news_article" ? deleteDoc : undefined);
   const startNew = k => { setKind(k); setCreating(true); };
 
   const loadArchived = async () => {
@@ -351,6 +366,7 @@ function CollectionManagerView({ kinds, title, subtitle, role }) {
         <div className="relative w-full sm:w-64"><Search size={14} style={{ color: T.muted, position: "absolute", left: 10, top: 10 }} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder={view === "all" ? "Search all services" : `Search ${viewLabel.toLowerCase()}`} className="w-full rounded-lg pl-8 pr-3 py-2 text-sm outline-none" style={inputStyle} /></div>
       </div>
       {list.error && <Notice tone="danger">{list.error}</Notice>}
+      {deleteError && <Notice tone="danger">{deleteError}</Notice>}
       {list.docs === null ? <Spinner /> : view === "all" ? (
         <div className="flex flex-col gap-6">
           {sections.map(sec => (
@@ -362,7 +378,7 @@ function CollectionManagerView({ kinds, title, subtitle, role }) {
                 {canCreate && sec.canAdd && <Button small tone="soft" icon={Plus} onClick={() => startNew(sec.kind)}>New {COLLECTIONS[sec.kind].singular}</Button>}
               </div>
               <Panel className="overflow-hidden">
-                {sec.docs.map((doc, i) => <DocRow key={doc.id} doc={doc} last={i === sec.docs.length - 1} onOpen={openDoc} />)}
+                {sec.docs.map((doc, i) => <DocRow key={doc.id} doc={doc} last={i === sec.docs.length - 1} onOpen={openDoc} onDelete={rowDelete(doc)} deleting={deletingId === doc.id} />)}
                 {sec.docs.length === 0 && <EmptyState>No {sec.label.toLowerCase()} match this view.</EmptyState>}
               </Panel>
             </section>
@@ -370,7 +386,7 @@ function CollectionManagerView({ kinds, title, subtitle, role }) {
         </div>
       ) : (
         <Panel className="overflow-hidden">
-          {filtered.map((doc, i) => <DocRow key={doc.id} doc={doc} last={i === filtered.length - 1} onOpen={openDoc} />)}
+          {filtered.map((doc, i) => <DocRow key={doc.id} doc={doc} last={i === filtered.length - 1} onOpen={openDoc} onDelete={rowDelete(doc)} deleting={deletingId === doc.id} />)}
           {filtered.length === 0 && <EmptyState>No {viewLabel.toLowerCase()} match this view.</EmptyState>}
         </Panel>
       )}

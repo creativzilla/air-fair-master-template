@@ -86,6 +86,14 @@ export async function unpublishDocument(id, note) {
   if (error) throw error;
 }
 
+// Permanent delete (admins only, enforced by RLS): the document, its history
+// and its live copy. Form submissions that pointed at it are kept, unlinked.
+export async function deleteDocument(id) {
+  const { data, error } = await supabase.from("cms_documents").delete().eq("id", id).select("id");
+  if (error) throw error;
+  if (!data?.length) throw new Error("You don't have permission to delete this. Ask an admin.");
+}
+
 export async function archiveDocument(doc) {
   if (doc.published_version_id) await unpublishDocument(doc.id, "Archived");
   const fresh = await getDocument(doc.id);
