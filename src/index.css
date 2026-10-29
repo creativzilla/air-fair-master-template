@@ -144,17 +144,6 @@ body{margin:0;font-family:'Poppins',sans-serif;color:#5B6C80;background:#fff}
 .category-card-link{font-size:13.5px;font-weight:700;display:inline-flex;align-items:center;gap:5px;transition:gap .2s ease}
 .category-card:hover .category-card-link{gap:8px}
 
-/* Homepage service card, shown in full at the top of the page it opens (CardIntro). */
-.card-intro{padding:28px 0;border-bottom:1px solid rgba(16,45,104,.06)}
-.card-intro-inner{display:flex;align-items:flex-start;gap:18px;border-left:4px solid var(--card-intro-accent);padding-left:20px}
-.card-intro-icon{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:var(--card-intro-icon-bg);color:var(--card-intro-icon)}
-.card-intro h2{margin:2px 0 6px;font-size:22px;line-height:1.25;color:#102B57;font-weight:800}
-.card-intro p{margin:0;font-size:16px;line-height:1.65;color:#4A5867;max-width:820px}
-.card-intro--green{background:#F3FAEE;--card-intro-accent:#4B9B13;--card-intro-icon-bg:#DCEFC4;--card-intro-icon:#2F720E}
-.card-intro--amber{background:#FFF8E8;--card-intro-accent:#F2B705;--card-intro-icon-bg:#FCEEC7;--card-intro-icon:#A6790A}
-.card-intro--blue{background:#EFF6FE;--card-intro-accent:#3B82F6;--card-intro-icon-bg:#DCEAFB;--card-intro-icon:#1D4ED8}
-.card-intro--teal{background:#EAF8F6;--card-intro-accent:#14A39A;--card-intro-icon-bg:#CDEFEB;--card-intro-icon:#0F766E}
-@media (max-width:767px){.card-intro{padding:20px 0}.card-intro-inner{gap:14px;padding-left:14px}.card-intro-icon{width:42px;height:42px}.card-intro h2{font-size:19px}.card-intro p{font-size:15px}}
 .category-card--green{background:#F3FAEE;border-top-color:#4B9B13}
 .category-card--green .category-card-icon{background:#DCEFC4;color:#2F720E}
 .category-card--green .category-card-link{color:#2F720E}

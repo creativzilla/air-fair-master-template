@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import CardIntro from "../components/CardIntro.jsx";
 import { Navigate, useParams } from "react-router-dom";
 import { TopBars, Footer, ChatWidget, PageLoading, fallbackSettings, useSeo } from "./Website.jsx";
 import { fetchSiteSettings } from "../lib/content.js";
@@ -51,7 +50,6 @@ export default function ImmigrationServicePage() {
       <TopBars settings={settings} />
       <main id="main-content">
       <ServiceHero service={service} />
-      <CardIntro path={`/philippine-immigration-services/${serviceSlug}`} />
       <div className="section-shell svc-body">
         <div className="svc-main">
           <ServiceAbout service={service} />

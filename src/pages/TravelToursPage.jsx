@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import VeSection, { sectionRenderer } from "../components/visual/VeSection.jsx";
-import CardIntro from "../components/CardIntro.jsx";
 import { TopBars, Footer, ChatWidget, fallbackSettings, useSeo } from "./Website.jsx";
 import { fetchSiteSettings } from "../lib/content.js";
 import { usePage, useTravelDestinations, useTravelPackages } from "../lib/cms.js";
@@ -44,7 +43,6 @@ export default function TravelToursPage() {
       <TopBars settings={settings} />
       <main id="main-content">
       {page.visible("hero") && <VeSection doc="page:travel-hub" k="hero"><TravelToursHeader fields={page.section("hero")} /></VeSection>}
-      <CardIntro path="/travel-tours" />
       {page.visible("search") && (
         <VeSection doc="page:travel-hub" k="search"><TravelSearchBar
           fields={searchFields}

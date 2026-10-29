@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
+import { useCardLead } from "../lib/cardLead.js";
 import VeSection, { sectionRenderer } from "../components/visual/VeSection.jsx";
-import CardIntro from "../components/CardIntro.jsx";
 import { Link } from "react-router-dom";
 import { ArrowRight, MessageCircle, Plane } from "lucide-react";
 import { TopBars, Footer, ChatWidget, SectionTitle, fallbackSettings, useSeo } from "./Website.jsx";
@@ -38,6 +38,7 @@ function FeatureCard({ icon: Icon, title, description }) {
 
 function Hero({ fields }) {
   const labels = useLabels();
+  const description = useCardLead("/philippine-immigration-services", fields.description);
   return (
     <section className="pis-hero">
       <div className="section-shell pis-hero-inner">
@@ -53,7 +54,7 @@ function Hero({ fields }) {
           <h1>{fields.heading}</h1>
           <p className="pis-hero-sub">{fields.subheading}</p>
           <p className="pis-hero-desc">
-            {fields.description}
+            {description}
           </p>
           <div className="pis-hero-actions">
             <a className="green-button" href={fields.primaryCta?.href}>
@@ -181,7 +182,6 @@ export default function PhilippineImmigrationServices() {
       <TopBars settings={settings} />
       <main id="main-content">
       {show("hero", Hero)}
-      <CardIntro path="/philippine-immigration-services" />
       {show("about", About)}
       {show("services", Services)}
       {show("why", WhyChoose)}

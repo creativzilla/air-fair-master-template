@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useCardLead } from "../lib/cardLead.js";
 import VeSection, { sectionRenderer } from "../components/visual/VeSection.jsx";
-import CardIntro from "../components/CardIntro.jsx";
 import { ArrowRight, CheckCircle2, Globe, MessageCircle, Search } from "lucide-react";
 import { TopBars, Footer, ChatWidget, SectionTitle, fallbackSettings, useSeo } from "./Website.jsx";
 import { fetchSiteSettings } from "../lib/content.js";
@@ -11,6 +11,7 @@ import VisaDestinationCard from "../components/visa/VisaDestinationCard.jsx";
 
 function Hero({ fields }) {
   const labels = useLabels();
+  const description = useCardLead("/visa-assistance/international-tourist-visa", fields.description);
   return (
     <section className="pis-hero">
       <div className="section-shell pis-hero-inner">
@@ -25,7 +26,7 @@ function Hero({ fields }) {
 
           <h1>{fields.heading}</h1>
           <p className="pis-hero-desc">
-            {fields.description}
+            {description}
           </p>
           <div className="pis-hero-actions">
             <a className="green-button" href={fields.primaryCta?.href}>
@@ -151,7 +152,6 @@ export default function InternationalVisaAssistancePage() {
       <TopBars settings={settings} />
       <main id="main-content">
       {show("hero", Hero)}
-      <CardIntro path="/visa-assistance/international-tourist-visa" />
       {show("destinations", DestinationSearch)}
       {show("cantFind", CantFindStrip)}
       </main>
