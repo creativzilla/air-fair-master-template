@@ -83,7 +83,9 @@ export default function VisualEditor({ role }) {
         const home = list.find(d => d.kind === "page" && d.slug === "home");
         const cardPaths = ((home?.draft?.sections || []).find(s => s.key === "categories")?.fields?.items || []).map(i => pathOf(i.href));
         const linked = list.filter(d => d.kind !== "page" && d.kind !== "global" && cardPaths.includes(pathOf(previewUrlFor(d))));
-        items = [...items, ...linked.map(d => ({ ...d, viaCard: true }))];
+        // Right after Travel & Tours (before News).
+        const at = items.findIndex(d => d.slug === "travel-hub") + 1 || items.length;
+        items = [...items.slice(0, at), ...linked.map(d => ({ ...d, viaCard: true })), ...items.slice(at)];
       }
       else items = [...items].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || String(a.title).localeCompare(String(b.title)));
       return { ...g, items };
